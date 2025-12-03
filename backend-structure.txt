@@ -1,0 +1,17 @@
+backend/
+├── server.js
+├── package.json
+├── .env
+├── config/
+│   └── database.js
+├── models/
+│   └── User.js
+├── middleware/
+│   ├── auth.js
+│   └── role.js
+├── controllers/
+│   └── authController.js
+├── routes/
+│   └── authRoutes.js
+└── utils/
+    └── jwt.js
