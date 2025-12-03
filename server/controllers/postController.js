@@ -85,7 +85,7 @@ exports.getPost = async (req, res) => {
     }
     
     // Check permissions
-    if (req.user.role === 'admin' && post.authorId.toString() !== req.user._id.toString()) {
+    if (req.user.role === 'admin' && post.authorId && post.authorId._id.toString() !== req.user._id.toString()) {
       return res.status(403).json({
         success: false,
         message: 'Admin can only access their own posts'
@@ -210,7 +210,7 @@ exports.updatePost = async (req, res) => {
       req.params.id,
       updateData,
       { new: true, runValidators: true }
-    );
+    ).populate('authorId', 'name email');
     
     // Log activity
     await Activity.create({

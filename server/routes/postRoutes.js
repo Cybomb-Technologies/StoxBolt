@@ -15,6 +15,20 @@ const {
 // All routes are protected
 router.use(protect);
 
+// Debug route to check user info
+router.get('/debug', (req, res) => {
+  res.json({
+    success: true,
+    user: {
+      id: req.user._id,
+      role: req.user.role,
+      name: req.user.name,
+      email: req.user.email
+    },
+    message: 'Debug info - check if user is properly authenticated'
+  });
+});
+
 // Get posts (both admin and superadmin can view)
 router.route('/')
   .get(getPosts)
@@ -22,12 +36,12 @@ router.route('/')
 
 // Get scheduled posts
 router.route('/scheduled')
-  .get(getScheduledPosts);
+  .get(authorize('admin', 'superadmin'), getScheduledPosts);
 
 // Single post routes
 router.route('/:id')
   .get(getPost)
-  .put(updatePost)
+  .put(authorize('admin', 'superadmin'), updatePost)
   .delete(authorize('superadmin'), deletePost);
 
 // Publish post - only superadmin

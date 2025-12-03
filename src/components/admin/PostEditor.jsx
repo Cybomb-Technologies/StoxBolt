@@ -50,7 +50,7 @@ const PostEditor = () => {
   const statuses =
     user?.role === 'superadmin'
       ? ['draft', 'scheduled', 'published', 'archived']
-      : ['draft', 'scheduled'];
+      : ['draft'];
 
   useEffect(() => {
     if (isEditMode) {
@@ -182,131 +182,108 @@ const PostEditor = () => {
   };
 
   const handleSubmit = async (e) => {
-  e.preventDefault();
-  setLoading(true);
+    e.preventDefault();
+    setLoading(true);
 
-  try {
-    let imageUrl = existingImageUrl; // Start with existing image URL
-    
-    // Upload new image if exists
-    if (imageFile) {
-      const uploadedUrl = await uploadImage();
-      if (uploadedUrl) {
-        imageUrl = uploadedUrl;
-      } else {
-        // If upload failed but we have an existing image, keep it
-        if (!imageUrl && isEditMode) {
-          // If editing and upload failed, keep the existing one
-          imageUrl = existingImageUrl;
+    try {
+      let imageUrl = existingImageUrl; // Start with existing image URL
+      
+      // Upload new image if exists
+      if (imageFile) {
+        const uploadedUrl = await uploadImage();
+        if (uploadedUrl) {
+          imageUrl = uploadedUrl;
+        } else {
+          // If upload failed but we have an existing image, keep it
+          if (!imageUrl && isEditMode) {
+            // If editing and upload failed, keep the existing one
+            imageUrl = existingImageUrl;
+          }
         }
       }
-    }
 
-    // Prepare post data
-    const postData = {
-      title: formData.title,
-      shortTitle: formData.shortTitle,
-      body: formData.body,
-      category: formData.category,
-      region: formData.region,
-      author: formData.author || user?.name || 'Admin',
-      status: formData.status,
-      isSponsored: formData.isSponsored,
-      metaTitle: formData.metaTitle,
-      metaDescription: formData.metaDescription,
-      imageUrl: imageUrl, // Use the determined image URL
-    };
+      // Prepare post data
+      const postData = {
+        title: formData.title,
+        shortTitle: formData.shortTitle,
+        body: formData.body,
+        category: formData.category,
+        region: formData.region,
+        author: formData.author || user?.name || 'Admin',
+        status: formData.status,
+        isSponsored: formData.isSponsored,
+        metaTitle: formData.metaTitle,
+        metaDescription: formData.metaDescription,
+        imageUrl: imageUrl, // Use the determined image URL
+      };
 
-    // Only add publishDateTime if it has a value
-    if (formData.publishDateTime) {
-      postData.publishDateTime = formData.publishDateTime;
-    }
+      // Only add publishDateTime if it has a value
+      if (formData.publishDateTime) {
+        postData.publishDateTime = formData.publishDateTime;
+      }
 
-    // Handle tags
-    if (formData.tags.trim()) {
-      postData.tags = formData.tags
-        .split(',')
-        .map((tag) => tag.trim())
-        .filter(Boolean);
-    }
+      // Handle tags
+      if (formData.tags.trim()) {
+        postData.tags = formData.tags
+          .split(',')
+          .map((tag) => tag.trim())
+          .filter(Boolean);
+      }
 
-    // For new posts, add authorId
-    if (!isEditMode) {
-      postData.authorId = user?._id;
-    }
+      // For new posts, add authorId
+      if (!isEditMode) {
+        postData.authorId = user?._id;
+      }
 
-    console.log('Submitting post data:', postData); // Debug log
+      console.log('Submitting post data:', postData); // Debug log
 
-    const token = localStorage.getItem('token');
-    const url = isEditMode
-      ? `${baseURL}/api/posts/${id}`
-      : `${baseURL}/api/posts`;
-    const method = isEditMode ? 'PUT' : 'POST';
+      const token = localStorage.getItem('token');
+      const url = isEditMode
+        ? `${baseURL}/api/posts/${id}`
+        : `${baseURL}/api/posts`;
+      const method = isEditMode ? 'PUT' : 'POST';
 
-    const response = await fetch(url, {
-      method,
-      headers: {
-        Authorization: `Bearer ${token}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(postData),
-    });
-
-    const responseData = await response.json();
-    console.log('Server response:', responseData); // Debug log
-
-    if (!response.ok) {
-      throw new Error(responseData.message || `Failed to save post (${response.status})`);
-    }
-
-    if (responseData.success) {
-      toast({
-        title: 'Success!',
-        description: isEditMode
-          ? 'Post updated successfully'
-          : 'Post created successfully',
+      const response = await fetch(url, {
+        method,
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(postData),
       });
 
-      if (!isEditMode) {
-        // Reset form if creating new post
-        setFormData({
-          title: '',
-          shortTitle: '',
-          body: '',
-          category: 'Indian',
-          tags: '',
-          region: 'India',
-          author: user?.name || '',
-          publishDateTime: '',
-          status: 'draft',
-          isSponsored: false,
-          metaTitle: '',
-          metaDescription: '',
-          imageUrl: '',
-        });
-        setImageFile(null);
-        setPreviewImage(null);
-        setExistingImageUrl('');
-      } else {
-        // Navigate back to posts list
-        setTimeout(() => {
-          navigate('/admin/posts');
-        }, 1000);
+      const responseData = await response.json();
+      console.log('Server response:', responseData); // Debug log
+
+      if (!response.ok) {
+        throw new Error(responseData.message || `Failed to save post (${response.status})`);
       }
-    } else {
-      throw new Error(responseData.message || 'Failed to save post');
+
+      if (responseData.success) {
+        toast({
+          title: 'Success!',
+          description: isEditMode
+            ? 'Post updated successfully'
+            : 'Post created successfully',
+        });
+
+       setTimeout(() => {
+  navigate('/admin/posts/list'); // Changed from '/admin/posts'
+}, 1000);
+      } else {
+        throw new Error(responseData.message || 'Failed to save post');
+      }
+    } catch (error) {
+      console.error('Submit error:', error);
+      toast({
+        title: 'Error',
+        description: error.message || 'Failed to save post',
+        variant: 'destructive',
+      });
+    } finally {
+      setLoading(false);
     }
-  } catch (error) {
-    console.error('Submit error:', error);
-    toast({
-      title: 'Error',
-      description: error.message || 'Failed to save post',
-      variant: 'destructive',
-    });
-  } finally {
-    setLoading(false);
-  }
-};
+  };
 
   const handlePreview = () => {
     // Create a preview object
@@ -318,6 +295,7 @@ const PostEditor = () => {
         .split(',')
         .map((tag) => tag.trim())
         .filter(Boolean),
+      // Store the actual image data for preview
       imageUrl: previewImage || formData.imageUrl || existingImageUrl,
     };
 
@@ -335,18 +313,8 @@ const PostEditor = () => {
       </div>
     );
   }
-// Add a debug button (temporary - remove in production)
-const debugData = () => {
-  console.log('Current form data:', formData);
-  console.log('Existing image URL:', existingImageUrl);
-  console.log('Preview image:', previewImage);
-  console.log('Image file:', imageFile);
-  console.log('User:', user);
-  console.log('Is edit mode:', isEditMode);
-  console.log('Post ID:', id);
-};
+
   return (
-    
     <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
@@ -587,12 +555,12 @@ const debugData = () => {
 
         <div className="flex justify-end space-x-4 pt-6 border-t">
           <Button
-            type="button"
-            variant="outline"
-            onClick={() => navigate('/admin/posts')}
-          >
-            Cancel
-          </Button>
+  type="button"
+  variant="outline"
+  onClick={() => navigate('/admin/posts/list')} // Changed from '/admin/posts'
+>
+  Cancel
+</Button>
           <Button
             type="submit"
             disabled={loading}
@@ -612,7 +580,6 @@ const debugData = () => {
           </Button>
         </div>
       </form>
-      
     </motion.div>
   );
 };

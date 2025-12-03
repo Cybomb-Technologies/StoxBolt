@@ -2,6 +2,42 @@ const Admin = require('../models/admin');
 const Activity = require('../models/Activity');
 const bcrypt = require('bcryptjs');
 
+// Helper function to safely create activity log
+const createActivityLog = async (activityData) => {
+  try {
+    // Try to create activity with admin-specific type first
+    return await Activity.create(activityData);
+  } catch (activityError) {
+    // If it fails due to enum validation, try with a more generic type
+    if (activityError.name === 'ValidationError' && activityError.errors?.type?.kind === 'enum') {
+      console.warn(`Activity type "${activityData.type}" not in enum, trying fallback`);
+      
+      // Map admin-specific types to more generic ones
+      const typeMapping = {
+        'admin_created': 'user_created',
+        'admin_updated': 'user_updated',
+        'admin_deactivated': 'user_deactivated',
+        'admin_reactivated': 'user_activated'
+      };
+      
+      const fallbackType = typeMapping[activityData.type] || 'system';
+      
+      // Try again with fallback type
+      try {
+        return await Activity.create({
+          ...activityData,
+          type: fallbackType
+        });
+      } catch (fallbackError) {
+        console.error('Fallback activity creation failed:', fallbackError.message);
+      }
+    } else {
+      console.error('Activity creation error:', activityError.message);
+    }
+    return null; // Return null if activity creation fails (don't stop admin operation)
+  }
+};
+
 // @desc    Create new admin user (Superadmin only)
 // @route   POST /api/users/admins
 // @access  Private/Superadmin
@@ -9,21 +45,34 @@ exports.createAdmin = async (req, res) => {
   try {
     const { name, email, password, role } = req.body;
 
-    // Check if admin exists
-    const adminExists = await Admin.findOne({ email });
-    if (adminExists) {
+    // Validate required fields
+    if (!name || !email || !password) {
       return res.status(400).json({
         success: false,
-        message: 'Admin already exists'
+        message: 'Name, email and password are required'
+      });
+    }
+
+    // Check if admin exists
+    const adminExists = await Admin.findOne({ email });
+
+    if (adminExists) {
+      const existingAdmin = adminExists.toObject();
+      delete existingAdmin.password;
+
+      return res.status(200).json({
+        success: true,
+        message: 'Admin already exists',
+        data: existingAdmin,
       });
     }
 
     // Validate role
-    const allowedRoles = ['admin']; // Superadmin cannot create another superadmin
+    const allowedRoles = ['admin'];
     if (role && !allowedRoles.includes(role)) {
       return res.status(400).json({
         success: false,
-        message: 'Invalid role. Can only create admin users'
+        message: 'Invalid role. Can only create admin users',
       });
     }
 
@@ -36,16 +85,25 @@ exports.createAdmin = async (req, res) => {
       name,
       email,
       password: hashedPassword,
-      role: role || 'admin'
+      role: role || 'admin',
+      isActive: true,
+      createdBy: req.user._id,
     });
 
-    // Log activity
-    await Activity.create({
+    // Log activity - try with admin_created first
+    await createActivityLog({
       type: 'admin_created',
       userId: req.user._id,
       user: req.user.name,
       title: `Created admin user: ${name}`,
-      details: { email, role: role || 'admin' }
+      details: { 
+        email, 
+        role: role || 'admin', 
+        userType: 'admin',
+        action: 'created'
+      },
+      targetId: admin._id,
+      targetType: 'Admin'
     });
 
     // Remove password from response
@@ -55,14 +113,29 @@ exports.createAdmin = async (req, res) => {
     res.status(201).json({
       success: true,
       message: 'Admin created successfully',
-      data: adminResponse
+      data: adminResponse,
     });
-
   } catch (error) {
     console.error('Create admin error:', error);
+    
+    if (error.code === 11000) {
+      return res.status(400).json({
+        success: false,
+        message: 'Email already exists'
+      });
+    }
+    
+    if (error.name === 'ValidationError') {
+      return res.status(400).json({
+        success: false,
+        message: error.message
+      });
+    }
+    
     res.status(500).json({
       success: false,
-      message: 'Server error'
+      message: 'Server error creating admin',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
     });
   }
 };
@@ -72,8 +145,6 @@ exports.createAdmin = async (req, res) => {
 // @access  Private/Superadmin
 exports.getAdmins = async (req, res) => {
   try {
-    // Don't show superadmin users to other admins
-    // Only show admin users
     const admins = await Admin.find({ role: 'admin' })
       .select('-password')
       .sort({ createdAt: -1 });
@@ -136,7 +207,6 @@ exports.updateAdmin = async (req, res) => {
       });
     }
 
-    // Cannot update superadmin
     if (admin.role === 'superadmin') {
       return res.status(403).json({
         success: false,
@@ -144,12 +214,10 @@ exports.updateAdmin = async (req, res) => {
       });
     }
 
-    // Update fields
     if (name) admin.name = name;
     if (email) admin.email = email;
     if (typeof isActive === 'boolean') admin.isActive = isActive;
     
-    // Update password if provided
     if (password) {
       const salt = await bcrypt.genSalt(10);
       admin.password = await bcrypt.hash(password, salt);
@@ -157,16 +225,21 @@ exports.updateAdmin = async (req, res) => {
 
     await admin.save();
 
-    // Log activity
-    await Activity.create({
+    // Log activity with error handling
+    await createActivityLog({
       type: 'admin_updated',
       userId: req.user._id,
       user: req.user.name,
       title: `Updated admin: ${admin.name}`,
-      details: { email: admin.email, isActive: admin.isActive }
+      details: { 
+        email: admin.email, 
+        isActive: admin.isActive,
+        changes: Object.keys(req.body).filter(key => key !== 'password')
+      },
+      targetId: admin._id,
+      targetType: 'Admin'
     });
 
-    // Remove password from response
     const adminResponse = admin.toObject();
     delete adminResponse.password;
 
@@ -199,7 +272,6 @@ exports.deactivateAdmin = async (req, res) => {
       });
     }
 
-    // Cannot deactivate superadmin
     if (admin.role === 'superadmin') {
       return res.status(403).json({
         success: false,
@@ -210,13 +282,19 @@ exports.deactivateAdmin = async (req, res) => {
     admin.isActive = false;
     await admin.save();
 
-    // Log activity
-    await Activity.create({
+    // Log activity with error handling
+    await createActivityLog({
       type: 'admin_deactivated',
       userId: req.user._id,
       user: req.user.name,
       title: `Deactivated admin: ${admin.name}`,
-      details: { email: admin.email }
+      details: { 
+        email: admin.email,
+        isActive: false,
+        action: 'deactivated'
+      },
+      targetId: admin._id,
+      targetType: 'Admin'
     });
 
     res.status(200).json({
@@ -250,13 +328,19 @@ exports.reactivateAdmin = async (req, res) => {
     admin.isActive = true;
     await admin.save();
 
-    // Log activity
-    await Activity.create({
+    // Log activity with error handling
+    await createActivityLog({
       type: 'admin_reactivated',
       userId: req.user._id,
       user: req.user.name,
       title: `Reactivated admin: ${admin.name}`,
-      details: { email: admin.email }
+      details: { 
+        email: admin.email,
+        isActive: true,
+        action: 'reactivated'
+      },
+      targetId: admin._id,
+      targetType: 'Admin'
     });
 
     res.status(200).json({
@@ -288,7 +372,7 @@ exports.getAdminStats = async (req, res) => {
         totalAdmins,
         activeAdmins,
         inactiveAdmins,
-        superadminCount: 1 // Usually only one superadmin
+        superadminCount: 1
       }
     });
 

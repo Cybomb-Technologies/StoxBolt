@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Calendar, User, Tag, Eye, Globe } from 'lucide-react';
+import { ArrowLeft, Calendar, User, Tag, Eye, Globe, ImageOff } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 const PostPreview = () => {
   const [post, setPost] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [imageError, setImageError] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -31,6 +32,45 @@ const PostPreview = () => {
     };
   }, []);
 
+  // Function to get safe image URL
+  const getImageUrl = (url) => {
+    if (!url) return null;
+    
+    // If it's a base64 image (from preview), use it directly
+    if (url.startsWith('data:image')) {
+      return url;
+    }
+    
+    // If it's a relative path or uploaded path
+    if (url.startsWith('/') || url.startsWith('uploads/')) {
+      // For preview, we can't always access backend files
+      // Return a placeholder or the URL as-is
+      return url.startsWith('/') ? url : `/${url}`;
+    }
+    
+    // If it's already a full URL
+    return url;
+  };
+
+  // Handle image loading error
+  const handleImageError = () => {
+    setImageError(true);
+  };
+
+  // Function to go back to post list
+  const goBackToList = () => {
+    navigate('/admin/posts/list');
+  };
+
+  // Function to continue editing
+  const continueEditing = () => {
+    if (post._id === 'preview' || !post._id) {
+      navigate('/admin/posts/new');
+    } else {
+      navigate(`/admin/posts/edit/${post._id}`);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex justify-center items-center min-h-screen">
@@ -44,13 +84,15 @@ const PostPreview = () => {
       <div className="flex flex-col justify-center items-center min-h-screen p-4">
         <h1 className="text-2xl font-bold text-gray-900 mb-4">No Preview Available</h1>
         <p className="text-gray-600 mb-6">Please go back and create or edit a post to see the preview.</p>
-        <Button onClick={() => navigate('/admin/posts')} className="bg-orange-600 hover:bg-orange-700">
+        <Button onClick={() => navigate('/admin/posts/list')} className="bg-orange-600 hover:bg-orange-700">
           <ArrowLeft className="h-4 w-4 mr-2" />
           Back to Posts
         </Button>
       </div>
     );
   }
+
+  const imageUrl = getImageUrl(post.imageUrl);
 
   return (
     <motion.div
@@ -69,11 +111,11 @@ const PostPreview = () => {
       <div className="container mx-auto px-4 py-8 max-w-4xl">
         <Button
           variant="outline"
-          onClick={() => window.close()}
+          onClick={goBackToList}
           className="mb-6"
         >
           <ArrowLeft className="h-4 w-4 mr-2" />
-          Close Preview
+          Back to Posts List
         </Button>
 
         {/* Post Content */}
@@ -122,16 +164,33 @@ const PostPreview = () => {
           </div>
 
           {/* Featured Image */}
-          {post.imageUrl && (
+          {imageUrl && (
             <div className="mb-8">
-              <img
-                src={post.imageUrl}
-                alt={post.title}
-                className="w-full h-auto max-h-[500px] object-cover rounded-xl shadow-lg"
-              />
-              {post.imageUrl.startsWith('data:') && (
+              <div className="relative">
+                <img
+                  src={imageUrl}
+                  alt={post.title}
+                  className="w-full h-auto max-h-[500px] object-cover rounded-xl shadow-lg"
+                  onError={handleImageError}
+                  crossOrigin="anonymous"
+                />
+                {imageError && (
+                  <div className="absolute inset-0 flex flex-col items-center justify-center bg-gray-100 rounded-xl">
+                    <ImageOff className="h-12 w-12 text-gray-400 mb-2" />
+                    <p className="text-gray-500 text-sm">Image failed to load in preview</p>
+                  </div>
+                )}
+              </div>
+              
+              {/* Image info messages */}
+              {post.imageUrl && post.imageUrl.startsWith('data:') && (
                 <p className="text-sm text-gray-500 text-center mt-2">
-                  ⚠️ Image is stored as base64 data - it will be uploaded when you save
+                  📷 Image is stored temporarily - it will be uploaded when you save
+                </p>
+              )}
+              {post.imageUrl && post.imageUrl.includes('localhost:5000') && (
+                <p className="text-sm text-yellow-600 text-center mt-2">
+                  ⚠️ Note: In preview mode, images from backend may not load due to security restrictions
                 </p>
               )}
             </div>
@@ -221,19 +280,13 @@ const PostPreview = () => {
         <div className="flex justify-center gap-4 mt-8">
           <Button
             variant="outline"
-            onClick={() => window.close()}
+            onClick={goBackToList}
           >
-            Close Preview
+            Back to Posts List
           </Button>
           <Button
             className="bg-orange-600 hover:bg-orange-700"
-            onClick={() => {
-              if (post._id === 'preview') {
-                navigate('/admin/posts/create');
-              } else {
-                navigate(`/admin/posts/edit/${post._id}`);
-              }
-            }}
+            onClick={continueEditing}
           >
             {post._id === 'preview' ? 'Continue Editing' : 'Edit This Post'}
           </Button>

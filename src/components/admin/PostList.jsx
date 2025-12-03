@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
-import { Edit, Trash2, Eye, Search, FileUp, Filter, Loader2 } from 'lucide-react';
+import { Edit, Trash2, Eye, Search, FileUp, Filter, Loader2, Plus, Info } from 'lucide-react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -14,10 +14,12 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { useAuth } from '@/contexts/AuthContext';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
+
 const baseURL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
 const PostList = () => {
+  const navigate = useNavigate();
   const [posts, setPosts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
@@ -27,6 +29,7 @@ const PostList = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [totalPosts, setTotalPosts] = useState(0);
+  const [debugInfo, setDebugInfo] = useState(null);
   const { toast } = useToast();
   const { user } = useAuth();
 
@@ -40,10 +43,22 @@ const PostList = () => {
     setLoading(true);
     try {
       const token = localStorage.getItem('token');
+      const userData = localStorage.getItem('user');
+      
       if (!token) {
         throw new Error('No authentication token found');
       }
-      
+
+      if (!userData) {
+        throw new Error('User data not found');
+      }
+
+      // Debug: Log user info
+      const parsedUser = JSON.parse(userData);
+      console.log('Current user:', parsedUser);
+      console.log('User role:', parsedUser.role);
+      console.log('User ID:', parsedUser._id);
+
       // Build query parameters
       const params = new URLSearchParams({
         page: currentPage,
@@ -54,6 +69,8 @@ const PostList = () => {
       if (filterCategory !== 'all') params.append('category', filterCategory);
       if (searchQuery) params.append('search', searchQuery);
 
+      console.log('Fetching posts with params:', params.toString());
+
       const response = await fetch(`${baseURL}/api/posts?${params}`, {
         headers: {
           'Authorization': `Bearer ${token}`
@@ -62,27 +79,58 @@ const PostList = () => {
 
       const data = await response.json();
       
+      console.log('Posts API response status:', response.status);
+      console.log('Posts API response data:', data);
+
       if (!response.ok) {
-        throw new Error(data.message || 'Failed to fetch posts');
+        // Handle specific error cases
+        if (response.status === 403) {
+          // Admin trying to access posts but none exist
+          setPosts([]);
+          setTotalPages(1);
+          setTotalPosts(0);
+          setDebugInfo({
+            message: 'Admin has no posts yet or access denied',
+            userRole: parsedUser.role,
+            userId: parsedUser._id
+          });
+          return;
+        }
+        throw new Error(data.message || `Failed to fetch posts (${response.status})`);
       }
 
       if (data.success) {
         setPosts(data.data || []);
         setTotalPages(data.totalPages || 1);
         setTotalPosts(data.total || 0);
+        setDebugInfo({
+          message: 'Successfully loaded posts',
+          userRole: parsedUser.role,
+          userId: parsedUser._id,
+          count: data.data?.length || 0
+        });
       } else {
         throw new Error(data.message || 'Failed to load posts');
       }
     } catch (error) {
       console.error('Error fetching posts:', error);
-      toast({
-        title: 'Error',
-        description: error.message || 'Failed to load posts',
-        variant: 'destructive'
-      });
+      
+      // Don't show error toast for empty admin posts
+      if (!error.message.includes('403')) {
+        toast({
+          title: 'Error',
+          description: error.message || 'Failed to load posts',
+          variant: 'destructive'
+        });
+      }
+      
       setPosts([]);
       setTotalPages(1);
       setTotalPosts(0);
+      setDebugInfo({
+        message: error.message,
+        error: true
+      });
     } finally {
       setLoading(false);
     }
@@ -107,6 +155,7 @@ const PostList = () => {
 
       if (data.success) {
         setPosts((prev) => prev.filter((p) => p._id !== postId));
+        setTotalPosts(prev => prev - 1);
         toast({
           title: 'Post Deleted',
           description: 'The post has been deleted successfully'
@@ -179,9 +228,11 @@ const PostList = () => {
   };
 
   const handlePreview = (post) => {
-    // Store post in localStorage for preview
+    // Store post data in localStorage for preview component
     localStorage.setItem('postPreview', JSON.stringify(post));
-    window.open(`/post/preview`, '_blank');
+    
+    // Navigate to the admin preview page within the same layout
+    navigate('/admin/preview');
   };
 
   // Check if user can edit a specific post
@@ -193,7 +244,9 @@ const PostList = () => {
     
     // Admin can only edit their own posts
     if (user.role === 'admin') {
-      return post.authorId?._id === user._id || post.authorId?.toString() === user._id;
+      // Check both possible formats of authorId
+      const authorId = post.authorId?._id || post.authorId;
+      return authorId === user._id || authorId?.toString() === user._id;
     }
     
     return false;
@@ -214,6 +267,38 @@ const PostList = () => {
     // Only superadmin can publish posts
     // And only if post is not already published
     return user.role === 'superadmin' && post.status !== 'published';
+  };
+
+  // Test API connection
+  const testAPIConnection = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const userData = localStorage.getItem('user');
+      
+      const response = await fetch(`${baseURL}/api/posts/debug`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      
+      const data = await response.json();
+      console.log('Debug API response:', data);
+      
+      toast({
+        title: 'Debug Info',
+        description: `User: ${data.user?.name || 'Unknown'}, Role: ${data.user?.role || 'Unknown'}`,
+        variant: data.success ? 'default' : 'destructive'
+      });
+      
+      return data;
+    } catch (error) {
+      console.error('Debug API error:', error);
+      toast({
+        title: 'Debug Error',
+        description: error.message,
+        variant: 'destructive'
+      });
+    }
   };
 
   if (loading) {
@@ -246,7 +331,7 @@ const PostList = () => {
             />
           </div>
 
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <select
               value={filterStatus}
               onChange={(e) => {
@@ -276,12 +361,48 @@ const PostList = () => {
                 </option>
               ))}
             </select>
+
+            {user && (user.role === 'admin' || user.role === 'superadmin') && (
+              <Button
+                asChild
+                className="bg-orange-600 hover:bg-orange-700"
+              >
+                <Link to="/admin/posts/new">
+                  <Plus className="h-4 w-4 mr-2" />
+                  New Post
+                </Link>
+              </Button>
+            )}
+
+            {/* Debug button (remove in production) */}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={testAPIConnection}
+              title="Debug API Connection"
+            >
+              <Info className="h-4 w-4" />
+            </Button>
           </div>
         </div>
 
         <div className="flex items-center justify-between text-sm text-gray-600">
           <div>
             Showing {posts.length} of {totalPosts} posts
+            {user && (
+              <span className={`ml-2 px-2 py-1 text-xs rounded ${
+                user.role === 'admin' 
+                  ? 'bg-blue-100 text-blue-700' 
+                  : 'bg-purple-100 text-purple-700'
+              }`}>
+                {user.role === 'admin' ? 'Admin View' : 'Superadmin View'}
+              </span>
+            )}
+            {debugInfo && (
+              <span className="ml-2 px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded">
+                {debugInfo.message}
+              </span>
+            )}
           </div>
           <div className="flex items-center space-x-2">
             <Button
@@ -312,6 +433,25 @@ const PostList = () => {
           </div>
         </div>
       </div>
+
+      {/* Admin Info Banner */}
+      {user?.role === 'admin' && posts.length === 0 && (
+        <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+          <div className="flex items-start">
+            <Info className="h-5 w-5 text-blue-500 mr-2 flex-shrink-0 mt-0.5" />
+            <div>
+              <h3 className="font-semibold text-blue-800">Admin Post Permissions</h3>
+              <p className="text-sm text-blue-600 mt-1">
+                As an admin, you can only see and edit posts that you have created. 
+                {totalPosts === 0 ? ' You haven\'t created any posts yet.' : ''}
+              </p>
+              <p className="text-xs text-blue-500 mt-2">
+                Note: Only superadmin can publish posts and see all posts.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="overflow-x-auto">
         <table className="w-full">
@@ -344,6 +484,11 @@ const PostList = () => {
                   <div className="text-sm text-gray-700">{post.author}</div>
                   {post.authorId?.name && (
                     <div className="text-xs text-gray-500">{post.authorId.name}</div>
+                  )}
+                  {post.authorId?._id && user?.role === 'admin' && (
+                    <div className="text-xs text-gray-400 mt-1">
+                      Author ID: {post.authorId._id.toString().substring(0, 8)}...
+                    </div>
                   )}
                 </td>
                 <td className="py-4 px-4 text-sm text-gray-600">
@@ -408,8 +553,41 @@ const PostList = () => {
 
       {posts.length === 0 && !loading && (
         <div className="text-center py-12">
-          <p className="text-gray-600">No posts found</p>
-          <p className="text-sm text-gray-500 mt-2">Try changing your filters or create a new post</p>
+          <div className="mb-6">
+            <Info className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+            <p className="text-gray-600">No posts found</p>
+            <p className="text-sm text-gray-500 mt-2">
+              {user?.role === 'admin' 
+                ? 'Create your first post or check if you have existing posts'
+                : 'Try changing your filters or create a new post'}
+            </p>
+          </div>
+          {user?.role === 'admin' && (
+            <>
+              <p className="text-sm text-gray-500 mb-4">
+                As an admin, you can only see posts that you have created.
+              </p>
+              <Button
+                asChild
+                className="bg-orange-600 hover:bg-orange-700"
+              >
+                <Link to="/admin/posts/create">
+                  <Plus className="h-4 w-4 mr-2" />
+                  Create Your First Post
+                </Link>
+              </Button>
+              <div className="mt-4">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={testAPIConnection}
+                >
+                  <Info className="h-4 w-4 mr-2" />
+                  Check User Permissions
+                </Button>
+              </div>
+            </>
+          )}
         </div>
       )}
 
