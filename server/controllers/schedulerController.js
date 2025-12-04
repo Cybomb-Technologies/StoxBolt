@@ -7,12 +7,17 @@ const cron = require('node-cron');
 // @access  Private
 exports.getScheduledPosts = async (req, res) => {
   try {
-    const query = { status: 'scheduled' };
+    const query = { 
+      isScheduled: true,
+      scheduleApproved: true,
+      status: 'scheduled'
+    };
     
-    // Filter by author if not admin/superadmin
-    if (!['admin', 'superadmin'].includes(req.user.role)) {
+    // Filter by author if admin
+    if (req.user.role === 'admin') {
       query.authorId = req.user._id;
     }
+    // Superadmin can see all scheduled posts
     
     const posts = await Post.find(query)
       .sort({ publishDateTime: 1 })
@@ -81,7 +86,7 @@ exports.deleteScheduledPost = async (req, res) => {
     }
     
     // Check if post is scheduled
-    if (post.status !== 'scheduled') {
+    if (!post.isScheduled) {
       return res.status(400).json({
         success: false,
         message: 'Post is not scheduled'
@@ -98,6 +103,8 @@ exports.deleteScheduledPost = async (req, res) => {
     }
     
     // Change status to draft
+    post.isScheduled = false;
+    post.scheduleApproved = false;
     post.status = 'draft';
     await post.save();
     
@@ -132,14 +139,17 @@ exports.processScheduledPosts = async () => {
   try {
     const now = new Date();
     
-    // Find posts scheduled for publication
+    // Find posts scheduled for publication that are approved
     const posts = await Post.find({
+      isScheduled: true,
+      scheduleApproved: true,
       status: 'scheduled',
       publishDateTime: { $lte: now }
     });
     
     for (const post of posts) {
       post.status = 'published';
+      post.publishDateTime = now; // Update to actual publish time
       await post.save();
       
       // Log activity
@@ -149,10 +159,14 @@ exports.processScheduledPosts = async () => {
         user: 'System',
         title: post.title,
         postId: post._id,
-        details: { automated: true }
+        details: { 
+          automated: true,
+          scheduled: true,
+          scheduledTime: post.publishDateTime
+        }
       });
       
-      console.log(`Auto-published: ${post.title}`);
+      console.log(`Auto-published scheduled post: ${post.title}`);
     }
     
     return posts.length;

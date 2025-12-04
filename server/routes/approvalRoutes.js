@@ -1,8 +1,11 @@
+// approvalRoutes.js - Add the new route
 const express = require('express');
 const router = express.Router();
 const {
   getAdminPostsForApproval,
   getMyAdminPosts,
+  getMySubmissions,
+  getPendingScheduleApprovalsForAdmin,  // Add this
   createAdminPost,
   requestPostUpdate,
   approveAdminPost,
@@ -16,31 +19,29 @@ const { protect, authorize } = require('../middleware/auth');
 // All routes are protected
 router.use(protect);
 
-// Get admin posts by author (admin only) - MUST COME BEFORE :id ROUTES
+// Route for getting admin's own posts
 router.get('/my-posts', authorize('admin'), getMyAdminPosts);
 
-// Create admin post for approval (admin only)
-router.post('/posts', authorize('admin'), createAdminPost);
+// Route for getting all user submissions
+router.get('/my-submissions', authorize('admin'), getMySubmissions);
 
-// Get all admin posts for approval (superadmin only)
-router.get('/posts', authorize('superadmin'), getAdminPostsForApproval);
+// NEW ROUTE for superadmin to see pending schedule approvals
+router.get('/pending-schedule', authorize('superadmin'), getPendingScheduleApprovalsForAdmin);
 
-// Request update for published post (admin only)
+// Routes for admin posts collection
+router.route('/posts')
+  .get(authorize('superadmin'), getAdminPostsForApproval)
+  .post(authorize('admin'), createAdminPost);
+
+// Routes for specific admin post by ID
+router.route('/posts/:id')
+  .get(getAdminPost)
+  .put(authorize('admin'), updateAdminPost);
+
+// Action routes for specific admin post
 router.post('/posts/:id/request-update', authorize('admin'), requestPostUpdate);
-
-// Get single admin post
-router.get('/posts/:id', getAdminPost);
-
-// Approve admin post (superadmin only)
 router.put('/posts/:id/approve', authorize('superadmin'), approveAdminPost);
-
-// Reject admin post (superadmin only)
 router.put('/posts/:id/reject', authorize('superadmin'), rejectAdminPost);
-
-// Request changes for admin post (superadmin only)
 router.put('/posts/:id/request-changes', authorize('superadmin'), requestChanges);
-
-// Update admin post (admin can update their own pending posts)
-router.put('/posts/:id', authorize('admin'), updateAdminPost);
 
 module.exports = router;

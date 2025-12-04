@@ -3,7 +3,7 @@ import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/components/ui/use-toast';
-import { Save, Eye, Upload, Loader2, Send, Clock } from 'lucide-react';
+import { Save, Eye, Upload, Loader2, Send, Clock, Calendar } from 'lucide-react';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -52,8 +52,8 @@ const AdminPostEditor = () => {
     if (isEditMode && isUpdateRequest) {
       fetchOriginalPost();
     } else if (isEditMode) {
-      // If it's edit mode but not an update request, redirect or handle differently
-      navigate('/admin/posts');
+      // If it's edit mode but not an update request, fetch the admin post
+      fetchAdminPost();
     }
   }, [id]);
 
@@ -107,6 +107,61 @@ const AdminPostEditor = () => {
         variant: 'destructive',
       });
       navigate('/admin/posts');
+    } finally {
+      setFetching(false);
+    }
+  };
+
+  const fetchAdminPost = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`${baseURL}/api/approval/posts/${id}`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch admin post');
+      }
+
+      const data = await response.json();
+
+      if (data.success) {
+        const adminPost = data.data;
+        setOriginalPost(adminPost);
+        
+        // Pre-fill form with admin post data
+        setFormData({
+          title: adminPost.title || '',
+          shortTitle: adminPost.shortTitle || '',
+          body: adminPost.body || '',
+          category: adminPost.category || 'Indian',
+          tags: adminPost.tags?.join(', ') || '',
+          region: adminPost.region || 'India',
+          author: adminPost.author || user?.name || '',
+          publishDateTime: adminPost.publishDateTime
+            ? new Date(adminPost.publishDateTime).toISOString().slice(0, 16)
+            : '',
+          isSponsored: adminPost.isSponsored || false,
+          metaTitle: adminPost.metaTitle || '',
+          metaDescription: adminPost.metaDescription || '',
+          imageUrl: adminPost.imageUrl || '',
+        });
+        
+        if (adminPost.imageUrl) {
+          setExistingImageUrl(adminPost.imageUrl);
+          setPreviewImage(adminPost.imageUrl);
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching admin post:', error);
+      toast({
+        title: 'Error',
+        description: error.message || 'Failed to load post',
+        variant: 'destructive',
+      });
+      navigate('/admin/my-approvals');
     } finally {
       setFetching(false);
     }
@@ -199,9 +254,19 @@ const AdminPostEditor = () => {
         imageUrl: imageUrl,
       };
 
-      // Only add publishDateTime if it has a value
+      // Handle publish date time for scheduling
       if (formData.publishDateTime) {
         postData.publishDateTime = formData.publishDateTime;
+        
+        // Check if it's a future date (scheduled post)
+        const publishDate = new Date(formData.publishDateTime);
+        const now = new Date();
+        
+        if (publishDate > now) {
+          // This is a scheduled post
+          postData.isScheduled = true;
+          postData.scheduleApproved = false; // Admin needs approval
+        }
       }
 
       // Handle tags
@@ -215,7 +280,7 @@ const AdminPostEditor = () => {
       const token = localStorage.getItem('token');
       
       if (isUpdateRequest && originalPost) {
-        // Submit update request using the correct endpoint
+        // Submit update request for published post
         const response = await fetch(`${baseURL}/api/approval/posts/${originalPost._id}/request-update`, {
           method: 'POST',
           headers: {
@@ -231,17 +296,47 @@ const AdminPostEditor = () => {
           throw new Error(responseData.message || 'Failed to submit update request');
         }
 
-        if (responseData.success) {
-          toast({
-            title: 'Update Request Submitted!',
-            description: 'Your update request has been submitted for superadmin approval',
-          });
-          setTimeout(() => {
-            navigate('/admin/my-approvals');
-          }, 1000);
+        const isScheduled = postData.isScheduled || false;
+        
+        toast({
+          title: 'Update Request Submitted!',
+          description: isScheduled
+            ? 'Your scheduled update request has been submitted for superadmin approval'
+            : 'Your update request has been submitted for superadmin approval',
+        });
+        setTimeout(() => {
+          navigate('/admin/my-approvals');
+        }, 1000);
+      } else if (isEditMode) {
+        // Update existing admin post
+        const response = await fetch(`${baseURL}/api/approval/posts/${id}`, {
+          method: 'PUT',
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(postData),
+        });
+
+        const responseData = await response.json();
+        
+        if (!response.ok) {
+          throw new Error(responseData.message || 'Failed to update post');
         }
+
+        const isScheduled = postData.isScheduled || false;
+        
+        toast({
+          title: 'Post Updated!',
+          description: isScheduled
+            ? 'Scheduled post updated and resubmitted for approval'
+            : 'Post updated and resubmitted for review',
+        });
+        setTimeout(() => {
+          navigate('/admin/my-approvals');
+        }, 1000);
       } else {
-        // Submit new post for approval using the correct endpoint
+        // Submit new post for approval
         const response = await fetch(`${baseURL}/api/approval/posts`, {
           method: 'POST',
           headers: {
@@ -257,15 +352,17 @@ const AdminPostEditor = () => {
           throw new Error(responseData.message || 'Failed to submit post for approval');
         }
 
-        if (responseData.success) {
-          toast({
-            title: 'Post Submitted for Approval!',
-            description: 'Your post has been submitted for superadmin approval',
-          });
-          setTimeout(() => {
-            navigate('/admin/my-approvals');
-          }, 1000);
-        }
+        const isScheduled = postData.isScheduled || false;
+        
+        toast({
+          title: 'Post Submitted for Approval!',
+          description: isScheduled
+            ? 'Your scheduled post has been submitted for superadmin approval'
+            : 'Your post has been submitted for superadmin approval',
+        });
+        setTimeout(() => {
+          navigate('/admin/my-approvals');
+        }, 1000);
       }
     } catch (error) {
       console.error('Submit error:', error);
@@ -296,6 +393,9 @@ const AdminPostEditor = () => {
     window.open(`/post/preview`, '_blank');
   };
 
+  // Check if publish date is in the future
+  const isFutureDate = formData.publishDateTime && new Date(formData.publishDateTime) > new Date();
+
   if (fetching) {
     return (
       <div className="flex justify-center items-center py-12">
@@ -313,12 +413,14 @@ const AdminPostEditor = () => {
       <div className="flex justify-between items-center mb-6">
         <div>
           <h2 className="text-2xl font-bold text-gray-900">
-            {isUpdateRequest ? 'Request Post Update' : 'Create New Post'}
+            {isUpdateRequest ? 'Request Post Update' : (isEditMode ? 'Edit Post' : 'Create New Post')}
           </h2>
           <p className="text-gray-600 mt-1">
             {isUpdateRequest 
               ? 'Request changes to a published post (requires superadmin approval)'
-              : 'Create a new post (requires superadmin approval)'}
+              : isEditMode
+                ? 'Edit your submitted post'
+                : 'Create a new post (requires superadmin approval)'}
           </p>
         </div>
         <div className="flex items-center space-x-2">
@@ -345,6 +447,21 @@ const AdminPostEditor = () => {
           </p>
           <p className="text-xs text-yellow-500 mt-2">
             Note: Changes will only take effect after superadmin approval
+          </p>
+        </div>
+      )}
+
+      {isFutureDate && (
+        <div className="mb-6 p-4 bg-purple-50 border border-purple-200 rounded-lg">
+          <div className="flex items-center">
+            <Calendar className="h-5 w-5 text-purple-500 mr-2" />
+            <span className="font-medium text-purple-800">Scheduled Post</span>
+          </div>
+          <p className="text-sm text-purple-600 mt-1">
+            This post will be scheduled for {new Date(formData.publishDateTime).toLocaleString()}
+          </p>
+          <p className="text-xs text-purple-500 mt-2">
+            Note: Scheduled posts require superadmin approval
           </p>
         </div>
       )}
@@ -448,7 +565,15 @@ const AdminPostEditor = () => {
           </div>
 
           <div>
-            <Label htmlFor="publishDateTime">Publish Date & Time</Label>
+            <div className="flex items-center justify-between">
+              <Label htmlFor="publishDateTime">Publish Date & Time</Label>
+              {isFutureDate && (
+                <span className="text-xs text-purple-600 font-medium flex items-center">
+                  <Calendar className="h-3 w-3 mr-1" />
+                  Scheduled post
+                </span>
+              )}
+            </div>
             <input
               id="publishDateTime"
               name="publishDateTime"
@@ -457,6 +582,11 @@ const AdminPostEditor = () => {
               onChange={handleChange}
               className="w-full mt-2 px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-orange-500 focus:outline-none"
             />
+            {isFutureDate && (
+              <p className="text-xs text-gray-500 mt-1">
+                Post will be scheduled and require superadmin approval
+              </p>
+            )}
           </div>
 
           <div className="md:col-span-2">
@@ -547,7 +677,7 @@ const AdminPostEditor = () => {
           <Button
             type="button"
             variant="outline"
-            onClick={() => navigate(isUpdateRequest ? '/admin/posts' : '/admin/posts/list')}
+            onClick={() => navigate(isUpdateRequest || isEditMode ? '/admin/my-approvals' : '/admin/posts/list')}
           >
             Cancel
           </Button>
@@ -559,12 +689,18 @@ const AdminPostEditor = () => {
             {loading ? (
               <>
                 <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                Submitting...
+                {isFutureDate ? 'Scheduling...' : 'Submitting...'}
               </>
             ) : (
               <>
                 <Send className="h-4 w-4 mr-2" />
-                {isUpdateRequest ? 'Submit Update Request' : 'Submit for Approval'}
+                {isFutureDate 
+                  ? 'Schedule for Approval'
+                  : isUpdateRequest 
+                    ? 'Submit Update Request' 
+                    : isEditMode
+                      ? 'Update Post'
+                      : 'Submit for Approval'}
               </>
             )}
           </Button>

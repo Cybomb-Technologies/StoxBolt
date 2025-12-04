@@ -1,7 +1,402 @@
 const AdminPost = require('../models/AdminPost');
 const Post = require('../models/Post');
 const Activity = require('../models/Activity');
+// approvalController.js - Complete fixed getMySubmissions function
+exports.getMySubmissions = async (req, res) => {
+  try {
+    console.log('=== GET MY SUBMISSIONS STARTED ===');
+    console.log('User ID:', req.user._id, 'Role:', req.user.role);
+    
+    const { status, page = 1, limit = 20, search, type = 'all' } = req.query;
+    
+    const skip = (page - 1) * limit;
+    
+    // Get ALL AdminPosts for this user (including scheduled posts)
+    const adminPostQuery = { authorId: req.user._id };
+    
+    // Get ALL Posts for this user
+    const postQuery = { authorId: req.user._id };
+    
+    // Filter by status if provided
+    if (status && status !== 'all') {
+      adminPostQuery.approvalStatus = status;
+      
+      // Map status for Posts
+      const statusMap = {
+        'pending_review': 'pending_approval',
+        'approved': 'published',
+        'scheduled_pending': { 
+          $or: [
+            { status: 'pending_approval', isScheduled: true },
+            { status: 'draft', isScheduled: true }
+          ]
+        },
+        'scheduled_approved': { status: 'scheduled', isScheduled: true },
+        'published': 'published',
+        'draft': 'draft'
+      };
+      
+      if (statusMap[status]) {
+        postQuery.$or = Array.isArray(statusMap[status]) ? 
+          statusMap[status] : 
+          [{ ...postQuery, ...(typeof statusMap[status] === 'object' ? statusMap[status] : { status: statusMap[status] }) }];
+      }
+    }
+    
+    // Search functionality
+    if (search && search.trim()) {
+      const searchRegex = { $regex: search.trim(), $options: 'i' };
+      
+      adminPostQuery.$or = [
+        { title: searchRegex },
+        { shortTitle: searchRegex },
+        { category: searchRegex },
+        { tags: searchRegex },
+        { approvalStatus: searchRegex }
+      ];
+      
+      postQuery.$or = [
+        { title: searchRegex },
+        { shortTitle: searchRegex },
+        { category: searchRegex },
+        { tags: searchRegex },
+        { status: searchRegex }
+      ];
+    }
+    
+    console.log('AdminPost Query:', JSON.stringify(adminPostQuery, null, 2));
+    console.log('Post Query:', JSON.stringify(postQuery, null, 2));
+    
+    // Fetch AdminPosts
+    const [adminPosts, adminTotal] = await Promise.all([
+      AdminPost.find(adminPostQuery)
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(parseInt(limit))
+        .populate('authorId', 'name email')
+        .populate('approvedBy', 'name email')
+        .populate('scheduleApprovedBy', 'name email')
+        .populate('postId', 'title status shortTitle category')
+        .lean(),
+      AdminPost.countDocuments(adminPostQuery)
+    ]);
+    
+    // Fetch Posts
+    const [posts, postTotal] = await Promise.all([
+      Post.find(postQuery)
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(parseInt(limit))
+        .populate('authorId', 'name email')
+        .populate('lastApprovedBy', 'name email')
+        .populate('scheduleApprovedBy', 'name email')
+        .lean(),
+      Post.countDocuments(postQuery)
+    ]);
+    
+    console.log(`Found ${adminPosts.length} AdminPosts and ${posts.length} Posts`);
+    
+    // Transform ALL AdminPosts (including scheduled)
+    const transformedAdminPosts = adminPosts.map(post => {
+      // Determine if it's a scheduled post
+      const isScheduledPost = post.isScheduledPost || 
+        (post.publishDateTime && new Date(post.publishDateTime) > new Date());
+      
+      // Determine the status for display
+      let displayStatus = post.approvalStatus;
+      
+      // Special handling for scheduled posts in AdminPost
+      if (isScheduledPost) {
+        if (post.scheduleApproved) {
+          displayStatus = 'scheduled_approved';
+        } else if (post.approvalStatus === 'scheduled_pending') {
+          displayStatus = 'scheduled_pending';
+        } else {
+          displayStatus = 'scheduled_pending';
+        }
+      }
+      
+      // Check if this is linked to a Post
+      const hasLinkedPost = post.postId && post.postId._id;
+      
+      return {
+        ...post,
+        _id: post._id,
+        type: 'approval',
+        isScheduledPost: isScheduledPost,
+        isScheduled: isScheduledPost,
+        approvalStatus: displayStatus,
+        scheduleApproved: post.scheduleApproved || false,
+        scheduleApprovedBy: post.scheduleApprovedBy,
+        scheduleApprovedAt: post.scheduleApprovedAt,
+        isUpdateRequest: post.isUpdateRequest || false,
+        version: post.version || 1,
+        // Ensure we have all necessary fields
+        title: post.title || 'Untitled',
+        shortTitle: post.shortTitle || '',
+        category: post.category || 'Uncategorized',
+        createdAt: post.createdAt || new Date(),
+        // For UI consistency
+        status: displayStatus,
+        // Add linked post info if exists
+        linkedPostId: hasLinkedPost ? post.postId._id : null,
+        linkedPostTitle: hasLinkedPost ? post.postId.title : null,
+        linkedPostStatus: hasLinkedPost ? post.postId.status : null
+      };
+    });
+    
+    // Transform Posts (focus on scheduled posts)
+    const transformedPosts = posts.map(post => {
+      // Determine if it's a scheduled post
+      const isScheduled = post.isScheduled || 
+        (post.publishDateTime && new Date(post.publishDateTime) > new Date());
+      
+      // Determine approval status
+      let approvalStatus = '';
+      if (isScheduled) {
+        approvalStatus = post.scheduleApproved ? 'scheduled_approved' : 'scheduled_pending';
+      } else {
+        approvalStatus = post.status === 'published' ? 'approved' : 
+                        post.status === 'pending_approval' ? 'pending_review' : 
+                        post.status;
+      }
+      
+      return {
+        ...post,
+        _id: post._id,
+        type: 'post',
+        isScheduledPost: isScheduled,
+        isScheduled: isScheduled,
+        approvalStatus: approvalStatus,
+        scheduleApproved: post.scheduleApproved || false,
+        scheduleApprovedBy: post.scheduleApprovedBy,
+        scheduleApprovedAt: post.scheduleApprovedAt,
+        isUpdateRequest: false,
+        version: 1,
+        // For UI consistency
+        reviewerNotes: '',
+        rejectionReason: post.rejectionReason || '',
+        status: approvalStatus
+      };
+    });
+    
+    // Combine ALL submissions
+    const allSubmissions = [...transformedAdminPosts, ...transformedPosts]
+      .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+    
+    // Apply pagination after sorting
+    const paginatedSubmissions = allSubmissions.slice(0, limit);
+    
+    const total = adminTotal + postTotal;
+    const totalPages = Math.ceil(total / limit);
+    
+    console.log(`Total submissions: ${total}, Showing: ${paginatedSubmissions.length}`);
+    
+    // Debug: Log what we're sending - ESPECIALLY scheduled posts
+    console.log('=== SCHEDULED POSTS ANALYSIS ===');
+    
+    // Count scheduled posts
+    const scheduledAdminPosts = transformedAdminPosts.filter(p => p.isScheduledPost);
+    const scheduledPosts = transformedPosts.filter(p => p.isScheduled);
+    
+    console.log(`Scheduled AdminPosts: ${scheduledAdminPosts.length}`);
+    console.log(`Scheduled Posts: ${scheduledPosts.length}`);
+    console.log(`Total Scheduled: ${scheduledAdminPosts.length + scheduledPosts.length}`);
+    
+    // Log details of scheduled posts
+    if (scheduledAdminPosts.length > 0) {
+      console.log('Scheduled AdminPosts details:');
+      scheduledAdminPosts.forEach((post, index) => {
+        console.log(`${index + 1}. ID: ${post._id}`);
+        console.log(`   Title: ${post.title}`);
+        console.log(`   Approval Status: ${post.approvalStatus}`);
+        console.log(`   Schedule Approved: ${post.scheduleApproved}`);
+        console.log(`   Publish Date: ${post.publishDateTime}`);
+        console.log(`   Has Linked Post: ${post.linkedPostId ? 'Yes' : 'No'}`);
+        console.log('---');
+      });
+    }
+    
+    if (scheduledPosts.length > 0) {
+      console.log('Scheduled Posts details:');
+      scheduledPosts.forEach((post, index) => {
+        console.log(`${index + 1}. ID: ${post._id}`);
+        console.log(`   Title: ${post.title}`);
+        console.log(`   Approval Status: ${post.approvalStatus}`);
+        console.log(`   Schedule Approved: ${post.scheduleApproved}`);
+        console.log(`   Publish Date: ${post.publishDateTime}`);
+        console.log('---');
+      });
+    }
+    
+    res.status(200).json({
+      success: true,
+      count: paginatedSubmissions.length,
+      total,
+      totalPages,
+      currentPage: parseInt(page),
+      data: paginatedSubmissions,
+      // Add debug info for scheduled posts
+      debug: process.env.NODE_ENV === 'development' ? {
+        scheduled: {
+          adminPosts: scheduledAdminPosts.length,
+          posts: scheduledPosts.length,
+          total: scheduledAdminPosts.length + scheduledPosts.length
+        }
+      } : undefined
+    });
+    
+    console.log('=== GET MY SUBMISSIONS COMPLETED ===');
+    
+  } catch (error) {
+    console.error('Get all submissions error:', error);
+    console.error('Error stack:', error.stack);
+    res.status(500).json({
+      success: false,
+      message: 'Server error',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+};
 
+// approvalController.js - Add this function for admin approval page
+exports.getPendingScheduleApprovalsForAdmin = async (req, res) => {
+  try {
+    console.log('=== GET PENDING SCHEDULE APPROVALS FOR ADMIN ===');
+    console.log('User:', req.user.name, 'Role:', req.user.role);
+    
+    // Only superadmin can access this
+    if (req.user.role !== 'superadmin') {
+      return res.status(403).json({
+        success: false,
+        message: 'Only superadmin can access pending schedule approvals'
+      });
+    }
+    
+    const { page = 1, limit = 20, search } = req.query;
+    const skip = (page - 1) * limit;
+    
+    // Query for AdminPosts with scheduled pending status
+    const adminPostQuery = {
+      $or: [
+        { approvalStatus: 'scheduled_pending' },
+        { 
+          isScheduledPost: true,
+          scheduleApproved: false,
+          approvalStatus: { $ne: 'scheduled_approved' }
+        },
+        {
+          publishDateTime: { $exists: true, $ne: null, $gt: new Date() },
+          scheduleApproved: false
+        }
+      ]
+    };
+    
+    // Query for Posts with scheduled pending status
+    const postQuery = {
+      isScheduled: true,
+      scheduleApproved: false,
+      status: { $in: ['pending_approval', 'draft'] }
+    };
+    
+    // Apply search if provided
+    if (search && search.trim()) {
+      const searchRegex = { $regex: search.trim(), $options: 'i' };
+      
+      adminPostQuery.$and = [
+        { ...adminPostQuery.$or ? { $or: adminPostQuery.$or } : {} },
+        {
+          $or: [
+            { title: searchRegex },
+            { shortTitle: searchRegex },
+            { category: searchRegex },
+            { author: searchRegex }
+          ]
+        }
+      ];
+      delete adminPostQuery.$or;
+      
+      postQuery.$or = [
+        { title: searchRegex },
+        { shortTitle: searchRegex },
+        { category: searchRegex },
+        { author: searchRegex }
+      ];
+    }
+    
+    console.log('AdminPost Query:', JSON.stringify(adminPostQuery, null, 2));
+    console.log('Post Query:', JSON.stringify(postQuery, null, 2));
+    
+    // Fetch pending AdminPosts
+    const adminPosts = await AdminPost.find(adminPostQuery)
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(parseInt(limit))
+      .populate('authorId', 'name email')
+      .populate('postId', 'title status');
+    
+    // Fetch pending Posts
+    const posts = await Post.find(postQuery)
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(parseInt(limit))
+      .populate('authorId', 'name email');
+    
+    console.log(`Found ${adminPosts.length} AdminPosts and ${posts.length} Posts pending schedule approval`);
+    
+    // Transform AdminPosts
+    const transformedAdminPosts = adminPosts.map(post => ({
+      ...post.toObject(),
+      type: 'adminpost',
+      source: 'AdminPost',
+      approvalId: post._id,
+      isFromAdminPost: true
+    }));
+    
+    // Transform Posts
+    const transformedPosts = posts.map(post => ({
+      ...post.toObject(),
+      type: 'post',
+      source: 'Post',
+      approvalId: post._id,
+      isFromPost: true,
+      approvalStatus: 'scheduled_pending'
+    }));
+    
+    // Combine and sort
+    const allPending = [...transformedAdminPosts, ...transformedPosts]
+      .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+    
+    // Count totals
+    const adminTotal = await AdminPost.countDocuments(adminPostQuery);
+    const postTotal = await Post.countDocuments(postQuery);
+    const total = adminTotal + postTotal;
+    const totalPages = Math.ceil(total / limit);
+    
+    res.status(200).json({
+      success: true,
+      count: allPending.length,
+      total,
+      totalPages,
+      currentPage: parseInt(page),
+      data: allPending,
+      debug: process.env.NODE_ENV === 'development' ? {
+        adminPostsCount: adminPosts.length,
+        postsCount: posts.length,
+        adminTotal,
+        postTotal
+      } : undefined
+    });
+    
+  } catch (error) {
+    console.error('Get pending schedule approvals error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+};
 // @desc    Get all admin posts for approval
 // @route   GET /api/approval/posts
 // @access  Private (Superadmin only)
@@ -44,7 +439,8 @@ exports.getAdminPostsForApproval = async (req, res) => {
     console.error('Get admin posts error:', error);
     res.status(500).json({
       success: false,
-      message: 'Server error'
+      message: 'Server error',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
     });
   }
 };
@@ -54,9 +450,9 @@ exports.getAdminPostsForApproval = async (req, res) => {
 // @access  Private (Admin only)
 exports.getMyAdminPosts = async (req, res) => {
   try {
-    console.log('Fetching my admin posts for user:', req.user._id); // Add logging
+    console.log('Fetching my admin posts for user:', req.user._id);
     
-    const { status, page = 1, limit = 20 } = req.query;
+    const { status, page = 1, limit = 20, search } = req.query;
     
     const query = { authorId: req.user._id };
     
@@ -65,9 +461,18 @@ exports.getMyAdminPosts = async (req, res) => {
       query.approvalStatus = status;
     }
     
+    // Search functionality
+    if (search) {
+      query.$or = [
+        { title: { $regex: search, $options: 'i' } },
+        { category: { $regex: search, $options: 'i' } },
+        { approvalStatus: { $regex: search, $options: 'i' } }
+      ];
+    }
+    
     const skip = (page - 1) * limit;
     
-    console.log('Query:', query); // Add logging
+    console.log('Query:', query);
     
     const posts = await AdminPost.find(query)
       .sort({ createdAt: -1 })
@@ -78,7 +483,7 @@ exports.getMyAdminPosts = async (req, res) => {
     
     const total = await AdminPost.countDocuments(query);
     
-    console.log(`Found ${posts.length} posts for user ${req.user._id}`); // Add logging
+    console.log(`Found ${posts.length} posts for user ${req.user._id}`);
     
     res.status(200).json({
       success: true,
@@ -91,7 +496,7 @@ exports.getMyAdminPosts = async (req, res) => {
     
   } catch (error) {
     console.error('Get my admin posts error:', error);
-    console.error('Error stack:', error.stack); // Add stack trace
+    console.error('Error stack:', error.stack);
     res.status(500).json({
       success: false,
       message: 'Server error',
@@ -240,7 +645,8 @@ exports.requestPostUpdate = async (req, res) => {
     console.error('Request post update error:', error);
     res.status(500).json({
       success: false,
-      message: 'Server error'
+      message: 'Server error',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
     });
   }
 };
@@ -375,14 +781,13 @@ exports.approveAdminPost = async (req, res) => {
     console.error('Approve admin post error:', error);
     res.status(500).json({
       success: false,
-      message: 'Server error'
+      message: 'Server error',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
     });
   }
 };
 
-// @desc    Reject admin post
-// @route   PUT /api/approval/posts/:id/reject
-// @access  Private (Superadmin only)
+// In approvalController.js - Updated rejectAdminPost function
 exports.rejectAdminPost = async (req, res) => {
   try {
     const adminPostId = req.params.id;
@@ -430,9 +835,19 @@ exports.rejectAdminPost = async (req, res) => {
       }
     }
     
-    // Log activity
-    await Activity.create({
-      type: 'post_rejected',
+    // Helper function to safely log activity
+    const logActivitySafely = async (activityData) => {
+      try {
+        await Activity.create(activityData);
+      } catch (activityError) {
+        console.error('Activity logging error:', activityError.message);
+        // Continue even if activity logging fails
+      }
+    };
+    
+    // Log activity with safe type
+    await logActivitySafely({
+      type: 'post_rejected', // Use a valid enum value
       userId: req.user._id,
       user: req.user.name,
       title: adminPost.title,
@@ -440,7 +855,9 @@ exports.rejectAdminPost = async (req, res) => {
       details: { 
         type: 'rejected',
         reason: reason,
-        rejectedBy: req.user.name
+        rejectedBy: req.user.name,
+        approvalStatus: 'rejected',
+        isScheduledPost: adminPost.isScheduledPost || false
       }
     });
     
@@ -454,7 +871,8 @@ exports.rejectAdminPost = async (req, res) => {
     console.error('Reject admin post error:', error);
     res.status(500).json({
       success: false,
-      message: 'Server error'
+      message: 'Server error',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
     });
   }
 };
@@ -529,7 +947,8 @@ exports.requestChanges = async (req, res) => {
     console.error('Request changes error:', error);
     res.status(500).json({
       success: false,
-      message: 'Server error'
+      message: 'Server error',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
     });
   }
 };
@@ -623,7 +1042,8 @@ exports.updateAdminPost = async (req, res) => {
     console.error('Update admin post error:', error);
     res.status(500).json({
       success: false,
-      message: 'Server error'
+      message: 'Server error',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
     });
   }
 };
@@ -662,7 +1082,8 @@ exports.getAdminPost = async (req, res) => {
     console.error('Get admin post error:', error);
     res.status(500).json({
       success: false,
-      message: 'Server error'
+      message: 'Server error',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
     });
   }
-};
+};  

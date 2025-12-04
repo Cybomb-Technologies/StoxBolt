@@ -37,6 +37,7 @@ const AdminDashboard = () => {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [isMobile, setIsMobile] = useState(false);
   const [pendingApprovals, setPendingApprovals] = useState(0);
+  const [pendingScheduleApprovals, setPendingScheduleApprovals] = useState(0); // Add this state
   const [userLastLogin, setUserLastLogin] = useState('');
   const [sidebarWidth, setSidebarWidth] = useState(280);
   const [userPendingSubmissions, setUserPendingSubmissions] = useState(0);
@@ -66,6 +67,7 @@ const AdminDashboard = () => {
   useEffect(() => {
     if (isSuperadmin) {
       fetchPendingApprovals();
+      fetchPendingScheduleApprovals(); // Add this
     }
   }, [isSuperadmin]);
 
@@ -94,6 +96,24 @@ const AdminDashboard = () => {
       }
     } catch (error) {
       console.error('Error fetching pending approvals:', error);
+    }
+  };
+
+  const fetchPendingScheduleApprovals = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/posts/pending-schedule`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      const data = await response.json();
+      if (data.success) {
+        setPendingScheduleApprovals(data.count || 0);
+      }
+    } catch (error) {
+      console.error('Error fetching pending schedule approvals:', error);
     }
   };
 
@@ -128,6 +148,7 @@ const AdminDashboard = () => {
   const fetchUserPendingSubmissions = async () => {
     try {
       const token = localStorage.getItem('token');
+      
       const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/approval/posts/my-pending`, {
         headers: {
           'Authorization': `Bearer ${token}`
@@ -204,6 +225,15 @@ const AdminDashboard = () => {
         description: 'Review pending approvals',
         showBadge: true,
         badgeCount: pendingApprovals
+      },
+      {
+        title: 'Schedule Approvals',
+        path: '/admin/schedule-approvals',
+        icon: <Clock className="h-5 w-5" />,
+        roles: ['superadmin'],
+        description: 'Approve scheduled posts',
+        showBadge: true,
+        badgeCount: pendingScheduleApprovals
       },
       {
         title: 'Bulk Upload',
@@ -551,6 +581,19 @@ const AdminDashboard = () => {
                     <span className="absolute -top-1 -right-1 inline-flex h-3 w-3">
                       <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-orange-400 opacity-75"></span>
                       <span className="relative inline-flex rounded-full h-3 w-3 bg-orange-500"></span>
+                    </span>
+                  </Link>
+                )}
+                {isSuperadmin && pendingScheduleApprovals > 0 && ( 
+                  <Link
+                    to="/admin/schedule-approvals"
+                    className="relative flex items-center space-x-2 px-3 py-2 bg-purple-50 text-purple-700 rounded-lg hover:bg-purple-100 transition-colors"
+                  >
+                    <Bell className="h-5 w-5" />
+                    <span className="font-medium">{pendingScheduleApprovals} schedule pending</span>
+                    <span className="absolute -top-1 -right-1 inline-flex h-3 w-3">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-purple-400 opacity-75"></span>
+                      <span className="relative inline-flex rounded-full h-3 w-3 bg-purple-500"></span>
                     </span>
                   </Link>
                 )}

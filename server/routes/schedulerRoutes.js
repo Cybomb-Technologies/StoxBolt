@@ -19,5 +19,9 @@ router.route('/posts/:id')
 
 router.route('/timezone')
   .put(updateTimezone);
-
+// Add this route for schedule approvals page
+router.get('/schedule-approvals', protect, authorize('superadmin'), (req, res) => {
+  // This would render your React component
+  res.render('schedule-approvals');
+});
 module.exports = router;

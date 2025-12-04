@@ -34,7 +34,7 @@ const Overview = React.lazy(() => import('@/components/admin/Overview'));
 const ApprovalQueue = React.lazy(() => import('@/components/admin/ApprovalQueue'));
 const AdminPostEditor = React.lazy(() => import('@/components/admin/AdminPostEditor'));
 const MyApprovals = React.lazy(() => import('@/components/admin/MyApprovals'));
-
+const ScheduleApprovals = React.lazy(() => import('@/components/admin/ScheduleApprovals'));
 // Loading fallback
 const LoadingFallback = () => (
   <div className="min-h-screen flex items-center justify-center">
@@ -161,6 +161,11 @@ function App() {
                   <PostScheduler />
                 </React.Suspense>
               } />
+              <Route path="schedule-approvals" element={
+                <React.Suspense fallback={<LoadingFallback />}>
+                  <ScheduleApprovals />
+                </React.Suspense>
+              } />  
               <Route path="activity" element={
                 <React.Suspense fallback={<LoadingFallback />}>
                   <ActivityLog />
