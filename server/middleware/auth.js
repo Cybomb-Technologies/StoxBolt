@@ -31,6 +31,14 @@ const protect = async (req, res, next) => {
       });
     }
 
+    // Ensure user has proper role
+    if (!req.user.role || !['admin', 'superadmin'].includes(req.user.role)) {
+      return res.status(403).json({
+        success: false,
+        message: 'Invalid user role'
+      });
+    }
+
     next();
   } catch (error) {
     console.error('Auth middleware error:', error);
@@ -100,7 +108,7 @@ const authorizePostAction = (action) => {
         if (post.authorId.toString() !== req.user._id.toString()) {
           return res.status(403).json({
             success: false,
-            message: 'Not authorized to update this post'
+            message: 'Admin can only update their own posts'
           });
         }
         return next();

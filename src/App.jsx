@@ -1,45 +1,65 @@
 import React from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate, Outlet } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { Helmet } from 'react-helmet';
-import Header from '@/components/Header';
-import Footer from '@/components/Footer';
-import HomePage from '@/pages/HomePage';
-import PostDetailPage from '@/pages/PostDetailPage';
-import CategoryPage from '@/pages/CategoryPage';
-import AdminDashboard from '@/pages/admin/AdminDashboard';
-import LoginPage from '@/pages/admin/LoginPage';
-import DisclaimerPage from '@/pages/DisclaimerPage';
-import TermsPage from '@/pages/TermsPage';
-import PrivacyPage from '@/pages/PrivacyPage';
-import RefundPolicyPage from '@/pages/RefundPolicyPage';
-import AboutPage from '@/pages/AboutPage';
 import { Toaster } from '@/components/ui/toaster';
 import { AuthProvider } from '@/contexts/AuthContext';
-import FloatingIndices from '@/components/FloatingIndices';
 import ProtectedRoute from '@/components/ProtectedRoute';
-import PostPreview from '@/components/admin/PostPreview';
-// Main Layout Component (with header/footer)
-const MainLayout = () => {
+
+// Import components directly to avoid any import issues
+const Header = React.lazy(() => import('@/components/Header'));
+const Footer = React.lazy(() => import('@/components/Footer'));
+const HomePage = React.lazy(() => import('@/pages/HomePage'));
+const PostDetailPage = React.lazy(() => import('@/pages/PostDetailPage'));
+const CategoryPage = React.lazy(() => import('@/pages/CategoryPage'));
+const AdminDashboard = React.lazy(() => import('@/pages/admin/AdminDashboard'));
+const LoginPage = React.lazy(() => import('@/pages/admin/LoginPage'));
+const DisclaimerPage = React.lazy(() => import('@/pages/DisclaimerPage'));
+const TermsPage = React.lazy(() => import('@/pages/TermsPage'));
+const PrivacyPage = React.lazy(() => import('@/pages/PrivacyPage'));
+const RefundPolicyPage = React.lazy(() => import('@/pages/RefundPolicyPage'));
+const AboutPage = React.lazy(() => import('@/pages/AboutPage'));
+const FloatingIndices = React.lazy(() => import('@/components/FloatingIndices'));
+
+// Admin Components
+const PostList = React.lazy(() => import('@/components/admin/PostList'));
+const PostEditor = React.lazy(() => import('@/components/admin/PostEditor'));
+const PostPreview = React.lazy(() => import('@/components/admin/PostPreview'));
+const BulkUpload = React.lazy(() => import('@/components/admin/BulkUpload'));
+const PostScheduler = React.lazy(() => import('@/components/admin/PostScheduler'));
+const ActivityLog = React.lazy(() => import('@/components/admin/ActivityLog'));
+const AdminList = React.lazy(() => import('@/components/admin/AdminList'));
+const CreateAdmin = React.lazy(() => import('@/components/admin/CreateAdmin'));
+const EditAdmin = React.lazy(() => import('@/components/admin/EditAdmin'));
+const Overview = React.lazy(() => import('@/components/admin/Overview'));
+const ApprovalQueue = React.lazy(() => import('@/components/admin/ApprovalQueue'));
+const AdminPostEditor = React.lazy(() => import('@/components/admin/AdminPostEditor'));
+const MyApprovals = React.lazy(() => import('@/components/admin/MyApprovals'));
+
+// Loading fallback
+const LoadingFallback = () => (
+  <div className="min-h-screen flex items-center justify-center">
+    <div className="text-center">
+      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-600 mx-auto"></div>
+      <p className="mt-4 text-gray-600">Loading...</p>
+    </div>
+  </div>
+);
+
+// Main Layout Component
+const MainLayout = ({ children }) => {
   return (
     <>
-      <Header />
-      <FloatingIndices />
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 pt-16">
-        <main className="flex-grow">
-          <Outlet />
-        </main>
-      </div>
-      <Footer />
+      <React.Suspense fallback={<LoadingFallback />}>
+        <Header />
+        <FloatingIndices />
+        <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 pt-16">
+          <main className="flex-grow">
+            {children}
+          </main>
+        </div>
+        <Footer />
+      </React.Suspense>
     </>
-  );
-};
-
-// Admin Layout Component (without header/footer)
-const AdminLayout = () => {
-  return (
-    <div className="min-h-screen bg-gray-100">
-      <Outlet />
-    </div>
   );
 };
 
@@ -52,35 +72,145 @@ function App() {
           <meta name="description" content="Stay updated with the latest financial news from India, US, Global markets, Commodities, Forex, Crypto, and IPOs on StoxBolt" />
         </Helmet>
         
-        <Routes>
-          {/* Admin Routes (without header/footer) */}
-          <Route element={<AdminLayout />}>
+        <React.Suspense fallback={<LoadingFallback />}>
+          <Routes>
+            {/* Public Routes */}
             <Route path="/login" element={<LoginPage />} />
-            <Route 
-              path="/admin/*" 
-              element={
-                <ProtectedRoute>
-                  <AdminDashboard />
-                </ProtectedRoute>
-              } 
-            />
-          </Route>
-          
-          {/* Main Website Routes (with header/footer) */}
-          <Route element={<MainLayout />}>
-            <Route path="/" element={<HomePage />} />
-            <Route path="/post/:id" element={<PostDetailPage />} />
-            <Route path="/category/:category" element={<CategoryPage />} />
-            <Route path="/disclaimer" element={<DisclaimerPage />} />
-            <Route path="/terms" element={<TermsPage />} />
-            <Route path="/privacy" element={<PrivacyPage />} />
-            <Route path="/refund-policy" element={<RefundPolicyPage />} />
-            <Route path="/about" element={<AboutPage />} />
-            <Route path="/post/preview" element={<PostPreview />} />
-            {/* Redirect any unmatched routes to home */}
+            
+            {/* Public routes with main layout */}
+            <Route path="/" element={
+              <MainLayout>
+                <HomePage />
+              </MainLayout>
+            } />
+            <Route path="/post/:id" element={
+              <MainLayout>
+                <PostDetailPage />
+              </MainLayout>
+            } />
+            <Route path="/category/:category" element={
+              <MainLayout>
+                <CategoryPage />
+              </MainLayout>
+            } />
+            <Route path="/disclaimer" element={
+              <MainLayout>
+                <DisclaimerPage />
+              </MainLayout>
+            } />
+            <Route path="/terms" element={
+              <MainLayout>
+                <TermsPage />
+              </MainLayout>
+            } />
+            <Route path="/privacy" element={
+              <MainLayout>
+                <PrivacyPage />
+              </MainLayout>
+            } />
+            <Route path="/refund-policy" element={
+              <MainLayout>
+                <RefundPolicyPage />
+              </MainLayout>
+            } />
+            <Route path="/about" element={
+              <MainLayout>
+                <AboutPage />
+              </MainLayout>
+            } />
+            
+            {/* Admin Routes - All nested under AdminDashboard layout */}
+            <Route path="/admin" element={
+              <ProtectedRoute>
+                <AdminDashboard />
+              </ProtectedRoute>
+            }>
+              <Route index element={<Navigate to="/admin/overview" replace />} />
+              <Route path="overview" element={
+                <React.Suspense fallback={<LoadingFallback />}>
+                  <Overview /> 
+                </React.Suspense>
+              } />
+              <Route path="posts/list" element={
+                <React.Suspense fallback={<LoadingFallback />}>
+                  <PostList />
+                </React.Suspense>
+              } />
+              <Route path="posts/new" element={
+                <React.Suspense fallback={<LoadingFallback />}>
+                  <PostEditor />
+                </React.Suspense>
+              } />
+              <Route path="posts/new-approval" element={
+                <React.Suspense fallback={<LoadingFallback />}>
+                  <AdminPostEditor />
+                </React.Suspense>
+              } />
+              <Route path="posts/edit/:id" element={
+                <React.Suspense fallback={<LoadingFallback />}>
+                  <PostEditor />
+                </React.Suspense>
+              } />
+              <Route path="bulk-upload" element={
+                <React.Suspense fallback={<LoadingFallback />}>
+                  <BulkUpload />
+                </React.Suspense>
+              } />
+              <Route path="scheduler" element={
+                <React.Suspense fallback={<LoadingFallback />}>
+                  <PostScheduler />
+                </React.Suspense>
+              } />
+              <Route path="activity" element={
+                <React.Suspense fallback={<LoadingFallback />}>
+                  <ActivityLog />
+                </React.Suspense>
+              } />
+              <Route path="preview" element={
+                <React.Suspense fallback={<LoadingFallback />}>
+                  <PostPreview />
+                </React.Suspense>
+              } />
+              <Route path="users" element={
+                <React.Suspense fallback={<LoadingFallback />}>
+                  <AdminList />
+                </React.Suspense>
+              } />
+              <Route path="users/create" element={
+                <React.Suspense fallback={<LoadingFallback />}>
+                  <CreateAdmin />
+                </React.Suspense>
+              } />
+              <Route path="users/edit/:id" element={
+                <React.Suspense fallback={<LoadingFallback />}>
+                  <EditAdmin />
+                </React.Suspense>
+              } />
+              <Route path="approval" element={
+                <React.Suspense fallback={<LoadingFallback />}>
+                  <ApprovalQueue />
+                </React.Suspense>
+              } />
+              <Route path="my-approvals" element={
+                <React.Suspense fallback={<LoadingFallback />}>
+                  <MyApprovals />
+                </React.Suspense>
+              } />
+            </Route>
+            
+            {/* Preview route (public but with main layout) */}
+            <Route path="/post/preview" element={
+              <MainLayout>
+                <React.Suspense fallback={<LoadingFallback />}>
+                  <PostPreview />
+                </React.Suspense>
+              </MainLayout>
+            } />
+            
+            {/* Redirect any unmatched routes */}
             <Route path="*" element={<Navigate to="/" replace />} />
-          </Route>
-        </Routes>
+          </Routes>
+        </React.Suspense>
         
         <Toaster />
       </AuthProvider>

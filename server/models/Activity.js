@@ -1,9 +1,25 @@
 const mongoose = require('mongoose');
 
 const ActivitySchema = new mongoose.Schema({
-  type: {
+   type: {
     type: String,
-    enum: ['create', 'update', 'delete', 'publish', 'login', 'upload'],
+    enum: [
+      // Existing values
+      'create',
+      'update', 
+      'delete',
+      'publish',
+      'submission',
+      
+      // Add these approval-related values
+      'approval_request',
+      'update_request',
+      'post_approved',
+      'update_approved',
+      'post_rejected',
+      'changes_requested',
+      'admin_post_updated'
+    ],
     required: true
   },
   userId: {

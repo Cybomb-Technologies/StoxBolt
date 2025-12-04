@@ -3,15 +3,17 @@ import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/components/ui/use-toast';
-import { Save, Eye, Upload, Loader2, Send, Clock, FileCheck } from 'lucide-react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { Save, Eye, Upload, Loader2, Send, Clock } from 'lucide-react';
+import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 
 const baseURL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
-const PostEditor = () => {
+const AdminPostEditor = () => {
   const { id } = useParams();
+  const location = useLocation();
   const isEditMode = !!id;
+  const isUpdateRequest = new URLSearchParams(location.search).get('updateRequest') === 'true';
   const navigate = useNavigate();
   const { user } = useAuth();
   const [formData, setFormData] = useState({
@@ -27,7 +29,6 @@ const PostEditor = () => {
     metaTitle: '',
     metaDescription: '',
     imageUrl: '',
-    status: 'draft'
   });
   const [originalPost, setOriginalPost] = useState(null);
   const [imageFile, setImageFile] = useState(null);
@@ -35,7 +36,6 @@ const PostEditor = () => {
   const [loading, setLoading] = useState(false);
   const [fetching, setFetching] = useState(isEditMode);
   const [existingImageUrl, setExistingImageUrl] = useState('');
-  const [postStatus, setPostStatus] = useState('draft');
   const { toast } = useToast();
 
   const categories = [
@@ -49,12 +49,15 @@ const PostEditor = () => {
   ];
 
   useEffect(() => {
-    if (isEditMode) {
-      fetchPost();
+    if (isEditMode && isUpdateRequest) {
+      fetchOriginalPost();
+    } else if (isEditMode) {
+      // If it's edit mode but not an update request, redirect or handle differently
+      navigate('/admin/posts');
     }
   }, [id]);
 
-  const fetchPost = async () => {
+  const fetchOriginalPost = async () => {
     try {
       const token = localStorage.getItem('token');
       const response = await fetch(`${baseURL}/api/posts/${id}`, {
@@ -72,7 +75,6 @@ const PostEditor = () => {
       if (data.success) {
         const post = data.data;
         setOriginalPost(post);
-        setPostStatus(post.status || 'draft');
         
         // Pre-fill form with existing post data
         setFormData({
@@ -90,7 +92,6 @@ const PostEditor = () => {
           metaTitle: post.metaTitle || '',
           metaDescription: post.metaDescription || '',
           imageUrl: post.imageUrl || '',
-          status: post.status || 'draft'
         });
         
         if (post.imageUrl) {
@@ -196,7 +197,6 @@ const PostEditor = () => {
         metaTitle: formData.metaTitle,
         metaDescription: formData.metaDescription,
         imageUrl: imageUrl,
-        status: formData.status
       };
 
       // Only add publishDateTime if it has a value
@@ -213,44 +213,60 @@ const PostEditor = () => {
       }
 
       const token = localStorage.getItem('token');
-      let url = `${baseURL}/api/posts`;
-      let method = 'POST';
       
-      if (isEditMode) {
-        url = `${baseURL}/api/posts/${id}`;
-        method = 'PUT';
-      }
+      if (isUpdateRequest && originalPost) {
+        // Submit update request using the correct endpoint
+        const response = await fetch(`${baseURL}/api/approval/posts/${originalPost._id}/request-update`, {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(postData),
+        });
 
-      const response = await fetch(url, {
-        method,
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(postData),
-      });
+        const responseData = await response.json();
+        
+        if (!response.ok) {
+          throw new Error(responseData.message || 'Failed to submit update request');
+        }
 
-      const responseData = await response.json();
-      
-      if (!response.ok) {
-        throw new Error(responseData.message || `Failed to ${isEditMode ? 'update' : 'create'} post`);
-      }
-
-      toast({
-        title: isEditMode ? 'Post Updated!' : 'Post Created!',
-        description: responseData.message || `Post ${isEditMode ? 'updated' : 'created'} successfully`,
-      });
-
-      if (isEditMode) {
-        // If editing, stay on the page
-        fetchPost(); // Refresh data
+        if (responseData.success) {
+          toast({
+            title: 'Update Request Submitted!',
+            description: 'Your update request has been submitted for superadmin approval',
+          });
+          setTimeout(() => {
+            navigate('/admin/my-approvals');
+          }, 1000);
+        }
       } else {
-        // If creating new, navigate to posts list
-        setTimeout(() => {
-          navigate('/admin/posts');
-        }, 1000);
-      }
+        // Submit new post for approval using the correct endpoint
+        const response = await fetch(`${baseURL}/api/approval/posts`, {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(postData),
+        });
 
+        const responseData = await response.json();
+        
+        if (!response.ok) {
+          throw new Error(responseData.message || 'Failed to submit post for approval');
+        }
+
+        if (responseData.success) {
+          toast({
+            title: 'Post Submitted for Approval!',
+            description: 'Your post has been submitted for superadmin approval',
+          });
+          setTimeout(() => {
+            navigate('/admin/my-approvals');
+          }, 1000);
+        }
+      }
     } catch (error) {
       console.error('Submit error:', error);
       toast({
@@ -261,56 +277,6 @@ const PostEditor = () => {
     } finally {
       setLoading(false);
     }
-  };
-
-  const handleSubmitForApproval = async () => {
-    if (!id) {
-      toast({
-        title: 'Error',
-        description: 'Post must be saved as draft first',
-        variant: 'destructive',
-      });
-      return;
-    }
-
-    setLoading(true);
-    try {
-      const token = localStorage.getItem('token');
-      const response = await fetch(`${baseURL}/api/posts/${id}/submit-for-approval`, {
-        method: 'PUT',
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-
-      const responseData = await response.json();
-      
-      if (!response.ok) {
-        throw new Error(responseData.message || 'Failed to submit for approval');
-      }
-
-      toast({
-        title: 'Submitted for Approval!',
-        description: 'Your post has been submitted for superadmin approval',
-      });
-      
-      setTimeout(() => {
-        navigate('/admin/posts');
-      }, 1000);
-    } catch (error) {
-      console.error('Submit for approval error:', error);
-      toast({
-        title: 'Error',
-        description: error.message || 'Failed to submit for approval',
-        variant: 'destructive',
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleRequestUpdate = () => {
-    navigate(`/admin/post-editor/${id}?updateRequest=true`);
   };
 
   const handlePreview = () => {
@@ -347,14 +313,12 @@ const PostEditor = () => {
       <div className="flex justify-between items-center mb-6">
         <div>
           <h2 className="text-2xl font-bold text-gray-900">
-            {isEditMode ? 'Edit Post' : 'Create New Post'}
+            {isUpdateRequest ? 'Request Post Update' : 'Create New Post'}
           </h2>
           <p className="text-gray-600 mt-1">
-            {user?.role === 'admin' && isEditMode && postStatus === 'published' 
-              ? 'This post is published. Use "Request Update" to make changes.' 
-              : user?.role === 'admin' 
-                ? 'Admins can create drafts and submit them for approval'
-                : 'Superadmins can create and publish posts directly'}
+            {isUpdateRequest 
+              ? 'Request changes to a published post (requires superadmin approval)'
+              : 'Create a new post (requires superadmin approval)'}
           </p>
         </div>
         <div className="flex items-center space-x-2">
@@ -370,48 +334,17 @@ const PostEditor = () => {
         </div>
       </div>
 
-      {user?.role === 'admin' && isEditMode && postStatus === 'published' && (
-        <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-          <div className="flex items-center">
-            <FileCheck className="h-5 w-5 text-blue-500 mr-2" />
-            <span className="font-medium text-blue-800">Published Post</span>
-          </div>
-          <p className="text-sm text-blue-600 mt-1">
-            This post is already published. To make changes, you need to request an update.
-          </p>
-          <div className="mt-3">
-            <Button
-              type="button"
-              onClick={handleRequestUpdate}
-              className="bg-blue-600 hover:bg-blue-700"
-            >
-              <Send className="h-4 w-4 mr-2" />
-              Request Update
-            </Button>
-          </div>
-        </div>
-      )}
-
-      {user?.role === 'admin' && isEditMode && postStatus === 'pending_approval' && (
+      {isUpdateRequest && originalPost && (
         <div className="mb-6 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
           <div className="flex items-center">
             <Clock className="h-5 w-5 text-yellow-500 mr-2" />
-            <span className="font-medium text-yellow-800">Pending Approval</span>
+            <span className="font-medium text-yellow-800">Update Request</span>
           </div>
           <p className="text-sm text-yellow-600 mt-1">
-            This draft has been submitted for superadmin approval and cannot be edited.
+            You are requesting updates to: <strong>{originalPost.title}</strong>
           </p>
-        </div>
-      )}
-
-      {user?.role === 'admin' && isEditMode && postStatus === 'draft' && (
-        <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg">
-          <div className="flex items-center">
-            <FileCheck className="h-5 w-5 text-green-500 mr-2" />
-            <span className="font-medium text-green-800">Draft Mode</span>
-          </div>
-          <p className="text-sm text-green-600 mt-1">
-            You can edit this draft. When ready, submit it for approval.
+          <p className="text-xs text-yellow-500 mt-2">
+            Note: Changes will only take effect after superadmin approval
           </p>
         </div>
       )}
@@ -428,7 +361,6 @@ const PostEditor = () => {
               onChange={handleChange}
               className="w-full mt-2 px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-orange-500 focus:outline-none"
               required
-              disabled={user?.role === 'admin' && postStatus === 'pending_approval'}
             />
           </div>
 
@@ -443,7 +375,6 @@ const PostEditor = () => {
               className="w-full mt-2 px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-orange-500 focus:outline-none"
               required
               maxLength={100}
-              disabled={user?.role === 'admin' && postStatus === 'pending_approval'}
             />
           </div>
 
@@ -457,7 +388,6 @@ const PostEditor = () => {
               rows={10}
               className="w-full mt-2 px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-orange-500 focus:outline-none resize-y"
               required
-              disabled={user?.role === 'admin' && postStatus === 'pending_approval'}
             />
           </div>
 
@@ -470,7 +400,6 @@ const PostEditor = () => {
               onChange={handleChange}
               className="w-full mt-2 px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-orange-500 focus:outline-none"
               required
-              disabled={user?.role === 'admin' && postStatus === 'pending_approval'}
             >
               {categories.map((cat) => (
                 <option key={cat} value={cat}>
@@ -490,7 +419,6 @@ const PostEditor = () => {
               onChange={handleChange}
               placeholder="tag1, tag2, tag3"
               className="w-full mt-2 px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-orange-500 focus:outline-none"
-              disabled={user?.role === 'admin' && postStatus === 'pending_approval'}
             />
           </div>
 
@@ -503,7 +431,6 @@ const PostEditor = () => {
               value={formData.region}
               onChange={handleChange}
               className="w-full mt-2 px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-orange-500 focus:outline-none"
-              disabled={user?.role === 'admin' && postStatus === 'pending_approval'}
             />
           </div>
 
@@ -517,7 +444,6 @@ const PostEditor = () => {
               onChange={handleChange}
               className="w-full mt-2 px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-orange-500 focus:outline-none"
               required
-              disabled={user?.role === 'admin' && postStatus === 'pending_approval'}
             />
           </div>
 
@@ -530,7 +456,6 @@ const PostEditor = () => {
               value={formData.publishDateTime}
               onChange={handleChange}
               className="w-full mt-2 px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-orange-500 focus:outline-none"
-              disabled={user?.role === 'admin' && postStatus === 'pending_approval'}
             />
           </div>
 
@@ -543,14 +468,12 @@ const PostEditor = () => {
                 accept="image/*"
                 onChange={handleImageChange}
                 className="hidden"
-                disabled={user?.role === 'admin' && postStatus === 'pending_approval'}
               />
               <Button
                 type="button"
                 variant="outline"
                 onClick={() => document.getElementById('image').click()}
                 className="w-full"
-                disabled={user?.role === 'admin' && postStatus === 'pending_approval'}
               >
                 <Upload className="h-4 w-4 mr-2" />
                 {previewImage || existingImageUrl ? 'Change Image' : 'Upload Image'}
@@ -580,7 +503,6 @@ const PostEditor = () => {
                 checked={formData.isSponsored}
                 onChange={handleChange}
                 className="w-5 h-5 text-orange-600 border-gray-300 rounded focus:ring-orange-500"
-                disabled={user?.role === 'admin' && postStatus === 'pending_approval'}
               />
               <span className="text-gray-700 font-medium">
                 Sponsored Post
@@ -604,7 +526,6 @@ const PostEditor = () => {
               onChange={handleChange}
               placeholder="Leave empty to use post title"
               className="w-full mt-2 px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-orange-500 focus:outline-none"
-              disabled={user?.role === 'admin' && postStatus === 'pending_approval'}
             />
           </div>
 
@@ -618,7 +539,6 @@ const PostEditor = () => {
               rows={3}
               placeholder="Leave empty to use post excerpt"
               className="w-full mt-2 px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-orange-500 focus:outline-none"
-              disabled={user?.role === 'admin' && postStatus === 'pending_approval'}
             />
           </div>
         </div>
@@ -627,55 +547,31 @@ const PostEditor = () => {
           <Button
             type="button"
             variant="outline"
-            onClick={() => navigate('/admin/posts')}
+            onClick={() => navigate(isUpdateRequest ? '/admin/posts' : '/admin/posts/list')}
           >
             Cancel
           </Button>
-          
-          {user?.role === 'admin' && isEditMode && postStatus === 'draft' && (
-            <Button
-              type="button"
-              onClick={handleSubmitForApproval}
-              className="bg-green-600 hover:bg-green-700"
-              disabled={loading}
-            >
-              {loading ? (
-                <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Submitting...
-                </>
-              ) : (
-                <>
-                  <Send className="h-4 w-4 mr-2" />
-                  Submit for Approval
-                </>
-              )}
-            </Button>
-          )}
-          
-          {(user?.role !== 'admin' || (postStatus !== 'published' && postStatus !== 'pending_approval')) && (
-            <Button
-              type="submit"
-              disabled={loading || (user?.role === 'admin' && postStatus === 'pending_approval')}
-              className="bg-gradient-to-r from-orange-600 to-red-600 hover:from-orange-700 hover:to-red-700"
-            >
-              {loading ? (
-                <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Saving...
-                </>
-              ) : (
-                <>
-                  <Save className="h-4 w-4 mr-2" />
-                  {isEditMode ? 'Update Post' : 'Save as Draft'}
-                </>
-              )}
-            </Button>
-          )}
+          <Button
+            type="submit"
+            disabled={loading}
+            className="bg-gradient-to-r from-orange-600 to-red-600 hover:from-orange-700 hover:to-red-700"
+          >
+            {loading ? (
+              <>
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                Submitting...
+              </>
+            ) : (
+              <>
+                <Send className="h-4 w-4 mr-2" />
+                {isUpdateRequest ? 'Submit Update Request' : 'Submit for Approval'}
+              </>
+            )}
+          </Button>
         </div>
       </form>
     </motion.div>
   );
 };
 
-export default PostEditor;
+export default AdminPostEditor;

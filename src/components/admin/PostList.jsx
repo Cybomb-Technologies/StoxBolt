@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
-import { Edit, Trash2, Eye, Search, FileUp, Filter, Loader2 } from 'lucide-react';
+import { Edit, Trash2, Eye, Search, FileUp, Filter, Loader2, Plus, Info, Clock, CheckCircle, XCircle, AlertCircle, RefreshCw } from 'lucide-react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -14,10 +14,12 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { useAuth } from '@/contexts/AuthContext';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
+
 const baseURL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
 const PostList = () => {
+  const navigate = useNavigate();
   const [posts, setPosts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
@@ -27,6 +29,7 @@ const PostList = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [totalPosts, setTotalPosts] = useState(0);
+  const [debugInfo, setDebugInfo] = useState(null);
   const { toast } = useToast();
   const { user } = useAuth();
 
@@ -40,10 +43,19 @@ const PostList = () => {
     setLoading(true);
     try {
       const token = localStorage.getItem('token');
+      const userData = localStorage.getItem('user');
+      
       if (!token) {
         throw new Error('No authentication token found');
       }
-      
+
+      if (!userData) {
+        throw new Error('User data not found');
+      }
+
+      const parsedUser = JSON.parse(userData);
+      console.log('Current user:', parsedUser);
+
       // Build query parameters
       const params = new URLSearchParams({
         page: currentPage,
@@ -54,6 +66,8 @@ const PostList = () => {
       if (filterCategory !== 'all') params.append('category', filterCategory);
       if (searchQuery) params.append('search', searchQuery);
 
+      console.log('Fetching posts with params:', params.toString());
+
       const response = await fetch(`${baseURL}/api/posts?${params}`, {
         headers: {
           'Authorization': `Bearer ${token}`
@@ -62,27 +76,55 @@ const PostList = () => {
 
       const data = await response.json();
       
+      console.log('Posts API response status:', response.status);
+      console.log('Posts API response data:', data);
+
       if (!response.ok) {
-        throw new Error(data.message || 'Failed to fetch posts');
+        if (response.status === 403) {
+          setPosts([]);
+          setTotalPages(1);
+          setTotalPosts(0);
+          setDebugInfo({
+            message: 'Admin has no posts yet or access denied',
+            userRole: parsedUser.role,
+            userId: parsedUser._id
+          });
+          return;
+        }
+        throw new Error(data.message || `Failed to fetch posts (${response.status})`);
       }
 
       if (data.success) {
         setPosts(data.data || []);
         setTotalPages(data.totalPages || 1);
         setTotalPosts(data.total || 0);
+        setDebugInfo({
+          message: 'Successfully loaded posts',
+          userRole: parsedUser.role,
+          userId: parsedUser._id,
+          count: data.data?.length || 0
+        });
       } else {
         throw new Error(data.message || 'Failed to load posts');
       }
     } catch (error) {
       console.error('Error fetching posts:', error);
-      toast({
-        title: 'Error',
-        description: error.message || 'Failed to load posts',
-        variant: 'destructive'
-      });
+      
+      if (!error.message.includes('403')) {
+        toast({
+          title: 'Error',
+          description: error.message || 'Failed to load posts',
+          variant: 'destructive'
+        });
+      }
+      
       setPosts([]);
       setTotalPages(1);
       setTotalPosts(0);
+      setDebugInfo({
+        message: error.message,
+        error: true
+      });
     } finally {
       setLoading(false);
     }
@@ -107,6 +149,7 @@ const PostList = () => {
 
       if (data.success) {
         setPosts((prev) => prev.filter((p) => p._id !== postId));
+        setTotalPosts(prev => prev - 1);
         toast({
           title: 'Post Deleted',
           description: 'The post has been deleted successfully'
@@ -156,6 +199,19 @@ const PostList = () => {
     }
   };
 
+  const handleRequestUpdate = async (postId) => {
+    try {
+      // Navigate to edit page for update request
+      navigate(`/admin/posts/edit/${postId}?updateRequest=true`);
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: 'Failed to request update',
+        variant: 'destructive'
+      });
+    }
+  };
+
   const getStatusColor = (status) => {
     const colors = {
       draft: 'bg-gray-100 text-gray-700',
@@ -179,21 +235,41 @@ const PostList = () => {
   };
 
   const handlePreview = (post) => {
-    // Store post in localStorage for preview
     localStorage.setItem('postPreview', JSON.stringify(post));
-    window.open(`/post/preview`, '_blank');
+    navigate('/admin/preview');
   };
 
   // Check if user can edit a specific post
   const canEditPost = (post) => {
     if (!user) return false;
     
-    // Superadmin can edit all posts
+    // Superadmin can edit all posts directly
     if (user.role === 'superadmin') return true;
     
-    // Admin can only edit their own posts
+    // Admin can only edit their own draft posts directly
     if (user.role === 'admin') {
-      return post.authorId?._id === user._id || post.authorId?.toString() === user._id;
+      const authorId = post.authorId?._id || post.authorId;
+      const isOwnPost = authorId === user._id || authorId?.toString() === user._id;
+      return isOwnPost && post.status === 'draft';
+    }
+    
+    return false;
+  };
+
+  // Check if user can request update for a published post
+  const canRequestUpdate = (post) => {
+    if (!user) return false;
+    
+    // Admin can request updates for their own published posts
+    if (user.role === 'admin') {
+      const authorId = post.authorId?._id || post.authorId;
+      const isOwnPost = authorId === user._id || authorId?.toString() === user._id;
+      return isOwnPost && post.status === 'published';
+    }
+    
+    // Superadmin can request updates for any published post
+    if (user.role === 'superadmin') {
+      return post.status === 'published';
     }
     
     return false;
@@ -214,6 +290,42 @@ const PostList = () => {
     // Only superadmin can publish posts
     // And only if post is not already published
     return user.role === 'superadmin' && post.status !== 'published';
+  };
+
+  // Check if admin needs to create post via approval system
+  const shouldUseApprovalSystem = () => {
+    return user?.role === 'admin';
+  };
+
+  const testAPIConnection = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const userData = localStorage.getItem('user');
+      
+      const response = await fetch(`${baseURL}/api/posts/debug`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      
+      const data = await response.json();
+      console.log('Debug API response:', data);
+      
+      toast({
+        title: 'Debug Info',
+        description: `User: ${data.user?.name || 'Unknown'}, Role: ${data.user?.role || 'Unknown'}`,
+        variant: data.success ? 'default' : 'destructive'
+      });
+      
+      return data;
+    } catch (error) {
+      console.error('Debug API error:', error);
+      toast({
+        title: 'Debug Error',
+        description: error.message,
+        variant: 'destructive'
+      });
+    }
   };
 
   if (loading) {
@@ -246,7 +358,7 @@ const PostList = () => {
             />
           </div>
 
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <select
               value={filterStatus}
               onChange={(e) => {
@@ -276,12 +388,75 @@ const PostList = () => {
                 </option>
               ))}
             </select>
+
+            {user && (user.role === 'admin' || user.role === 'superadmin') && (
+              <Button
+                asChild
+                className="bg-orange-600 hover:bg-orange-700"
+              >
+                <Link to={shouldUseApprovalSystem() ? "/admin/posts/new-approval" : "/admin/posts/new"}>
+                  <Plus className="h-4 w-4 mr-2" />
+                  New Post
+                </Link>
+              </Button>
+            )}
+
+            {/* Approval queue button for superadmin */}
+            {user?.role === 'superadmin' && (
+              <Button
+                asChild
+                variant="outline"
+                className="border-purple-600 text-purple-600 hover:bg-purple-50"
+              >
+                <Link to="/admin/approval">
+                  <CheckCircle className="h-4 w-4 mr-2" />
+                  Approval Queue
+                </Link>
+              </Button>
+            )}
+
+            {/* My approvals button for admin */}
+            {user?.role === 'admin' && (
+              <Button
+                asChild
+                variant="outline"
+                className="border-blue-600 text-blue-600 hover:bg-blue-50"
+              >
+                <Link to="/admin/my-approvals">
+                  <Clock className="h-4 w-4 mr-2" />
+                  My Submissions
+                </Link>
+              </Button>
+            )}
+
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={testAPIConnection}
+              title="Debug API Connection"
+            >
+              <Info className="h-4 w-4" />
+            </Button>
           </div>
         </div>
 
         <div className="flex items-center justify-between text-sm text-gray-600">
           <div>
             Showing {posts.length} of {totalPosts} posts
+            {user && (
+              <span className={`ml-2 px-2 py-1 text-xs rounded ${
+                user.role === 'admin' 
+                  ? 'bg-blue-100 text-blue-700' 
+                  : 'bg-purple-100 text-purple-700'
+              }`}>
+                {user.role === 'admin' ? 'Admin View' : 'Superadmin View'}
+              </span>
+            )}
+            {debugInfo && (
+              <span className="ml-2 px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded">
+                {debugInfo.message}
+              </span>
+            )}
           </div>
           <div className="flex items-center space-x-2">
             <Button
@@ -313,6 +488,24 @@ const PostList = () => {
         </div>
       </div>
 
+      {/* Admin Info Banner */}
+      {user?.role === 'admin' && (
+        <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+          <div className="flex items-start">
+            <Info className="h-5 w-5 text-blue-500 mr-2 flex-shrink-0 mt-0.5" />
+            <div>
+              <h3 className="font-semibold text-blue-800">Admin Post Workflow</h3>
+              <p className="text-sm text-blue-600 mt-1">
+                • You can create and edit draft posts directly<br/>
+                • To publish a post or update a published post, it needs superadmin approval<br/>
+                • Use the "Request Update" button for published posts<br/>
+                • Check "My Submissions" for approval status
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="overflow-x-auto">
         <table className="w-full">
           <thead>
@@ -336,9 +529,16 @@ const PostList = () => {
                   <span className="text-sm text-gray-700">{post.category}</span>
                 </td>
                 <td className="py-4 px-4">
-                  <span className={`px-3 py-1 rounded-full text-xs font-semibold ${getStatusColor(post.status)}`}>
-                    {post.status?.charAt(0).toUpperCase() + post.status?.slice(1) || 'Unknown'}
-                  </span>
+                  <div className="flex flex-col gap-1">
+                    <span className={`px-3 py-1 rounded-full text-xs font-semibold ${getStatusColor(post.status)}`}>
+                      {post.status?.charAt(0).toUpperCase() + post.status?.slice(1) || 'Unknown'}
+                    </span>
+                    {post.lastApprovedBy && post.status === 'published' && (
+                      <span className="text-xs text-gray-500">
+                        Approved by: {post.lastApprovedBy?.name || 'Superadmin'}
+                      </span>
+                    )}
+                  </div>
                 </td>
                 <td className="py-4 px-4">
                   <div className="text-sm text-gray-700">{post.author}</div>
@@ -360,7 +560,7 @@ const PostList = () => {
                       <Eye className="h-4 w-4" />
                     </Button>
                     
-                    {/* Edit Button - Show if user can edit this post */}
+                    {/* Edit Button - Show if user can edit this post directly */}
                     {canEditPost(post) && (
                       <Button
                         variant="ghost"
@@ -370,6 +570,19 @@ const PostList = () => {
                         <Link to={`/admin/posts/edit/${post._id}`} title="Edit Post">
                           <Edit className="h-4 w-4" />
                         </Link>
+                      </Button>
+                    )}
+                    
+                    {/* Request Update Button - For published posts */}
+                    {canRequestUpdate(post) && (
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => handleRequestUpdate(post._id)}
+                        className="hover:text-yellow-600"
+                        title="Request Update (Needs Approval)"
+                      >
+                        <RefreshCw className="h-4 w-4" />
                       </Button>
                     )}
                     
@@ -408,8 +621,41 @@ const PostList = () => {
 
       {posts.length === 0 && !loading && (
         <div className="text-center py-12">
-          <p className="text-gray-600">No posts found</p>
-          <p className="text-sm text-gray-500 mt-2">Try changing your filters or create a new post</p>
+          <div className="mb-6">
+            <Info className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+            <p className="text-gray-600">No posts found</p>
+            <p className="text-sm text-gray-500 mt-2">
+              {user?.role === 'admin' 
+                ? 'Create your first post or check if you have existing posts'
+                : 'Try changing your filters or create a new post'}
+            </p>
+          </div>
+          {user?.role === 'admin' && (
+            <>
+              <p className="text-sm text-gray-500 mb-4">
+                As an admin, you can create draft posts directly. Published posts require superadmin approval.
+              </p>
+              <Button
+                asChild
+                className="bg-orange-600 hover:bg-orange-700"
+              >
+                <Link to="/admin/posts/new-approval">
+                  <Plus className="h-4 w-4 mr-2" />
+                  Create Your First Post
+                </Link>
+              </Button>
+              <div className="mt-4">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={testAPIConnection}
+                >
+                  <Info className="h-4 w-4 mr-2" />
+                  Check User Permissions
+                </Button>
+              </div>
+            </>
+          )}
         </div>
       )}
 

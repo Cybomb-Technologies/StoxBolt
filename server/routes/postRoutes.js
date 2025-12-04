@@ -1,37 +1,46 @@
 const express = require('express');
 const router = express.Router();
-const { protect } = require('../middleware/auth');
-const { authorize, authorizePostAction } = require('../middleware/role');
-const {
-  getPosts,
-  getPost,
-  createPost,
-  updatePost,
-  deletePost,
+const { 
+  getPosts, 
+  getPost, 
+  createPost, 
+  updatePost, 
+  deletePost, 
   publishPost,
-  getScheduledPosts
+  createDraft,
+  submitForApproval,
+  getScheduledPosts 
 } = require('../controllers/postController');
+const { protect, authorize } = require('../middleware/auth');
 
 // All routes are protected
 router.use(protect);
 
-// Get posts (both admin and superadmin can view)
-router.route('/')
-  .get(getPosts)
-  .post(authorize('admin', 'superadmin'), createPost);
+// Get all posts
+router.get('/', getPosts);
+
+// Get single post
+router.get('/:id', getPost);
+
+// Create new post (superadmin only)
+router.post('/', authorize('superadmin'), createPost);
+
+// Create draft (admin and superadmin)
+router.post('/draft', authorize('admin', 'superadmin'), createDraft);
+
+// Update post
+router.put('/:id', updatePost);
+
+// Delete post (superadmin only)
+router.delete('/:id', authorize('superadmin'), deletePost);
+
+// Publish post (superadmin only)
+router.put('/:id/publish', authorize('superadmin'), publishPost);
+
+// Submit draft for approval (admin only)
+router.put('/:id/submit-for-approval', authorize('admin'), submitForApproval);
 
 // Get scheduled posts
-router.route('/scheduled')
-  .get(getScheduledPosts);
-
-// Single post routes
-router.route('/:id')
-  .get(getPost)
-  .put(updatePost)
-  .delete(authorize('superadmin'), deletePost);
-
-// Publish post - only superadmin
-router.route('/:id/publish')
-  .put(authorize('superadmin'), publishPost);
+router.get('/scheduled', getScheduledPosts);
 
 module.exports = router;

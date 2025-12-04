@@ -1,7 +1,8 @@
 const Post = require('../models/Post');
+const AdminPost = require('../models/AdminPost');
 const Activity = require('../models/Activity');
 
-// @desc    Get all posts
+// @desc    Get all posts (published only for public, all for admin/superadmin)
 // @route   GET /api/posts
 // @access  Private
 exports.getPosts = async (req, res) => {
@@ -19,6 +20,12 @@ exports.getPosts = async (req, res) => {
     // Filter by status
     if (status && status !== 'all') {
       query.status = status;
+    } else if (req.user.role === 'admin') {
+      // Admin can only see their own published and draft posts
+      query.status = { $in: ['published', 'draft'] };
+    } else {
+      // Superadmin can see all statuses by default
+      // No filter needed
     }
     
     // Filter by category
@@ -85,7 +92,7 @@ exports.getPost = async (req, res) => {
     }
     
     // Check permissions
-    if (req.user.role === 'admin' && post.authorId.toString() !== req.user._id.toString()) {
+    if (req.user.role === 'admin' && post.authorId && post.authorId._id.toString() !== req.user._id.toString()) {
       return res.status(403).json({
         success: false,
         message: 'Admin can only access their own posts'
@@ -107,11 +114,19 @@ exports.getPost = async (req, res) => {
   }
 };
 
-// @desc    Create new post
+// @desc    Create new post (Only for superadmin, admin should use approval system)
 // @route   POST /api/posts
-// @access  Private (Admin and Superadmin)
+// @access  Private (Superadmin only)
 exports.createPost = async (req, res) => {
   try {
+    // Only superadmin can create posts directly
+    if (req.user.role !== 'superadmin') {
+      return res.status(403).json({
+        success: false,
+        message: 'Admin must use approval system to create posts'
+      });
+    }
+    
     const postData = {
       ...req.body,
       authorId: req.user._id
@@ -150,9 +165,9 @@ exports.createPost = async (req, res) => {
   }
 };
 
-// @desc    Update post
+// @desc    Update post 
 // @route   PUT /api/posts/:id
-// @access  Private (Admin and Superadmin)
+// @access  Private
 exports.updatePost = async (req, res) => {
   try {
     let post = await Post.findById(req.params.id);
@@ -164,33 +179,26 @@ exports.updatePost = async (req, res) => {
       });
     }
     
-    // Check permissions for admin
+    // Check if user can update this post
     if (req.user.role === 'admin') {
       // Admin can only update their own posts
       if (post.authorId.toString() !== req.user._id.toString()) {
         return res.status(403).json({
           success: false,
-          message: 'Admin can only update their own posts'
+          message: 'You can only update your own posts'
         });
       }
       
-      // Admin cannot change status to published
-      if (req.body.status && req.body.status === 'published') {
+      // Admin cannot directly update published posts - must use approval system
+      if (post.status === 'published') {
         return res.status(403).json({
           success: false,
-          message: 'Admin cannot publish posts. Contact superadmin.'
-        });
-      }
-      
-      // If admin is trying to update a published post, don't allow status changes
-      if (post.status === 'published' && req.body.status && req.body.status !== 'published') {
-        return res.status(403).json({
-          success: false,
-          message: 'Admin cannot change status of published posts'
+          message: 'Admin must use approval system to update published posts. Please use the "Request Update" feature.'
         });
       }
     }
-    // Superadmin can update any post (no restrictions)
+    
+    // Superadmin can update any post
     
     // Handle tags - convert string to array if needed
     if (req.body.tags) {
@@ -205,12 +213,41 @@ exports.updatePost = async (req, res) => {
     const updateData = { ...req.body };
     delete updateData.authorId; // Prevent changing authorId
     
-    // Update the post
+    // If admin is updating a draft, allow it
+    if (req.user.role === 'admin' && post.status === 'draft') {
+      // Admin can update their own drafts directly
+      post = await Post.findByIdAndUpdate(
+        req.params.id,
+        updateData,
+        { new: true, runValidators: true }
+      ).populate('authorId', 'name email');
+      
+      // Log activity
+      await Activity.create({
+        type: 'update',
+        userId: req.user._id,
+        user: req.user.name,
+        title: post.title,
+        postId: post._id,
+        details: { 
+          type: 'draft_update',
+          ...updateData 
+        }
+      });
+      
+      return res.status(200).json({
+        success: true,
+        message: 'Draft updated successfully',
+        data: post
+      });
+    }
+    
+    // Superadmin can update any post
     post = await Post.findByIdAndUpdate(
       req.params.id,
       updateData,
       { new: true, runValidators: true }
-    );
+    ).populate('authorId', 'name email');
     
     // Log activity
     await Activity.create({
@@ -319,6 +356,8 @@ exports.publishPost = async (req, res) => {
     
     post.status = 'published';
     post.publishDateTime = Date.now();
+    post.lastApprovedBy = req.user._id;
+    post.lastApprovedAt = Date.now();
     await post.save();
     
     // Log activity
@@ -338,6 +377,154 @@ exports.publishPost = async (req, res) => {
     
   } catch (error) {
     console.error('Publish post error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error'
+    });
+  }
+};
+
+// @desc    Create draft (Admin can create drafts)
+// @route   POST /api/posts/draft
+// @access  Private (Admin & Superadmin)
+exports.createDraft = async (req, res) => {
+  try {
+    const postData = {
+      ...req.body,
+      authorId: req.user._id,
+      status: 'draft'
+    };
+    
+    // Handle tags
+    if (postData.tags && typeof postData.tags === 'string') {
+      postData.tags = postData.tags.split(',').map(tag => tag.trim()).filter(tag => tag);
+    }
+    
+    const post = await Post.create(postData);
+    
+    // Log activity
+    await Activity.create({
+      type: 'create',
+      userId: req.user._id,
+      user: req.user.name,
+      title: post.title,
+      postId: post._id,
+      details: { 
+        type: 'draft_created',
+        category: post.category,
+        status: 'draft'
+      }
+    });
+    
+    res.status(201).json({
+      success: true,
+      message: 'Draft created successfully',
+      data: post
+    });
+    
+  } catch (error) {
+    console.error('Create draft error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+};
+
+// @desc    Submit draft for approval
+// @route   PUT /api/posts/:id/submit-for-approval
+// @access  Private (Admin only)
+exports.submitForApproval = async (req, res) => {
+  try {
+    let post = await Post.findById(req.params.id);
+    
+    if (!post) {
+      return res.status(404).json({
+        success: false,
+        message: 'Post not found'
+      });
+    }
+    
+    // Only admin can submit their own drafts for approval
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({
+        success: false,
+        message: 'Only admin can submit drafts for approval'
+      });
+    }
+    
+    // Check if user owns this post
+    if (post.authorId.toString() !== req.user._id.toString()) {
+      return res.status(403).json({
+        success: false,
+        message: 'You can only submit your own drafts for approval'
+      });
+    }
+    
+    // Only drafts can be submitted for approval
+    if (post.status !== 'draft') {
+      return res.status(400).json({
+        success: false,
+        message: 'Only draft posts can be submitted for approval'
+      });
+    }
+    
+    // Create admin post for approval
+    const adminPostData = {
+      title: post.title,
+      shortTitle: post.shortTitle,
+      body: post.body,
+      category: post.category,
+      tags: post.tags,
+      region: post.region,
+      author: post.author,
+      authorId: post.authorId,
+      publishDateTime: post.publishDateTime,
+      isSponsored: post.isSponsored,
+      metaTitle: post.metaTitle,
+      metaDescription: post.metaDescription,
+      imageUrl: post.imageUrl,
+      approvalStatus: 'pending_review',
+      isUpdateRequest: false
+    };
+    
+    const adminPost = await AdminPost.create(adminPostData);
+    
+    // Update post status to pending_approval
+    post.status = 'pending_approval';
+    post.submittedForApprovalAt = Date.now();
+    await post.save();
+    
+    // Link admin post to original post
+    adminPost.postId = post._id;
+    await adminPost.save();
+    
+    // Log activity
+    await Activity.create({
+      type: 'submission',
+      userId: req.user._id,
+      user: req.user.name,
+      title: post.title,
+      postId: post._id,
+      adminPostId: adminPost._id,
+      details: { 
+        type: 'draft_submitted',
+        status: 'pending_review'
+      }
+    });
+    
+    res.status(200).json({
+      success: true,
+      message: 'Draft submitted for approval',
+      data: {
+        post,
+        adminPost
+      }
+    });
+    
+  } catch (error) {
+    console.error('Submit for approval error:', error);
     res.status(500).json({
       success: false,
       message: 'Server error'
