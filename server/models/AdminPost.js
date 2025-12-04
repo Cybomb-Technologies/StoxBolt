@@ -1,6 +1,7 @@
 const mongoose = require('mongoose');
 
-const PostSchema = new mongoose.Schema({
+const AdminPostSchema = new mongoose.Schema({
+  // Original post data
   title: {
     type: String,
     required: [true, 'Please add a title'],
@@ -44,11 +45,6 @@ const PostSchema = new mongoose.Schema({
     type: Date,
     default: Date.now
   },
-  status: {
-    type: String,
-    enum: ['draft', 'scheduled', 'published', 'archived'],
-    default: 'draft'
-  },
   isSponsored: {
     type: Boolean,
     default: false
@@ -64,22 +60,62 @@ const PostSchema = new mongoose.Schema({
   imageUrl: {
     type: String
   },
-  views: {
-    type: Number,
-    default: 0
+  
+  // Approval system fields
+  status: {
+    type: String,
+    enum: ['pending', 'approved', 'rejected', 'needs_review', 'published'],
+    default: 'pending'
+  },
+  approvalStatus: {
+    type: String,
+    enum: ['pending_review', 'approved', 'rejected', 'changes_requested'],
+    default: 'pending_review'
   },
   
-  // Approval tracking
-  lastApprovedBy: {
+  // Reference to main Post (if this is an update request)
+  postId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Post',
+    default: null
+  },
+  
+  // Tracking
+  isUpdateRequest: {
+    type: Boolean,
+    default: false
+  },
+  originalPostData: {
+    type: mongoose.Schema.Types.Mixed,
+    default: null
+  },
+  
+  // Approval details
+  approvedBy: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Admin',
     default: null
   },
-  lastApprovedAt: {
+  approvedAt: {
     type: Date,
     default: null
   },
+  rejectionReason: {
+    type: String,
+    default: null
+  },
+  reviewerNotes: {
+    type: String,
+    default: null
+  },
   
+  // Version tracking
+  version: {
+    type: Number,
+    default: 1
+  },
+  
+  // Timestamps
   createdAt: {
     type: Date,
     default: Date.now
@@ -91,7 +127,7 @@ const PostSchema = new mongoose.Schema({
 });
 
 // Update updatedAt timestamp
-PostSchema.pre('save', function(next) {
+AdminPostSchema.pre('save', function(next) {
   this.updatedAt = Date.now();
   
   // Set metaTitle to title if not provided
@@ -108,6 +144,8 @@ PostSchema.pre('save', function(next) {
 });
 
 // Index for searching
-PostSchema.index({ title: 'text', body: 'text', tags: 'text' });
+AdminPostSchema.index({ title: 'text', body: 'text', tags: 'text' });
+AdminPostSchema.index({ authorId: 1, status: 1 });
+AdminPostSchema.index({ approvalStatus: 1, createdAt: -1 });
 
-module.exports = mongoose.model('Post', PostSchema);
+module.exports = mongoose.model('AdminPost', AdminPostSchema);

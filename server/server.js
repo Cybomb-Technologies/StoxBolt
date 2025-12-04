@@ -12,6 +12,7 @@ const activityRoutes = require('./routes/activityRoutes');
 const userRoutes = require('./routes/userRoutes');
 const uploadRoutes = require('./routes/uploadRoutes');
 const bulkUploadRoutes = require('./routes/bulkUploadRoutes');
+const approvalRoutes = require('./routes/approvalRoutes'); // Add this line
 
 const app = express();
 
@@ -46,6 +47,7 @@ app.use('/api/activities', activityRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/upload', uploadRoutes);
 app.use('/api/bulk-upload', bulkUploadRoutes);
+app.use('/api/approval', approvalRoutes); // Add this line
 
 // Health check
 app.get('/health', (req, res) => {

@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { Helmet } from 'react-helmet';
@@ -32,6 +31,9 @@ const AdminList = React.lazy(() => import('@/components/admin/AdminList'));
 const CreateAdmin = React.lazy(() => import('@/components/admin/CreateAdmin'));
 const EditAdmin = React.lazy(() => import('@/components/admin/EditAdmin'));
 const Overview = React.lazy(() => import('@/components/admin/Overview'));
+const ApprovalQueue = React.lazy(() => import('@/components/admin/ApprovalQueue'));
+const AdminPostEditor = React.lazy(() => import('@/components/admin/AdminPostEditor'));
+const MyApprovals = React.lazy(() => import('@/components/admin/MyApprovals'));
 
 // Loading fallback
 const LoadingFallback = () => (
@@ -123,7 +125,8 @@ function App() {
                 <AdminDashboard />
               </ProtectedRoute>
             }>
-              <Route index path="/admin/overview"element={
+              <Route index element={<Navigate to="/admin/overview" replace />} />
+              <Route path="overview" element={
                 <React.Suspense fallback={<LoadingFallback />}>
                   <Overview /> 
                 </React.Suspense>
@@ -136,6 +139,11 @@ function App() {
               <Route path="posts/new" element={
                 <React.Suspense fallback={<LoadingFallback />}>
                   <PostEditor />
+                </React.Suspense>
+              } />
+              <Route path="posts/new-approval" element={
+                <React.Suspense fallback={<LoadingFallback />}>
+                  <AdminPostEditor />
                 </React.Suspense>
               } />
               <Route path="posts/edit/:id" element={
@@ -176,6 +184,16 @@ function App() {
               <Route path="users/edit/:id" element={
                 <React.Suspense fallback={<LoadingFallback />}>
                   <EditAdmin />
+                </React.Suspense>
+              } />
+              <Route path="approval" element={
+                <React.Suspense fallback={<LoadingFallback />}>
+                  <ApprovalQueue />
+                </React.Suspense>
+              } />
+              <Route path="my-approvals" element={
+                <React.Suspense fallback={<LoadingFallback />}>
+                  <MyApprovals />
                 </React.Suspense>
               } />
             </Route>

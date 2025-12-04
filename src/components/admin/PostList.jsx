@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
-import { Edit, Trash2, Eye, Search, FileUp, Filter, Loader2, Plus, Info } from 'lucide-react';
+import { Edit, Trash2, Eye, Search, FileUp, Filter, Loader2, Plus, Info, Clock, CheckCircle, XCircle, AlertCircle, RefreshCw } from 'lucide-react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -53,11 +53,8 @@ const PostList = () => {
         throw new Error('User data not found');
       }
 
-      // Debug: Log user info
       const parsedUser = JSON.parse(userData);
       console.log('Current user:', parsedUser);
-      console.log('User role:', parsedUser.role);
-      console.log('User ID:', parsedUser._id);
 
       // Build query parameters
       const params = new URLSearchParams({
@@ -83,9 +80,7 @@ const PostList = () => {
       console.log('Posts API response data:', data);
 
       if (!response.ok) {
-        // Handle specific error cases
         if (response.status === 403) {
-          // Admin trying to access posts but none exist
           setPosts([]);
           setTotalPages(1);
           setTotalPosts(0);
@@ -115,7 +110,6 @@ const PostList = () => {
     } catch (error) {
       console.error('Error fetching posts:', error);
       
-      // Don't show error toast for empty admin posts
       if (!error.message.includes('403')) {
         toast({
           title: 'Error',
@@ -205,6 +199,19 @@ const PostList = () => {
     }
   };
 
+  const handleRequestUpdate = async (postId) => {
+    try {
+      // Navigate to edit page for update request
+      navigate(`/admin/posts/edit/${postId}?updateRequest=true`);
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: 'Failed to request update',
+        variant: 'destructive'
+      });
+    }
+  };
+
   const getStatusColor = (status) => {
     const colors = {
       draft: 'bg-gray-100 text-gray-700',
@@ -228,10 +235,7 @@ const PostList = () => {
   };
 
   const handlePreview = (post) => {
-    // Store post data in localStorage for preview component
     localStorage.setItem('postPreview', JSON.stringify(post));
-    
-    // Navigate to the admin preview page within the same layout
     navigate('/admin/preview');
   };
 
@@ -239,14 +243,33 @@ const PostList = () => {
   const canEditPost = (post) => {
     if (!user) return false;
     
-    // Superadmin can edit all posts
+    // Superadmin can edit all posts directly
     if (user.role === 'superadmin') return true;
     
-    // Admin can only edit their own posts
+    // Admin can only edit their own draft posts directly
     if (user.role === 'admin') {
-      // Check both possible formats of authorId
       const authorId = post.authorId?._id || post.authorId;
-      return authorId === user._id || authorId?.toString() === user._id;
+      const isOwnPost = authorId === user._id || authorId?.toString() === user._id;
+      return isOwnPost && post.status === 'draft';
+    }
+    
+    return false;
+  };
+
+  // Check if user can request update for a published post
+  const canRequestUpdate = (post) => {
+    if (!user) return false;
+    
+    // Admin can request updates for their own published posts
+    if (user.role === 'admin') {
+      const authorId = post.authorId?._id || post.authorId;
+      const isOwnPost = authorId === user._id || authorId?.toString() === user._id;
+      return isOwnPost && post.status === 'published';
+    }
+    
+    // Superadmin can request updates for any published post
+    if (user.role === 'superadmin') {
+      return post.status === 'published';
     }
     
     return false;
@@ -269,7 +292,11 @@ const PostList = () => {
     return user.role === 'superadmin' && post.status !== 'published';
   };
 
-  // Test API connection
+  // Check if admin needs to create post via approval system
+  const shouldUseApprovalSystem = () => {
+    return user?.role === 'admin';
+  };
+
   const testAPIConnection = async () => {
     try {
       const token = localStorage.getItem('token');
@@ -367,14 +394,41 @@ const PostList = () => {
                 asChild
                 className="bg-orange-600 hover:bg-orange-700"
               >
-                <Link to="/admin/posts/new">
+                <Link to={shouldUseApprovalSystem() ? "/admin/posts/new-approval" : "/admin/posts/new"}>
                   <Plus className="h-4 w-4 mr-2" />
                   New Post
                 </Link>
               </Button>
             )}
 
-            {/* Debug button (remove in production) */}
+            {/* Approval queue button for superadmin */}
+            {user?.role === 'superadmin' && (
+              <Button
+                asChild
+                variant="outline"
+                className="border-purple-600 text-purple-600 hover:bg-purple-50"
+              >
+                <Link to="/admin/approval">
+                  <CheckCircle className="h-4 w-4 mr-2" />
+                  Approval Queue
+                </Link>
+              </Button>
+            )}
+
+            {/* My approvals button for admin */}
+            {user?.role === 'admin' && (
+              <Button
+                asChild
+                variant="outline"
+                className="border-blue-600 text-blue-600 hover:bg-blue-50"
+              >
+                <Link to="/admin/my-approvals">
+                  <Clock className="h-4 w-4 mr-2" />
+                  My Submissions
+                </Link>
+              </Button>
+            )}
+
             <Button
               variant="outline"
               size="sm"
@@ -435,18 +489,17 @@ const PostList = () => {
       </div>
 
       {/* Admin Info Banner */}
-      {user?.role === 'admin' && posts.length === 0 && (
+      {user?.role === 'admin' && (
         <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
           <div className="flex items-start">
             <Info className="h-5 w-5 text-blue-500 mr-2 flex-shrink-0 mt-0.5" />
             <div>
-              <h3 className="font-semibold text-blue-800">Admin Post Permissions</h3>
+              <h3 className="font-semibold text-blue-800">Admin Post Workflow</h3>
               <p className="text-sm text-blue-600 mt-1">
-                As an admin, you can only see and edit posts that you have created. 
-                {totalPosts === 0 ? ' You haven\'t created any posts yet.' : ''}
-              </p>
-              <p className="text-xs text-blue-500 mt-2">
-                Note: Only superadmin can publish posts and see all posts.
+                • You can create and edit draft posts directly<br/>
+                • To publish a post or update a published post, it needs superadmin approval<br/>
+                • Use the "Request Update" button for published posts<br/>
+                • Check "My Submissions" for approval status
               </p>
             </div>
           </div>
@@ -476,19 +529,21 @@ const PostList = () => {
                   <span className="text-sm text-gray-700">{post.category}</span>
                 </td>
                 <td className="py-4 px-4">
-                  <span className={`px-3 py-1 rounded-full text-xs font-semibold ${getStatusColor(post.status)}`}>
-                    {post.status?.charAt(0).toUpperCase() + post.status?.slice(1) || 'Unknown'}
-                  </span>
+                  <div className="flex flex-col gap-1">
+                    <span className={`px-3 py-1 rounded-full text-xs font-semibold ${getStatusColor(post.status)}`}>
+                      {post.status?.charAt(0).toUpperCase() + post.status?.slice(1) || 'Unknown'}
+                    </span>
+                    {post.lastApprovedBy && post.status === 'published' && (
+                      <span className="text-xs text-gray-500">
+                        Approved by: {post.lastApprovedBy?.name || 'Superadmin'}
+                      </span>
+                    )}
+                  </div>
                 </td>
                 <td className="py-4 px-4">
                   <div className="text-sm text-gray-700">{post.author}</div>
                   {post.authorId?.name && (
                     <div className="text-xs text-gray-500">{post.authorId.name}</div>
-                  )}
-                  {post.authorId?._id && user?.role === 'admin' && (
-                    <div className="text-xs text-gray-400 mt-1">
-                      Author ID: {post.authorId._id.toString().substring(0, 8)}...
-                    </div>
                   )}
                 </td>
                 <td className="py-4 px-4 text-sm text-gray-600">
@@ -505,7 +560,7 @@ const PostList = () => {
                       <Eye className="h-4 w-4" />
                     </Button>
                     
-                    {/* Edit Button - Show if user can edit this post */}
+                    {/* Edit Button - Show if user can edit this post directly */}
                     {canEditPost(post) && (
                       <Button
                         variant="ghost"
@@ -515,6 +570,19 @@ const PostList = () => {
                         <Link to={`/admin/posts/edit/${post._id}`} title="Edit Post">
                           <Edit className="h-4 w-4" />
                         </Link>
+                      </Button>
+                    )}
+                    
+                    {/* Request Update Button - For published posts */}
+                    {canRequestUpdate(post) && (
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => handleRequestUpdate(post._id)}
+                        className="hover:text-yellow-600"
+                        title="Request Update (Needs Approval)"
+                      >
+                        <RefreshCw className="h-4 w-4" />
                       </Button>
                     )}
                     
@@ -565,13 +633,13 @@ const PostList = () => {
           {user?.role === 'admin' && (
             <>
               <p className="text-sm text-gray-500 mb-4">
-                As an admin, you can only see posts that you have created.
+                As an admin, you can create draft posts directly. Published posts require superadmin approval.
               </p>
               <Button
                 asChild
                 className="bg-orange-600 hover:bg-orange-700"
               >
-                <Link to="/admin/posts/create">
+                <Link to="/admin/posts/new-approval">
                   <Plus className="h-4 w-4 mr-2" />
                   Create Your First Post
                 </Link>
