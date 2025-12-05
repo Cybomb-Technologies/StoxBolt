@@ -3,7 +3,12 @@ const Post = require('../models/Post');
 const AdminPost = require('../models/AdminPost');
 const Activity = require('../models/Activity');
 
-// @desc    Get all posts (published only for public, all for admin/superadmin)
+// Add this helper function at the beginning of the file
+const isValidObjectId = (id) => {
+  return mongoose.Types.ObjectId.isValid(id);
+};
+
+// @desc    Get all posts with CRUD access consideration
 // @route   GET /api/posts
 // @access  Private
 exports.getPosts = async (req, res) => {
@@ -31,11 +36,11 @@ exports.getPosts = async (req, res) => {
       } else {
         query.status = status;
       }
-    } else if (req.user.role === 'admin') {
-      // Admin can only see their own posts
+    } else if (req.user.role === 'admin' && !req.user.hasCRUDAccess) {
+      // Admin without CRUD access can only see their own posts
       query.authorId = req.user._id;
     }
-    // Superadmin can see all posts (no filter needed)
+    // Superadmin and admin with CRUD access can see all posts
     
     // Filter by category
     if (category && category !== 'all') {
@@ -57,7 +62,8 @@ exports.getPosts = async (req, res) => {
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(parseInt(limit))
-      .populate('authorId', 'name email');
+      .populate('authorId', 'name email')
+      .populate('category', 'name');
     
     const total = await Post.countDocuments(query);
     
@@ -80,12 +86,12 @@ exports.getPosts = async (req, res) => {
   }
 };
 
-// @desc    Get single post
+// @desc    Get single post with CRUD access consideration
 // @route   GET /api/posts/:id
 // @access  Private
 exports.getPost = async (req, res) => {
   try {
-    const post = await Post.findById(req.params.id).populate('authorId', 'name email');
+    const post = await Post.findById(req.params.id).populate('authorId', 'name email').populate('category', 'name');
     
     if (!post) {
       return res.status(404).json({
@@ -94,14 +100,20 @@ exports.getPost = async (req, res) => {
       });
     }
     
-    // Check permissions
-    if (req.user.role === 'admin' && post.authorId && post.authorId._id.toString() !== req.user._id.toString()) {
-      return res.status(403).json({
-        success: false,
-        message: 'Admin can only access their own posts'
-      });
+    // Check permissions with CRUD access consideration
+    if (req.user.role === 'admin') {
+      const isOwnPost = post.authorId && post.authorId._id.toString() === req.user._id.toString();
+      
+      // Admin can only access:
+      // 1. Their own posts
+      // 2. Any post if they have CRUD access
+      if (!isOwnPost && !req.user.hasCRUDAccess) {
+        return res.status(403).json({
+          success: false,
+          message: 'You can only access your own posts'
+        });
+      }
     }
-    // Superadmin can access any post
     
     res.status(200).json({
       success: true,
@@ -117,23 +129,69 @@ exports.getPost = async (req, res) => {
   }
 };
 
-// @desc    Create new post (Only for superadmin, admin should use approval system)
+// @desc    Create new post with CRUD access consideration
 // @route   POST /api/posts
-// @access  Private (Superadmin only)
+// @access  Private
 exports.createPost = async (req, res) => {
   try {
-    // Only superadmin can create posts directly
-    if (req.user.role !== 'superadmin') {
+    console.log('=== CREATE POST STARTED ===');
+    console.log('User role:', req.user.role);
+    console.log('User hasCRUDAccess:', req.user.hasCRUDAccess);
+    console.log('Request body:', JSON.stringify(req.body, null, 2));
+    
+    // Admin without CRUD access must use draft system
+    if (req.user.role === 'admin' && !req.user.hasCRUDAccess) {
       return res.status(403).json({
         success: false,
-        message: 'Admin must use approval system to create posts'
+        message: 'Admin must use draft system to create posts. CRUD access is required for direct creation.'
       });
     }
     
-    const postData = {
-      ...req.body,
-      authorId: req.user._id
-    };
+    // In the createPost function, update the postData section:
+const postData = {
+  ...req.body,
+  authorId: req.user._id,
+  author: req.body.author || req.user.name
+};
+
+// Make sure category is an ObjectId
+if (req.body.category) {
+  if (!mongoose.Types.ObjectId.isValid(req.body.category)) {
+    // If category is a string (new category), create it first
+    const Category = require('../models/Category');
+    let category = await Category.findOne({ name: req.body.category });
+    
+    if (!category) {
+      // Create new category
+      category = await Category.create({
+        name: req.body.category,
+        createdBy: req.user._id
+      });
+    }
+    
+    postData.category = category._id;
+  }
+}
+
+// In the updatePost function, add similar logic:
+if (req.body.category) {
+  if (!mongoose.Types.ObjectId.isValid(req.body.category)) {
+    // If category is a string (new category), create it first
+    const Category = require('../models/Category');
+    let category = await Category.findOne({ name: req.body.category });
+    
+    if (!category) {
+      // Create new category
+      category = await Category.create({
+        name: req.body.category,
+        createdBy: req.user._id
+      });
+    }
+    
+    updateData.category = category._id;
+  }
+}
+
     
     // Handle tags
     if (postData.tags && typeof postData.tags === 'string') {
@@ -141,19 +199,83 @@ exports.createPost = async (req, res) => {
     }
     
     // Check if it's a scheduled post
-    if (postData.publishDateTime && new Date(postData.publishDateTime) > new Date()) {
+    const publishDate = new Date(postData.publishDateTime);
+    const now = new Date();
+    const isScheduled = publishDate > now;
+    
+    console.log('Is scheduled post?', isScheduled);
+    console.log('Publish date:', postData.publishDateTime);
+    console.log('Publish date (local):', publishDate.toString());
+    console.log('Current time (local):', now.toString());
+    
+    if (isScheduled) {
       postData.isScheduled = true;
-      postData.scheduleApproved = true; // Superadmin can schedule directly
-      postData.scheduleApprovedBy = req.user._id;
-      postData.scheduleApprovedAt = Date.now();
-      postData.status = 'scheduled';
+      
+      if (req.user.role === 'admin') {
+        // Admin with CRUD access can schedule directly
+        if (req.user.hasCRUDAccess) {
+          console.log('Admin with CRUD access scheduling directly');
+          postData.scheduleApproved = true;
+          postData.scheduleApprovedBy = req.user._id;
+          postData.scheduleApprovedAt = Date.now();
+          postData.status = 'scheduled';
+        } else {
+          // Admin without CRUD access needs approval
+          console.log('Admin without CRUD access needs approval');
+          postData.scheduleApproved = false;
+          postData.status = 'pending_approval';
+        }
+      } else if (req.user.role === 'superadmin') {
+        // Superadmin can schedule directly
+        console.log('Superadmin scheduling directly');
+        postData.scheduleApproved = true;
+        postData.scheduleApprovedBy = req.user._id;
+        postData.scheduleApprovedAt = Date.now();
+        postData.status = 'scheduled';
+      }
     } else {
-      postData.status = 'published';
+      // NOT scheduled - Immediate publication
+      console.log('Not scheduled - checking direct publication rights');
+      
+      if (req.user.role === 'admin' && req.user.hasCRUDAccess) {
+        // Admin with CRUD access can publish directly
+        console.log('Admin with CRUD access publishing directly');
+        postData.status = 'published';
+        postData.publishDateTime = new Date(); // Set to now
+      } else if (req.user.role === 'superadmin') {
+        // Superadmin can publish directly
+        console.log('Superadmin publishing directly');
+        postData.status = 'published';
+        postData.publishDateTime = new Date();
+      } else {
+        // Admin without CRUD access needs approval
+        console.log('Admin without CRUD access needs approval');
+        postData.status = 'pending_approval';
+      }
     }
+    
+    // Ensure publishDateTime is a proper Date object
+    if (postData.publishDateTime && typeof postData.publishDateTime === 'string') {
+      postData.publishDateTime = new Date(postData.publishDateTime);
+    }
+    
+    console.log('Final post data:', JSON.stringify(postData, null, 2));
     
     const post = await Post.create(postData);
     
-    // Log activity
+    // If admin without CRUD access created a scheduled post, create AdminPost for approval
+    if (req.user.role === 'admin' && !req.user.hasCRUDAccess && post.isScheduled && !post.scheduleApproved) {
+      const adminPostData = {
+        ...postData,
+        postId: post._id,
+        isScheduledPost: true,
+        approvalStatus: 'scheduled_pending'
+      };
+      
+      await AdminPost.create(adminPostData);
+    }
+    
+    // Log activity with CRUD mode info
     await Activity.create({
       type: 'create',
       userId: req.user._id,
@@ -163,13 +285,19 @@ exports.createPost = async (req, res) => {
       details: { 
         category: post.category, 
         status: post.status,
-        isScheduled: post.isScheduled
+        isScheduled: post.isScheduled,
+        scheduleApproved: post.scheduleApproved,
+        publishDateTime: post.publishDateTime,
+        createdWithCRUD: req.user.hasCRUDAccess || false,
+        userRole: req.user.role
       }
     });
     
+    console.log('=== CREATE POST COMPLETED ===');
+    
     res.status(201).json({
       success: true,
-      message: 'Post created successfully',
+      message: req.user.hasCRUDAccess ? 'Post created successfully' : 'Post created - scheduled posts need approval',
       data: post
     });
     
@@ -183,7 +311,7 @@ exports.createPost = async (req, res) => {
   }
 };
 
-// @desc    Update post 
+// @desc    Update post with CRUD access consideration
 // @route   PUT /api/posts/:id
 // @access  Private
 exports.updatePost = async (req, res) => {
@@ -199,24 +327,28 @@ exports.updatePost = async (req, res) => {
     
     // Check if user can update this post
     if (req.user.role === 'admin') {
-      // Admin can only update their own posts
-      if (post.authorId.toString() !== req.user._id.toString()) {
+      const isOwnPost = post.authorId.toString() === req.user._id.toString();
+      
+      // Admin can update:
+      // 1. Their own posts
+      // 2. Any post if they have CRUD access
+      if (!isOwnPost && !req.user.hasCRUDAccess) {
         return res.status(403).json({
           success: false,
           message: 'You can only update your own posts'
         });
       }
       
-      // Admin cannot directly update published posts - must use approval system
-      if (post.status === 'published') {
+      // If admin doesn't have CRUD access, they cannot directly update published posts
+      if (!req.user.hasCRUDAccess && post.status === 'published') {
         return res.status(403).json({
           success: false,
           message: 'Admin must use approval system to update published posts. Please use the "Request Update" feature.'
         });
       }
       
-      // Admin cannot update scheduled posts that are already approved
-      if (post.isScheduled && post.scheduleApproved) {
+      // Admin without CRUD access cannot update approved scheduled posts
+      if (!req.user.hasCRUDAccess && post.isScheduled && post.scheduleApproved) {
         return res.status(403).json({
           success: false,
           message: 'Cannot update approved scheduled post. Please cancel and create new.'
@@ -225,6 +357,14 @@ exports.updatePost = async (req, res) => {
     }
     
     // Superadmin can update any post
+    // Admin with CRUD access can update any post (checked above)
+    
+    console.log('=== UPDATE POST STARTED ===');
+    console.log('Original post status:', post.status);
+    console.log('Original publishDateTime:', post.publishDateTime);
+    console.log('Original publishDateTime (ISO):', post.publishDateTime?.toISOString());
+    console.log('User role:', req.user.role);
+    console.log('Request body:', JSON.stringify(req.body, null, 2));
     
     // Handle tags - convert string to array if needed
     if (req.body.tags) {
@@ -239,34 +379,52 @@ exports.updatePost = async (req, res) => {
     const updateData = { ...req.body };
     delete updateData.authorId; // Prevent changing authorId
     
+    const now = new Date();
+    
+    // IMPORTANT: If post is already published, update the publishDateTime to now
+    // This ensures the "Last Updated" time is correct
+    if (post.status === 'published') {
+      console.log('Post is already published. Updating publishDateTime to current time.');
+      updateData.publishDateTime = now;
+      updateData.lastUpdatedAt = now;
+    }
+    
     // Check if updating to scheduled post
     if (updateData.publishDateTime && new Date(updateData.publishDateTime) > new Date()) {
       updateData.isScheduled = true;
       
       if (req.user.role === 'admin') {
-        // Admin needs approval for scheduled posts
-        updateData.scheduleApproved = false;
-        updateData.status = 'pending_approval';
-        
-        // Create AdminPost for approval
-        const adminPostData = {
-          ...updateData,
-          authorId: post.authorId,
-          postId: post._id,
-          isScheduledPost: true,
-          approvalStatus: 'scheduled_pending'
-        };
-        
-        // Check if AdminPost already exists
-        let adminPost = await AdminPost.findOne({ postId: post._id });
-        if (adminPost) {
-          adminPost = await AdminPost.findByIdAndUpdate(
-            adminPost._id,
-            adminPostData,
-            { new: true, runValidators: true }
-          );
+        if (req.user.hasCRUDAccess) {
+          // Admin with CRUD access can schedule directly
+          updateData.scheduleApproved = true;
+          updateData.scheduleApprovedBy = req.user._id;
+          updateData.scheduleApprovedAt = Date.now();
+          updateData.status = 'scheduled';
         } else {
-          adminPost = await AdminPost.create(adminPostData);
+          // Admin without CRUD access needs approval
+          updateData.scheduleApproved = false;
+          updateData.status = 'pending_approval';
+          
+          // Create AdminPost for approval
+          const adminPostData = {
+            ...updateData,
+            authorId: post.authorId,
+            postId: post._id,
+            isScheduledPost: true,
+            approvalStatus: 'scheduled_pending'
+          };
+          
+          // Check if AdminPost already exists
+          let adminPost = await AdminPost.findOne({ postId: post._id });
+          if (adminPost) {
+            adminPost = await AdminPost.findByIdAndUpdate(
+              adminPost._id,
+              adminPostData,
+              { new: true, runValidators: true }
+            );
+          } else {
+            adminPost = await AdminPost.create(adminPostData);
+          }
         }
       } else if (req.user.role === 'superadmin') {
         // Superadmin can schedule directly
@@ -279,7 +437,19 @@ exports.updatePost = async (req, res) => {
       // If publish date is in past, remove schedule
       updateData.isScheduled = false;
       updateData.scheduleApproved = false;
+      
+      // If it was scheduled but the date has passed, publish it now
+      if (post.isScheduled) {
+        console.log('Scheduled date has passed. Publishing now.');
+        updateData.status = 'published';
+        updateData.publishDateTime = now;
+        updateData.lastApprovedBy = req.user._id;
+        updateData.lastApprovedAt = now;
+      }
     }
+    
+    console.log('Final update data:', JSON.stringify(updateData, null, 2));
+    console.log('New publishDateTime:', updateData.publishDateTime);
     
     // Update the post
     post = await Post.findByIdAndUpdate(
@@ -288,7 +458,7 @@ exports.updatePost = async (req, res) => {
       { new: true, runValidators: true }
     ).populate('authorId', 'name email');
     
-    // Log activity
+    // Log activity with CRUD mode info
     await Activity.create({
       type: 'update',
       userId: req.user._id,
@@ -297,20 +467,25 @@ exports.updatePost = async (req, res) => {
       postId: post._id,
       details: { 
         ...updateData,
-        updatedBy: req.user.role
+        updatedBy: req.user.role,
+        updatedWithCRUD: req.user.hasCRUDAccess || false,
+        wasPublished: true,
+        previousPublishDateTime: post.publishDateTime,
+        newPublishDateTime: updateData.publishDateTime
       }
     });
     
+    console.log('=== UPDATE POST COMPLETED ===');
+    
     res.status(200).json({
       success: true,
-      message: 'Post updated successfully',
+      message: req.user.hasCRUDAccess ? 'Post updated successfully' : 'Post update submitted for approval',
       data: post
     });
     
   } catch (error) {
     console.error('Update post error:', error);
     
-    // Provide more detailed error message
     let errorMessage = 'Server error';
     if (error.name === 'ValidationError') {
       errorMessage = Object.values(error.errors).map(val => val.message).join(', ');
@@ -326,9 +501,126 @@ exports.updatePost = async (req, res) => {
   }
 };
 
-// @desc    Delete post
+// @desc    Request update for published post (Admin only - for those without CRUD access)
+// @route   PUT /api/posts/:id/request-update
+// @access  Private (Admin only)
+exports.requestUpdate = async (req, res) => {
+  try {
+    const post = await Post.findById(req.params.id);
+    
+    if (!post) {
+      return res.status(404).json({
+        success: false,
+        message: 'Post not found'
+      });
+    }
+    
+    // Only admin can request updates for published posts
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({
+        success: false,
+        message: 'Only admin can request updates for published posts'
+      });
+    }
+    
+    // Admin with CRUD access should use direct update, not request update
+    if (req.user.hasCRUDAccess) {
+      return res.status(400).json({
+        success: false,
+        message: 'You have CRUD access. Please use the direct update feature instead.'
+      });
+    }
+    
+    // Check if user owns this post
+    if (post.authorId.toString() !== req.user._id.toString()) {
+      return res.status(403).json({
+        success: false,
+        message: 'You can only request updates for your own posts'
+      });
+    }
+    
+    // Only published posts can have update requests
+    if (post.status !== 'published') {
+      return res.status(400).json({
+        success: false,
+        message: 'Only published posts can have update requests'
+      });
+    }
+    
+    // Check if there's already an update request for this post
+    const existingAdminPost = await AdminPost.findOne({
+      postId: post._id,
+      isUpdateRequest: true,
+      approvalStatus: { $in: ['pending_review', 'scheduled_pending'] }
+    });
+    
+    if (existingAdminPost) {
+      return res.status(400).json({
+        success: false,
+        message: 'An update request is already pending for this post'
+      });
+    }
+    
+    // Create AdminPost for update request
+    const adminPostData = {
+      title: post.title,
+      shortTitle: post.shortTitle,
+      body: post.body,
+      category: post.category,
+      tags: post.tags,
+      region: post.region,
+      author: post.author,
+      authorId: post.authorId,
+      publishDateTime: post.publishDateTime,
+      isSponsored: post.isSponsored,
+      metaTitle: post.metaTitle,
+      metaDescription: post.metaDescription,
+      imageUrl: post.imageUrl,
+      approvalStatus: 'pending_review',
+      postId: post._id,
+      isUpdateRequest: true,
+      isScheduledPost: false,
+      originalPostData: post.toObject()
+    };
+    
+    const adminPost = await AdminPost.create(adminPostData);
+    
+    // Log activity
+    await Activity.create({
+      type: 'update_request',
+      userId: req.user._id,
+      user: req.user.name,
+      title: post.title,
+      postId: post._id,
+      adminPostId: adminPost._id,
+      details: { 
+        type: 'update_request_created',
+        status: 'pending_review',
+        adminCRUDAccess: req.user.hasCRUDAccess || false
+      }
+    });
+    
+    res.status(200).json({
+      success: true,
+      message: 'Update request submitted successfully',
+      data: {
+        post,
+        adminPost
+      }
+    });
+    
+  } catch (error) {
+    console.error('Request update error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error: ' + error.message
+    });
+  }
+};
+
+// @desc    Delete post with CRUD access consideration
 // @route   DELETE /api/posts/:id
-// @access  Private (Superadmin only)
+// @access  Private
 exports.deletePost = async (req, res) => {
   try {
     const post = await Post.findById(req.params.id);
@@ -340,25 +632,41 @@ exports.deletePost = async (req, res) => {
       });
     }
     
-    // Only superadmin can delete posts
-    if (req.user.role !== 'superadmin') {
-      return res.status(403).json({
-        success: false,
-        message: 'Only superadmin can delete posts'
-      });
+    // Superadmin can delete any post
+    // Admin with CRUD access can delete their own posts
+    // Admin without CRUD access cannot delete posts
+    if (req.user.role === 'admin') {
+      const isOwnPost = post.authorId.toString() === req.user._id.toString();
+      
+      if (!req.user.hasCRUDAccess) {
+        return res.status(403).json({
+          success: false,
+          message: 'CRUD access is required to delete posts'
+        });
+      }
+      
+      if (!isOwnPost) {
+        return res.status(403).json({
+          success: false,
+          message: 'You can only delete your own posts'
+        });
+      }
     }
     
     // Also delete associated AdminPosts
     await AdminPost.deleteMany({ postId: post._id });
     
-    // Log activity before deletion
+    // Log activity
     await Activity.create({
       type: 'delete',
       userId: req.user._id,
       user: req.user.name,
       title: post.title,
       postId: post._id,
-      details: { category: post.category }
+      details: { 
+        category: post.category,
+        deletedWithCRUD: req.user.hasCRUDAccess || false
+      }
     });
     
     await post.deleteOne();
@@ -377,11 +685,15 @@ exports.deletePost = async (req, res) => {
   }
 };
 
-// @desc    Publish post
+// @desc    Publish post with CRUD access consideration
 // @route   PUT /api/posts/:id/publish
-// @access  Private (Superadmin only)
+// @access  Private
 exports.publishPost = async (req, res) => {
   try {
+    console.log('=== PUBLISH POST STARTED ===');
+    console.log('User:', req.user.name, req.user.role);
+    console.log('User hasCRUDAccess:', req.user.hasCRUDAccess);
+    
     let post = await Post.findById(req.params.id);
     
     if (!post) {
@@ -391,21 +703,61 @@ exports.publishPost = async (req, res) => {
       });
     }
     
-    // Only superadmin can publish posts
-    if (req.user.role !== 'superadmin') {
-      return res.status(403).json({
-        success: false,
-        message: 'Only superadmin can publish posts'
-      });
+    console.log('Post status before:', post.status);
+    console.log('Post isScheduled:', post.isScheduled);
+    console.log('Post scheduleApproved:', post.scheduleApproved);
+    
+    // Superadmin can publish any post
+    // Admin with CRUD access can publish their own posts
+    if (req.user.role === 'admin') {
+      const isOwnPost = post.authorId.toString() === req.user._id.toString();
+      
+      if (!req.user.hasCRUDAccess) {
+        return res.status(403).json({
+          success: false,
+          message: 'CRUD access is required to publish posts'
+        });
+      }
+      
+      if (!isOwnPost) {
+        return res.status(403).json({
+          success: false,
+          message: 'You can only publish your own posts'
+        });
+      }
     }
     
-    post.status = 'published';
-    post.publishDateTime = Date.now();
+    // Check if it's a scheduled post
+    if (post.isScheduled) {
+      // For scheduled posts, only publish if scheduled time has passed OR manually publishing
+      const now = new Date();
+      const scheduledTime = new Date(post.publishDateTime);
+      
+      if (scheduledTime > now) {
+        // It's still in the future, keep it as scheduled
+        post.status = 'scheduled';
+        post.scheduleApproved = true;
+        post.scheduleApprovedBy = req.user._id;
+        post.scheduleApprovedAt = Date.now();
+        console.log('Post remains scheduled for future date');
+      } else {
+        // Scheduled time has passed, publish it
+        post.status = 'published';
+        post.publishDateTime = now;
+        console.log('Scheduled post published now');
+      }
+    } else {
+      // Not a scheduled post, publish immediately
+      post.status = 'published';
+      post.publishDateTime = new Date();
+      console.log('Regular post published');
+    }
+    
     post.lastApprovedBy = req.user._id;
     post.lastApprovedAt = Date.now();
     
-    // If it was scheduled, update schedule approval
-    if (post.isScheduled) {
+    // If it was scheduled but not approved yet, update schedule approval
+    if (post.isScheduled && !post.scheduleApproved) {
       post.scheduleApproved = true;
       post.scheduleApprovedBy = req.user._id;
       post.scheduleApprovedAt = Date.now();
@@ -420,7 +772,8 @@ exports.publishPost = async (req, res) => {
         scheduleApproved: true,
         scheduleApprovedBy: req.user._id,
         scheduleApprovedAt: Date.now(),
-        approvalStatus: 'approved'
+        approvalStatus: 'approved',
+        status: 'published'
       }
     );
     
@@ -430,8 +783,17 @@ exports.publishPost = async (req, res) => {
       userId: req.user._id,
       user: req.user.name,
       title: post.title,
-      postId: post._id
+      postId: post._id,
+      details: {
+        publishedWithCRUD: req.user.hasCRUDAccess || false,
+        previousStatus: post.status,
+        isScheduled: post.isScheduled,
+        publishDateTime: post.publishDateTime
+      }
     });
+    
+    console.log('Post status after:', post.status);
+    console.log('=== PUBLISH POST COMPLETED ===');
     
     res.status(200).json({
       success: true,
@@ -448,7 +810,7 @@ exports.publishPost = async (req, res) => {
   }
 };
 
-// @desc    Create draft (Admin can create drafts)
+// @desc    Create draft (Admin can create drafts, CRUD access not required)
 // @route   POST /api/posts/draft
 // @access  Private (Admin & Superadmin)
 exports.createDraft = async (req, res) => {
@@ -463,12 +825,21 @@ exports.createDraft = async (req, res) => {
       new Date(postData.publishDateTime) > new Date();
     
     if (isScheduledPost) {
-      // For scheduled posts, set status based on user role
+      // For scheduled posts, set status based on user role and CRUD access
       if (req.user.role === 'admin') {
-        // Admin needs approval for scheduled posts
-        postData.status = 'pending_approval';
-        postData.isScheduled = true;
-        postData.scheduleApproved = false;
+        if (req.user.hasCRUDAccess) {
+          // Admin with CRUD access can schedule directly
+          postData.status = 'scheduled';
+          postData.isScheduled = true;
+          postData.scheduleApproved = true;
+          postData.scheduleApprovedBy = req.user._id;
+          postData.scheduleApprovedAt = Date.now();
+        } else {
+          // Admin without CRUD access needs approval
+          postData.status = 'pending_approval';
+          postData.isScheduled = true;
+          postData.scheduleApproved = false;
+        }
       } else if (req.user.role === 'superadmin') {
         // Superadmin can schedule directly
         postData.status = 'scheduled';
@@ -489,8 +860,8 @@ exports.createDraft = async (req, res) => {
     
     const post = await Post.create(postData);
     
-    // If admin created a scheduled post, also create AdminPost for approval
-    if (req.user.role === 'admin' && isScheduledPost) {
+    // If admin without CRUD access created a scheduled post, also create AdminPost for approval
+    if (req.user.role === 'admin' && !req.user.hasCRUDAccess && isScheduledPost) {
       const adminPostData = {
         ...postData,
         postId: post._id,
@@ -512,13 +883,16 @@ exports.createDraft = async (req, res) => {
         type: isScheduledPost ? 'scheduled_draft_created' : 'draft_created',
         category: post.category,
         status: post.status,
-        isScheduled: isScheduledPost
+        isScheduled: isScheduledPost,
+        createdWithCRUD: req.user.hasCRUDAccess || false
       }
     });
     
     res.status(201).json({
       success: true,
-      message: isScheduledPost ? 'Scheduled draft created - pending approval' : 'Draft created successfully',
+      message: isScheduledPost ? 
+        (req.user.hasCRUDAccess ? 'Scheduled draft created' : 'Scheduled draft created - pending approval') : 
+        'Draft created successfully',
       data: post
     });
     
@@ -532,7 +906,7 @@ exports.createDraft = async (req, res) => {
   }
 };
 
-// @desc    Submit draft for approval (including scheduled posts)
+// @desc    Submit draft for approval (for admin without CRUD access)
 // @route   PUT /api/posts/:id/submit-for-approval
 // @access  Private (Admin only)
 exports.submitForApproval = async (req, res) => {
@@ -551,6 +925,14 @@ exports.submitForApproval = async (req, res) => {
       return res.status(403).json({
         success: false,
         message: 'Only admin can submit drafts for approval'
+      });
+    }
+    
+    // Admin with CRUD access should publish directly
+    if (req.user.hasCRUDAccess) {
+      return res.status(400).json({
+        success: false,
+        message: 'You have CRUD access. Please use the publish feature instead.'
       });
     }
     
@@ -612,7 +994,8 @@ exports.submitForApproval = async (req, res) => {
         details: { 
           type: 'scheduled_post_submitted',
           status: 'scheduled_pending',
-          publishDateTime: post.publishDateTime
+          publishDateTime: post.publishDateTime,
+          adminCRUDAccess: req.user.hasCRUDAccess || false
         }
       });
       
@@ -675,7 +1058,8 @@ exports.submitForApproval = async (req, res) => {
       adminPostId: adminPost._id,
       details: { 
         type: 'draft_submitted',
-        status: 'pending_review'
+        status: 'pending_review',
+        adminCRUDAccess: req.user.hasCRUDAccess || false
       }
     });
     
@@ -697,6 +1081,8 @@ exports.submitForApproval = async (req, res) => {
   }
 };
 
+
+
 exports.approveSchedule = async (req, res) => {
   try {
     console.log('=== APPROVE SCHEDULE STARTED ===');
@@ -711,14 +1097,6 @@ exports.approveSchedule = async (req, res) => {
         message: 'Invalid post ID provided'
       });
     }
-    // At the beginning of approveSchedule
-// if (!isValidObjectId(req.params.id)) {
-//   console.log('ERROR: Invalid ObjectId format:', req.params.id);
-//   return res.status(400).json({
-//     success: false,
-//     message: 'Invalid post ID format'
-//   });
-// }
     
     // First check if it's an AdminPost ID (might be from AdminPost collection)
     let post = await Post.findById(req.params.id);

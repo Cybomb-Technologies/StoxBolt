@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { 
@@ -24,7 +23,10 @@ import {
   XCircle,
   BookOpen,
   User as UserIcon,
-  AlertCircle
+  AlertCircle,
+  Mail,
+  Shield,
+  Activity as ActivityIcon
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
@@ -45,13 +47,13 @@ const ActivityLog = () => {
   const { user } = useAuth();
 
   const activityTypes = [
-    { value: 'all', label: 'All Activities' },
-    { value: 'create', label: 'Create' },
-    { value: 'update', label: 'Update' },
-    { value: 'delete', label: 'Delete' },
-    { value: 'publish', label: 'Publish' },
-    { value: 'upload', label: 'Upload' },
-   
+    { value: 'all', label: 'All Activities', icon: <ActivityIcon className="h-4 w-4 mr-2" /> },
+    { value: 'create', label: 'Create', icon: <FileText className="h-4 w-4 mr-2" /> },
+    { value: 'update', label: 'Update', icon: <Edit className="h-4 w-4 mr-2" /> },
+    { value: 'delete', label: 'Delete', icon: <Trash2 className="h-4 w-4 mr-2" /> },
+    { value: 'publish', label: 'Publish', icon: <Upload className="h-4 w-4 mr-2" /> },
+    { value: 'upload', label: 'Upload', icon: <Upload className="h-4 w-4 mr-2" /> },
+    
   ];
 
   useEffect(() => {
@@ -60,6 +62,7 @@ const ActivityLog = () => {
 
   const fetchActivityLog = async () => {
     try {
+      setLoading(true);
       const token = localStorage.getItem('token');
       if (!token) {
         throw new Error('No authentication token found');
@@ -76,7 +79,8 @@ const ActivityLog = () => {
 
       const response = await fetch(`${baseURL}/api/activities?${params}`, {
         headers: {
-          'Authorization': `Bearer ${token}`
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
         }
       });
 
@@ -110,6 +114,7 @@ const ActivityLog = () => {
 
   const handleRefresh = () => {
     setRefreshing(true);
+    setCurrentPage(1);
     fetchActivityLog();
   };
 
@@ -132,13 +137,9 @@ const ActivityLog = () => {
       delete: <Trash2 className="h-5 w-5 text-red-600" />,
       publish: <Upload className="h-5 w-5 text-purple-600" />,
       upload: <Upload className="h-5 w-5 text-blue-600" />,
-      login: <LogIn className="h-5 w-5 text-indigo-600" />,
-      admin_created: <User className="h-5 w-5 text-teal-600" />,
-      admin_updated: <Edit className="h-5 w-5 text-cyan-600" />,
-      admin_deactivated: <User className="h-5 w-5 text-gray-600" />,
-      admin_reactivated: <User className="h-5 w-5 text-lime-600" />
+     
     };
-    return icons[type] || icons.create;
+    return icons[type] || <ActivityIcon className="h-5 w-5 text-gray-600" />;
   };
 
   const getActivityColor = (type) => {
@@ -148,17 +149,13 @@ const ActivityLog = () => {
       delete: 'bg-red-50 border-red-200 hover:bg-red-100',
       publish: 'bg-purple-50 border-purple-200 hover:bg-purple-100',
       upload: 'bg-blue-50 border-blue-200 hover:bg-blue-100',
-      login: 'bg-indigo-50 border-indigo-200 hover:bg-indigo-100',
-      admin_created: 'bg-teal-50 border-teal-200 hover:bg-teal-100',
-      admin_updated: 'bg-cyan-50 border-cyan-200 hover:bg-cyan-100',
-      admin_deactivated: 'bg-gray-50 border-gray-200 hover:bg-gray-100',
-      admin_reactivated: 'bg-lime-50 border-lime-200 hover:bg-lime-100'
+
     };
-    return colors[type] || colors.create;
+    return colors[type] || 'bg-gray-50 border-gray-200 hover:bg-gray-100';
   };
 
   const getUserDisplayName = (activity) => {
-    // Use userEmail if available (from backend enhancement)
+    // Use userEmail if available
     if (activity.userEmail) {
       return activity.userEmail;
     }
@@ -174,8 +171,8 @@ const ActivityLog = () => {
     }
     
     // For generic "Admin User", show a generic name
-    if (activity.user === 'Admin User' || activity.user === 'adminuser') {
-      return 'Admin';
+    if (activity.user === 'Admin User' || activity.user === 'adminuser' || activity.user === 'Unknown User') {
+      return 'System';
     }
     
     // Return the user field as is
@@ -189,46 +186,52 @@ const ActivityLog = () => {
       delete: 'deleted',
       publish: 'published',
       upload: 'uploaded',
-      login: 'logged in',
-      admin_created: 'created admin user',
-      admin_updated: 'updated admin user',
-      admin_deactivated: 'deactivated admin user',
-      admin_reactivated: 'reactivated admin user'
+     
     };
 
     const action = actions[activity.type] || activity.type;
     const userDisplayName = getUserDisplayName(activity);
     
-    if (activity.postId) {
-      return `${userDisplayName} ${action} "${activity.title}"`;
-    } else if (activity.type === 'login') {
+    if (activity.type === 'login') {
       return `${userDisplayName} ${action}`;
     } else if (activity.type.startsWith('admin_')) {
       // For admin activities, show the target user email if available in details
       const targetUser = activity.details?.targetUserEmail || 
                         activity.details?.targetUsername || 
                         activity.details?.targetUser || 
-                        activity.title;
-      return `${userDisplayName} ${action}: ${targetUser}`;
-    } else {
+                        (activity.details?.email ? `(${activity.details.email})` : '');
+      return `${userDisplayName} ${action} ${targetUser}`;
+    } else if (activity.title && activity.title !== 'Untitled Activity') {
       return `${userDisplayName} ${action} "${activity.title}"`;
+    } else {
+      return `${userDisplayName} performed ${action}`;
     }
   };
 
-  const getActivityDetails = (activity) => {
-    if (!activity.details) return null;
+  // Update the getActivityDetails function to handle category properly:
+const getActivityDetails = (activity) => {
+  if (!activity.details) return null;
 
-    if (activity.type === 'update' && activity.details.from && activity.details.to) {
-      return `Changed from ${activity.details.from} to ${activity.details.to}`;
-    }
+  // // Handle category display
+  // if (activity.details.category) {
+  //   let categoryName = '';
+  //   if (typeof activity.details.category === 'object' && activity.details.category !== null) {
+  //     categoryName = activity.details.category.name || activity.details.category._id || 'Unknown Category';
+  //   } else {
+  //     categoryName = activity.details.category;
+  //   }
+  //   return `Category: ${categoryName}`;
+  // }
+
+  if (activity.type === 'update' && activity.details.from && activity.details.to) {
+    return `Changed from "${activity.details.from}" to "${activity.details.to}"`;
+  }
 
     if (activity.type === 'upload' && activity.details.count) {
       return `Uploaded ${activity.details.count} posts`;
     }
 
-    if (activity.details.category) {
-      return `Category: ${activity.details.category}`;
-    }
+
 
     if (activity.details.status) {
       return `Status: ${activity.details.status}`;
@@ -240,6 +243,8 @@ const ActivityLog = () => {
         return `User: ${activity.details.targetUserEmail}`;
       } else if (activity.details.targetUsername) {
         return `User: ${activity.details.targetUsername}`;
+      } else if (activity.details.email) {
+        return `User: ${activity.details.email}`;
       }
     }
 
@@ -306,22 +311,34 @@ const ActivityLog = () => {
     // For admin activities, highlight user information
     if (isAdminActivity) {
       const adminFields = [
-        { key: 'targetUserEmail', icon: <UserIcon className="h-4 w-4" />, label: 'Target User Email' },
-        { key: 'targetUsername', icon: <UserIcon className="h-4 w-4" />, label: 'Target Username' },
-        { key: 'role', icon: <Hash className="h-4 w-4" />, label: 'Role' },
+        { key: 'targetUserEmail', icon: <Mail className="h-4 w-4" />, label: 'Target User Email' },
+        { key: 'email', icon: <Mail className="h-4 w-4" />, label: 'Email' },
+        { key: 'targetUsername', icon: <UserIcon className="h-4 w-4" />, label: 'Username' },
+        { key: 'name', icon: <UserIcon className="h-4 w-4" />, label: 'Name' },
+        { key: 'role', icon: <Shield className="h-4 w-4" />, label: 'Role' },
         { key: 'status', icon: <CheckCircle className="h-4 w-4" />, label: 'Status' },
-        { key: 'reason', icon: <AlertCircle className="h-4 w-4" />, label: 'Reason' }
+        { key: 'reason', icon: <AlertCircle className="h-4 w-4" />, label: 'Reason' },
+        { key: 'previousRole', icon: <Shield className="h-4 w-4" />, label: 'Previous Role' },
+        { key: 'newRole', icon: <Shield className="h-4 w-4" />, label: 'New Role' }
       ];
 
       return (
         <div className="space-y-3">
           {adminFields.map(field => {
-            if (details[field.key]) {
+            if (details[field.key] !== undefined && details[field.key] !== null && details[field.key] !== '') {
+              let displayValue = details[field.key];
+              
+              if (field.key === 'status') {
+                displayValue = details[field.key] === true ? 'Active' : 
+                             details[field.key] === false ? 'Inactive' : 
+                             details[field.key];
+              }
+              
               return (
                 <div key={field.key} className="flex items-center">
                   <span className="text-gray-400 mr-2">{field.icon}</span>
                   <span className="font-medium text-gray-700 mr-2">{field.label}:</span>
-                  <span className="text-gray-900">{details[field.key]}</span>
+                  <span className="text-gray-900">{displayValue}</span>
                 </div>
               );
             }
@@ -331,18 +348,22 @@ const ActivityLog = () => {
       );
     }
 
-    // Regular post/article details
-    const postFields = [
-      { key: 'title', icon: <Type className="h-4 w-4" />, label: 'Title' },
-      { key: 'shortTitle', icon: <Type className="h-4 w-4" />, label: 'Short Title' },
-      { key: 'category', icon: <Hash className="h-4 w-4" />, label: 'Category' },
-      { key: 'region', icon: <Globe className="h-4 w-4" />, label: 'Region' },
+const postFields = [
+  { key: 'title', icon: <Type className="h-4 w-4" />, label: 'Title' },
+  { key: 'shortTitle', icon: <Type className="h-4 w-4" />, label: 'Short Title' },
+  { 
+    key: 'category', 
+    icon: <Hash className="h-4 w-4" />, 
+    label: 'Category' 
+  },
+  { key: 'region', icon: <Globe className="h-4 w-4" />, label: 'Region' },
       { key: 'author', icon: <UserIcon className="h-4 w-4" />, label: 'Author' },
       { key: 'status', icon: activityType === 'publish' ? <CheckCircle className="h-4 w-4" /> : <BookOpen className="h-4 w-4" />, label: 'Status' },
       { key: 'isSponsored', icon: <Tag className="h-4 w-4" />, label: 'Sponsored' },
       { key: 'metaTitle', icon: <Type className="h-4 w-4" />, label: 'Meta Title' },
       { key: 'metaDescription', icon: <Type className="h-4 w-4" />, label: 'Meta Description' },
-      { key: 'publishDateTime', icon: <Clock className="h-4 w-4" />, label: 'Publish Date' }
+      { key: 'publishDateTime', icon: <Clock className="h-4 w-4" />, label: 'Publish Date' },
+      { key: 'approvalStatus', icon: <CheckCircle className="h-4 w-4" />, label: 'Approval Status' }
     ];
 
     const otherDetails = Object.keys(details)
@@ -353,29 +374,55 @@ const ActivityLog = () => {
       <div className="space-y-4">
         {/* Post Fields */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-          {postFields.map(field => {
-            if (details[field.key] !== undefined && details[field.key] !== null && details[field.key] !== '') {
-              let displayValue = details[field.key];
-              
-              if (field.key === 'isSponsored') {
-                displayValue = details[field.key] ? 'Yes' : 'No';
-              } else if (field.key === 'status' && activityType === 'publish') {
-                displayValue = 'Published';
-              }
-              
-              return (
-                <div key={field.key} className="flex items-start">
-                  <span className="text-gray-400 mr-2 mt-0.5 flex-shrink-0">{field.icon}</span>
-                  <div className="flex-1 min-w-0">
-                    <div className="text-xs font-medium text-gray-500">{field.label}</div>
-                    <div className="text-sm text-gray-900 truncate">{displayValue}</div>
-                  </div>
-                </div>
-              );
-            }
-            return null;
-          })}
+
+{postFields.map(field => {
+  if (details[field.key] !== undefined && details[field.key] !== null && details[field.key] !== '') {
+    let displayValue = details[field.key];
+    
+    // Special handling for category
+    if (field.key === 'category') {
+      if (typeof displayValue === 'object' && displayValue !== null) {
+        displayValue = displayValue.name || displayValue._id || 'Unknown Category';
+      }
+    } else if (field.key === 'isSponsored') {
+      displayValue = details[field.key] ? 'Yes' : 'No';
+    } else if (field.key === 'status' && activityType === 'publish') {
+      displayValue = 'Published';
+    }
+    
+    return (
+      <div key={field.key} className="flex items-start">
+        <span className="text-gray-400 mr-2 mt-0.5 flex-shrink-0">{field.icon}</span>
+        <div className="flex-1 min-w-0">
+          <div className="text-xs font-medium text-gray-500">{field.label}</div>
+          <div className="text-sm text-gray-900 truncate">{displayValue}</div>
         </div>
+      </div>
+    );
+  }
+  return null;
+})}
+        </div>
+
+        {/* Other Details */}
+        {otherDetails.length > 0 && (
+          <div className="border-t pt-3">
+            <div className="flex items-center mb-2">
+              <ActivityIcon className="h-4 w-4 text-gray-400 mr-2" />
+              <span className="text-xs font-medium text-gray-500">Additional Details</span>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+              {otherDetails.map((item, index) => (
+                <div key={index} className="flex items-start">
+                  <span className="text-xs font-medium text-gray-500 mr-2">{item.key}:</span>
+                  <span className="text-sm text-gray-900 truncate">
+                    {typeof item.value === 'object' ? JSON.stringify(item.value) : String(item.value)}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Image URL */}
         {details.imageUrl && (
@@ -451,6 +498,7 @@ const ActivityLog = () => {
     return (
       <div className="flex justify-center items-center py-12">
         <Loader2 className="h-12 w-12 animate-spin text-orange-600" />
+        <span className="ml-3 text-gray-600">Loading activities...</span>
       </div>
     );
   }
@@ -463,7 +511,10 @@ const ActivityLog = () => {
     >
       <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-6">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900">Activity Log</h2>
+          <h2 className="text-2xl font-bold text-gray-900 flex items-center">
+            <ActivityIcon className="h-6 w-6 mr-2 text-orange-600" />
+            Activity Log
+          </h2>
           <p className="text-sm text-gray-600 mt-1">
             Track all system activities and user actions
           </p>
@@ -503,12 +554,13 @@ const ActivityLog = () => {
             <button
               key={type.value}
               onClick={() => handleFilterChange(type.value)}
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center ${
                 filterType === type.value
                   ? 'bg-orange-600 text-white'
                   : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
               }`}
             >
+              {type.icon}
               {type.label}
             </button>
           ))}
@@ -519,19 +571,26 @@ const ActivityLog = () => {
       <div className="space-y-3">
         {activities.length === 0 ? (
           <div className="text-center py-12 bg-gray-50 rounded-xl">
-            <Calendar className="h-12 w-12 mx-auto text-gray-400 mb-4" />
+            <ActivityIcon className="h-12 w-12 mx-auto text-gray-400 mb-4" />
             <p className="text-gray-600">No activities found</p>
             <p className="text-sm text-gray-500 mt-2">
               {filterType !== 'all' 
-                ? `No ${filterType} activities in the selected time period`
+                ? `No ${filterType.replace('_', ' ')} activities in the selected time period`
                 : 'Activities will appear here as they occur'
               }
             </p>
+            <Button 
+              variant="outline" 
+              className="mt-4"
+              onClick={handleRefresh}
+            >
+              Refresh
+            </Button>
           </div>
         ) : (
           <>
             {activities.map((activity, index) => {
-              const activityId = activity._id || activity.id || index;
+              const activityId = activity._id || activity.id || `activity-${index}`;
               const isExpanded = expandedDetails[activityId];
               
               return (
@@ -548,7 +607,7 @@ const ActivityLog = () => {
                   
                   <div className="flex-1 min-w-0">
                     <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between">
-                      <div className="mb-2 sm:mb-0">
+                      <div className="mb-2 sm:mb-0 flex-1">
                         <p className="text-gray-900 font-medium">
                           {getActivityText(activity)}
                         </p>
@@ -559,12 +618,25 @@ const ActivityLog = () => {
                           </p>
                         )}
                         
-                        {/* Show user email separately if available */}
-                        {activity.userEmail && activity.user !== activity.userEmail && (
-                          <p className="text-xs text-gray-500 mt-1">
-                            User: {activity.userEmail}
-                          </p>
-                        )}
+                        {/* Show user info */}
+                        <div className="flex items-center mt-2 space-x-4">
+                          {activity.userEmail && (
+                            <div className="flex items-center text-xs text-gray-500">
+                              <Mail className="h-3 w-3 mr-1" />
+                              <span>{activity.userEmail}</span>
+                            </div>
+                          )}
+                          {activity.severity && activity.severity !== 'info' && (
+                            <div className={`text-xs px-2 py-1 rounded-full ${
+                              activity.severity === 'error' ? 'bg-red-100 text-red-800' :
+                              activity.severity === 'warning' ? 'bg-orange-100 text-orange-800' :
+                              activity.severity === 'success' ? 'bg-green-100 text-green-800' :
+                              'bg-blue-100 text-blue-800'
+                            }`}>
+                              {activity.severity}
+                            </div>
+                          )}
+                        </div>
                       </div>
                       
                       <div className="flex items-center space-x-2 text-sm text-gray-500">
@@ -575,40 +647,7 @@ const ActivityLog = () => {
                       </div>
                     </div>
                     
-                    {/* Details Toggle */}
-                    {activity.details && Object.keys(activity.details).length > 0 && (
-                      <div className="mt-3 pt-3 border-t border-gray-200">
-                        <button
-                          onClick={() => toggleDetails(activityId)}
-                          className="flex items-center text-sm text-gray-600 hover:text-gray-900 transition-colors"
-                        >
-                          {isExpanded ? (
-                            <>
-                              <span className="mr-1">Hide Details</span>
-                              <ChevronLeft className="h-4 w-4 rotate-90" />
-                            </>
-                          ) : (
-                            <>
-                              <span className="mr-1">View Details</span>
-                              <ChevronRight className="h-4 w-4 rotate-90" />
-                            </>
-                          )}
-                        </button>
-                        
-                        {/* Expanded Details */}
-                        {isExpanded && (
-                          <motion.div
-                            initial={{ opacity: 0, height: 0 }}
-                            animate={{ opacity: 1, height: 'auto' }}
-                            exit={{ opacity: 0, height: 0 }}
-                            transition={{ duration: 0.2 }}
-                            className="mt-3 bg-white border border-gray-200 rounded-lg p-4"
-                          >
-                            {renderFormattedDetails(activity.details, activity.type)}
-                          </motion.div>
-                        )}
-                      </div>
-                    )}
+                    
                   </div>
                 </motion.div>
               );
@@ -680,37 +719,6 @@ const ActivityLog = () => {
           </div>
         </div>
       )}
-
-      {/* Stats Summary */}
-      <div className="mt-8 pt-8 border-t">
-        <h3 className="font-semibold text-gray-900 mb-4">Activity Summary</h3>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <div className="bg-green-50 p-4 rounded-lg">
-            <div className="text-2xl font-bold text-green-700">
-              {activities.filter(a => a.type === 'create').length}
-            </div>
-            <div className="text-sm text-green-600">Created</div>
-          </div>
-          <div className="bg-orange-50 p-4 rounded-lg">
-            <div className="text-2xl font-bold text-orange-700">
-              {activities.filter(a => a.type === 'update').length}
-            </div>
-            <div className="text-sm text-orange-600">Updated</div>
-          </div>
-          <div className="bg-purple-50 p-4 rounded-lg">
-            <div className="text-2xl font-bold text-purple-700">
-              {activities.filter(a => a.type === 'publish').length}
-            </div>
-            <div className="text-sm text-purple-600">Published</div>
-          </div>
-          <div className="bg-blue-50 p-4 rounded-lg">
-            <div className="text-2xl font-bold text-blue-700">
-              {activities.filter(a => a.type === 'upload').length}
-            </div>
-            <div className="text-sm text-blue-600">Uploads</div>
-          </div>
-        </div>
-      </div>
     </motion.div>
   );
 };

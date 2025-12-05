@@ -2,6 +2,9 @@ import React, { useState } from "react";
 import { motion } from "framer-motion";
 import { ArrowLeft, Save, Shield, UserPlus, Eye, EyeOff, CheckCircle } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
+import { toast } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
+
 const baseURL = import.meta.env.VITE_API_URL || "http://localhost:5000";
 
 const CreateAdmin = () => {
@@ -17,6 +20,20 @@ const CreateAdmin = () => {
   });
 
   const [errors, setErrors] = useState({});
+
+  // Function to show the specific alert about CRUD access
+  const showCrudAccessAlert = () => {
+    // Assuming "Logesh V" is the name entered in the form
+    const userName = formData.name.trim() || "the user";
+    toast.info(`CRUD access enabled for ${userName}`, {
+      position: "top-right",
+      autoClose: 4000,
+      hideProgressBar: false,
+      closeOnClick: true,
+      pauseOnHover: true,
+      draggable: true,
+    });
+  };
 
   const validateForm = () => {
     const newErrors = {};
@@ -46,7 +63,10 @@ const CreateAdmin = () => {
     try {
       const token = localStorage.getItem("token");
       if (!token) {
-        alert("No authentication token found. Please login again.");
+        toast.error("No authentication token found. Please login again.", {
+          position: "top-right",
+          autoClose: 5000,
+        });
         navigate("/login");
         return;
       }
@@ -69,21 +89,34 @@ const CreateAdmin = () => {
 
       if (!response.ok) {
         if (response.status === 401) {
-          alert("Session expired. Please login again.");
+          toast.warning("Session expired. Please login again.", {
+            position: "top-right",
+            autoClose: 5000,
+          });
           localStorage.removeItem("token");
           navigate("/login");
           return;
         }
         
         if (response.status === 403) {
-          alert("You don't have permission to create admins.");
+          toast.error("You don't have permission to create admins.", {
+            position: "top-right",
+            autoClose: 5000,
+          });
           return;
         }
         
         throw new Error(data.message || `Error ${response.status}: Failed to create admin`);
       }
 
-      alert(data.message || "Admin created successfully!");
+      // Show success message
+      toast.success(data.message || "Admin created successfully!", {
+        position: "top-right",
+        autoClose: 3000,
+      });
+
+      // Show CRUD access notification
+      showCrudAccessAlert();
 
       setFormData({
         name: "",
@@ -96,7 +129,10 @@ const CreateAdmin = () => {
       setTimeout(() => navigate("/admin/users"), 1000);
     } catch (error) {
       console.error("Create admin error:", error);
-      alert(error.message || "Failed to create admin. Please try again.");
+      toast.error(error.message || "Failed to create admin. Please try again.", {
+        position: "top-right",
+        autoClose: 5000,
+      });
     } finally {
       setLoading(false);
     }
@@ -119,6 +155,11 @@ const CreateAdmin = () => {
       ? "medium"
       : "weak"
     : "none";
+
+  // You can also add a button or trigger to show the CRUD access alert manually if needed
+  const handleTestCrudAlert = () => {
+    showCrudAccessAlert();
+  };
 
   return (
     <motion.div
@@ -296,14 +337,7 @@ const CreateAdmin = () => {
                     </span>
                   </label>
 
-                  {/* Locked Superadmin */}
-                  <label className="flex items-center space-x-2 opacity-50">
-                    <input type="radio" disabled />
-                    <span className="flex items-center space-x-1">
-                      <Shield className="h-4 w-4 text-purple-600" />
-                      <span>Superadmin</span>
-                    </span>
-                  </label>
+                  
                 </div>
 
                 <p className="text-sm text-gray-500">
@@ -370,6 +404,8 @@ const CreateAdmin = () => {
             <li>• Superadmin must be created manually</li>
           </ul>
         </div>
+
+        
       </div>
     </motion.div>
   );

@@ -1,9 +1,13 @@
+// AdminPostEditor.jsx - Updated version with dynamic categories
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/components/ui/use-toast';
-import { Save, Eye, Upload, Loader2, Send, Clock, Calendar } from 'lucide-react';
+import { 
+  Save, Eye, Upload, Loader2, Send, Clock, Calendar, 
+  FileCheck, CheckCircle, AlertCircle, Plus, X 
+} from 'lucide-react';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -14,13 +18,14 @@ const AdminPostEditor = () => {
   const location = useLocation();
   const isEditMode = !!id;
   const isUpdateRequest = new URLSearchParams(location.search).get('updateRequest') === 'true';
+  const isNewPost = !isEditMode;
   const navigate = useNavigate();
   const { user } = useAuth();
   const [formData, setFormData] = useState({
     title: '',
     shortTitle: '',
     body: '',
-    category: 'Indian',
+    category: '',
     tags: '',
     region: 'India',
     author: '',
@@ -30,32 +35,147 @@ const AdminPostEditor = () => {
     metaDescription: '',
     imageUrl: '',
   });
+  const [categories, setCategories] = useState([]);
+  const [newCategory, setNewCategory] = useState('');
+  const [showNewCategoryInput, setShowNewCategoryInput] = useState(false);
   const [originalPost, setOriginalPost] = useState(null);
   const [imageFile, setImageFile] = useState(null);
   const [previewImage, setPreviewImage] = useState(null);
   const [loading, setLoading] = useState(false);
   const [fetching, setFetching] = useState(isEditMode);
+  const [fetchingCategories, setFetchingCategories] = useState(true);
   const [existingImageUrl, setExistingImageUrl] = useState('');
+  const [postStatus, setPostStatus] = useState('draft');
+  const [postDetails, setPostDetails] = useState({
+    isScheduled: false,
+    scheduleApproved: false,
+    isScheduledPost: false
+  });
   const { toast } = useToast();
 
-  const categories = [
-    'Indian',
-    'US',
-    'Global',
-    'Commodities',
-    'Forex',
-    'Crypto',
-    'IPOs',
-  ];
-
   useEffect(() => {
+    fetchCategories();
     if (isEditMode && isUpdateRequest) {
       fetchOriginalPost();
     } else if (isEditMode) {
-      // If it's edit mode but not an update request, fetch the admin post
       fetchAdminPost();
     }
   }, [id]);
+
+  useEffect(() => {
+    // Set default author name when user is available
+    if (user?.name && !formData.author) {
+      setFormData(prev => ({
+        ...prev,
+        author: user.name
+      }));
+    }
+  }, [user]);
+
+  const fetchCategories = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`${baseURL}/api/categories`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch categories');
+      }
+
+      const data = await response.json();
+      
+      if (data.success) {
+        setCategories(data.data);
+        
+        // Set default category if none selected and categories exist
+        if (!formData.category && data.data.length > 0 && !isEditMode) {
+          setFormData(prev => ({
+            ...prev,
+            category: data.data[0]._id
+          }));
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching categories:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to load categories',
+        variant: 'destructive',
+      });
+    } finally {
+      setFetchingCategories(false);
+    }
+  };
+
+  const handleAddNewCategory = async () => {
+    if (!newCategory.trim()) {
+      toast({
+        title: 'Error',
+        description: 'Please enter a category name',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`${baseURL}/api/categories`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ name: newCategory.trim() }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || 'Failed to create category');
+      }
+
+      // Add new category to the list
+      const newCat = data.data;
+      setCategories(prev => [...prev, newCat]);
+      
+      // Select the new category
+      setFormData(prev => ({
+        ...prev,
+        category: newCat._id
+      }));
+      
+      // Reset and hide new category input
+      setNewCategory('');
+      setShowNewCategoryInput(false);
+      
+      toast({
+        title: 'Success',
+        description: 'Category added successfully',
+      });
+    } catch (error) {
+      console.error('Error adding category:', error);
+      toast({
+        title: 'Error',
+        description: error.message || 'Failed to add category',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  // Check if user can schedule directly (superadmin or admin with CRUD access)
+  const canScheduleDirectly = user?.role === 'superadmin' || (user?.role === 'admin' && user.hasCRUDAccess);
+  
+  // Check if user can publish directly
+  const canPublishDirectly = user?.role === 'superadmin' || (user?.role === 'admin' && user.hasCRUDAccess);
+
+  // Check if user needs to use approval system
+  const needsApprovalSystem = user?.role === 'admin' && !user.hasCRUDAccess;
+
+  // Check if publish date is in the future
+  const isFutureDate = formData.publishDateTime && new Date(formData.publishDateTime) > new Date();
 
   const fetchOriginalPost = async () => {
     try {
@@ -81,7 +201,7 @@ const AdminPostEditor = () => {
           title: post.title || '',
           shortTitle: post.shortTitle || '',
           body: post.body || '',
-          category: post.category || 'Indian',
+          category: post.category?._id || post.category || '',
           tags: post.tags?.join(', ') || '',
           region: post.region || 'India',
           author: post.author || user?.name || '',
@@ -130,13 +250,14 @@ const AdminPostEditor = () => {
       if (data.success) {
         const adminPost = data.data;
         setOriginalPost(adminPost);
+        setPostStatus(adminPost.status || 'draft');
         
         // Pre-fill form with admin post data
         setFormData({
           title: adminPost.title || '',
           shortTitle: adminPost.shortTitle || '',
           body: adminPost.body || '',
-          category: adminPost.category || 'Indian',
+          category: adminPost.category?._id || adminPost.category || '',
           tags: adminPost.tags?.join(', ') || '',
           region: adminPost.region || 'India',
           author: adminPost.author || user?.name || '',
@@ -223,158 +344,207 @@ const AdminPostEditor = () => {
     }
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setLoading(true);
+const handleSubmit = async (e) => {
+  e.preventDefault();
+  setLoading(true);
 
-    try {
-      let imageUrl = existingImageUrl;
-      
-      // Upload new image if exists
-      if (imageFile) {
-        const uploadedUrl = await uploadImage();
-        if (uploadedUrl) {
-          imageUrl = uploadedUrl;
-        } else if (!imageUrl && isEditMode) {
-          imageUrl = existingImageUrl;
-        }
-      }
-
-      // Prepare post data
-      const postData = {
-        title: formData.title,
-        shortTitle: formData.shortTitle,
-        body: formData.body,
-        category: formData.category,
-        region: formData.region,
-        author: formData.author || user?.name || 'Admin',
-        isSponsored: formData.isSponsored,
-        metaTitle: formData.metaTitle,
-        metaDescription: formData.metaDescription,
-        imageUrl: imageUrl,
-      };
-
-      // Handle publish date time for scheduling
-      if (formData.publishDateTime) {
-        postData.publishDateTime = formData.publishDateTime;
-        
-        // Check if it's a future date (scheduled post)
-        const publishDate = new Date(formData.publishDateTime);
-        const now = new Date();
-        
-        if (publishDate > now) {
-          // This is a scheduled post
-          postData.isScheduled = true;
-          postData.scheduleApproved = false; // Admin needs approval
-        }
-      }
-
-      // Handle tags
-      if (formData.tags.trim()) {
-        postData.tags = formData.tags
-          .split(',')
-          .map((tag) => tag.trim())
-          .filter(Boolean);
-      }
-
-      const token = localStorage.getItem('token');
-      
-      if (isUpdateRequest && originalPost) {
-        // Submit update request for published post
-        const response = await fetch(`${baseURL}/api/approval/posts/${originalPost._id}/request-update`, {
-          method: 'POST',
-          headers: {
-            Authorization: `Bearer ${token}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(postData),
-        });
-
-        const responseData = await response.json();
-        
-        if (!response.ok) {
-          throw new Error(responseData.message || 'Failed to submit update request');
-        }
-
-        const isScheduled = postData.isScheduled || false;
-        
-        toast({
-          title: 'Update Request Submitted!',
-          description: isScheduled
-            ? 'Your scheduled update request has been submitted for superadmin approval'
-            : 'Your update request has been submitted for superadmin approval',
-        });
-        setTimeout(() => {
-          navigate('/admin/my-approvals');
-        }, 1000);
-      } else if (isEditMode) {
-        // Update existing admin post
-        const response = await fetch(`${baseURL}/api/approval/posts/${id}`, {
-          method: 'PUT',
-          headers: {
-            Authorization: `Bearer ${token}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(postData),
-        });
-
-        const responseData = await response.json();
-        
-        if (!response.ok) {
-          throw new Error(responseData.message || 'Failed to update post');
-        }
-
-        const isScheduled = postData.isScheduled || false;
-        
-        toast({
-          title: 'Post Updated!',
-          description: isScheduled
-            ? 'Scheduled post updated and resubmitted for approval'
-            : 'Post updated and resubmitted for review',
-        });
-        setTimeout(() => {
-          navigate('/admin/my-approvals');
-        }, 1000);
-      } else {
-        // Submit new post for approval
-        const response = await fetch(`${baseURL}/api/approval/posts`, {
-          method: 'POST',
-          headers: {
-            Authorization: `Bearer ${token}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(postData),
-        });
-
-        const responseData = await response.json();
-        
-        if (!response.ok) {
-          throw new Error(responseData.message || 'Failed to submit post for approval');
-        }
-
-        const isScheduled = postData.isScheduled || false;
-        
-        toast({
-          title: 'Post Submitted for Approval!',
-          description: isScheduled
-            ? 'Your scheduled post has been submitted for superadmin approval'
-            : 'Your post has been submitted for superadmin approval',
-        });
-        setTimeout(() => {
-          navigate('/admin/my-approvals');
-        }, 1000);
-      }
-    } catch (error) {
-      console.error('Submit error:', error);
-      toast({
-        title: 'Error',
-        description: error.message || 'Failed to submit post',
-        variant: 'destructive',
-      });
-    } finally {
-      setLoading(false);
+  try {
+    // Validate category
+    if (!formData.category) {
+      throw new Error('Please select a category');
     }
-  };
+
+    let imageUrl = existingImageUrl;
+    
+    // Upload new image if exists
+    if (imageFile) {
+      const uploadedUrl = await uploadImage();
+      if (uploadedUrl) {
+        imageUrl = uploadedUrl;
+      } else if (!imageUrl && isEditMode) {
+        imageUrl = existingImageUrl;
+      }
+    }
+
+    // Prepare post data
+    const postData = {
+      title: formData.title,
+      shortTitle: formData.shortTitle,
+      body: formData.body,
+      category: formData.category,
+      region: formData.region,
+      author: formData.author || user?.name || 'Admin',
+      isSponsored: formData.isSponsored,
+      metaTitle: formData.metaTitle,
+      metaDescription: formData.metaDescription,
+      imageUrl: imageUrl,
+    };
+
+    // Handle tags
+    if (formData.tags.trim()) {
+      postData.tags = formData.tags
+        .split(',')
+        .map((tag) => tag.trim())
+        .filter(Boolean);
+    }
+
+    // Check if publish date is in future
+    const publishDate = formData.publishDateTime ? new Date(formData.publishDateTime) : null;
+    const now = new Date();
+    const isFutureDate = publishDate && publishDate > now;
+    
+    console.log('User role:', user?.role);
+    console.log('User hasCRUDAccess:', user?.hasCRUDAccess);
+    console.log('Is future date?', isFutureDate);
+    console.log('Publish date:', publishDate);
+
+    // Determine endpoint and method based on user permissions and post type
+    let endpoint = '';
+    let method = 'POST';
+    
+    if (isFutureDate) {
+      // Scheduled post
+      postData.publishDateTime = formData.publishDateTime;
+      postData.isScheduled = true;
+      
+      if (user?.role === 'superadmin' || (user?.role === 'admin' && user.hasCRUDAccess)) {
+        // User can schedule directly
+        postData.scheduleApproved = true;
+        postData.status = 'scheduled';
+        
+        if (isUpdateRequest) {
+          endpoint = `${baseURL}/api/approval/posts/${originalPost._id}/request-update`;
+          method = 'POST';
+        } else if (isEditMode) {
+          endpoint = `${baseURL}/api/approval/posts/${id}`;
+          method = 'PUT';
+        } else {
+          endpoint = `${baseURL}/api/posts`;
+          method = 'POST';
+        }
+      } else {
+        // Needs approval
+        postData.scheduleApproved = false;
+        postData.status = 'pending_approval';
+        
+        if (isUpdateRequest) {
+          endpoint = `${baseURL}/api/approval/posts/${originalPost._id}/request-update`;
+          method = 'POST';
+        } else if (isEditMode) {
+          endpoint = `${baseURL}/api/approval/posts/${id}`;
+          method = 'PUT';
+        } else {
+          endpoint = `${baseURL}/api/approval/posts`;
+          method = 'POST';
+        }
+      }
+    } else {
+      // Not scheduled - immediate publication
+      if (publishDate) {
+        postData.publishDateTime = formData.publishDateTime;
+      }
+      
+      if (user?.role === 'superadmin' || (user?.role === 'admin' && user.hasCRUDAccess)) {
+        // User can publish directly
+        postData.status = 'published';
+        
+        if (isUpdateRequest) {
+          endpoint = `${baseURL}/api/approval/posts/${originalPost._id}/request-update`;
+          method = 'POST';
+        } else if (isEditMode) {
+          endpoint = `${baseURL}/api/approval/posts/${id}`;
+          method = 'PUT';
+        } else {
+          endpoint = `${baseURL}/api/posts`;
+          method = 'POST';
+        }
+      } else {
+        // Needs approval
+        postData.status = 'pending_approval';
+        
+        if (isUpdateRequest) {
+          endpoint = `${baseURL}/api/approval/posts/${originalPost._id}/request-update`;
+          method = 'POST';
+        } else if (isEditMode) {
+          endpoint = `${baseURL}/api/approval/posts/${id}`;
+          method = 'PUT';
+        } else {
+          endpoint = `${baseURL}/api/approval/posts`;
+          method = 'POST';
+        }
+      }
+    }
+
+    const token = localStorage.getItem('token');
+    
+    console.log('Making request to:', endpoint);
+    console.log('Method:', method);
+    console.log('Post data:', JSON.stringify(postData, null, 2));
+
+    const response = await fetch(endpoint, {
+      method: method,
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(postData),
+    });
+
+    const responseData = await response.json();
+    
+    if (!response.ok) {
+      throw new Error(responseData.message || 'Failed to submit post');
+    }
+
+    // Determine success message based on user permissions
+    let successMessage = '';
+    let needsApproval = false;
+    
+    if (isFutureDate) {
+      if (user?.role === 'superadmin' || (user?.role === 'admin' && user.hasCRUDAccess)) {
+        successMessage = `Post scheduled for ${new Date(postData.publishDateTime).toLocaleString()}`;
+      } else {
+        successMessage = 'Your scheduled post has been submitted for superadmin approval';
+        needsApproval = true;
+      }
+    } else {
+      if (user?.role === 'superadmin' || (user?.role === 'admin' && user.hasCRUDAccess)) {
+        successMessage = 'Post published successfully';
+      } else {
+        successMessage = 'Your post has been submitted for superadmin approval';
+        needsApproval = true;
+      }
+    }
+
+    if (isUpdateRequest) {
+      successMessage = 'Update request submitted for superadmin approval';
+      needsApproval = true;
+    }
+
+    toast({
+      title: 'Success!',
+      description: successMessage,
+    });
+    
+    setTimeout(() => {
+      if (needsApproval) {
+        navigate('/admin/my-approvals');
+      } else {
+        navigate('/admin/posts/list');
+      }
+    }, 1500);
+    
+  } catch (error) {
+    console.error('Submit error:', error);
+    toast({
+      title: 'Error',
+      description: error.message || 'Failed to submit post',
+      variant: 'destructive',
+    });
+  } finally {
+    setLoading(false);
+  }
+};
 
   const handlePreview = () => {
     const previewData = {
@@ -387,16 +557,14 @@ const AdminPostEditor = () => {
         .map((tag) => tag.trim())
         .filter(Boolean),
       imageUrl: previewImage || formData.imageUrl || existingImageUrl,
+      category: categories.find(cat => cat._id === formData.category)?.name || formData.category
     };
 
     localStorage.setItem('postPreview', JSON.stringify(previewData));
     window.open(`/post/preview`, '_blank');
   };
 
-  // Check if publish date is in the future
-  const isFutureDate = formData.publishDateTime && new Date(formData.publishDateTime) > new Date();
-
-  if (fetching) {
+  if (fetching || fetchingCategories) {
     return (
       <div className="flex justify-center items-center py-12">
         <Loader2 className="h-12 w-12 animate-spin text-orange-600" />
@@ -416,25 +584,60 @@ const AdminPostEditor = () => {
             {isUpdateRequest ? 'Request Post Update' : (isEditMode ? 'Edit Post' : 'Create New Post')}
           </h2>
           <p className="text-gray-600 mt-1">
-            {isUpdateRequest 
-              ? 'Request changes to a published post (requires superadmin approval)'
-              : isEditMode
-                ? 'Edit your submitted post'
-                : 'Create a new post (requires superadmin approval)'}
+            {user?.role === 'admin' && !user.hasCRUDAccess
+              ? 'Your posts require superadmin approval'
+              : user?.role === 'admin'
+                ? 'You have direct CRUD access - can publish directly'
+                : 'Superadmin - Full access to all features'}
           </p>
+          {user?.role === 'admin' && (
+            <div className={`mt-2 px-3 py-1 rounded-full text-xs font-medium inline-flex items-center ${
+              user.hasCRUDAccess 
+                ? 'bg-green-100 text-green-800' 
+                : 'bg-blue-100 text-blue-800'
+            }`}>
+              {user.hasCRUDAccess ? 'CRUD Mode' : 'Approval Mode'}
+            </div>
+          )}
         </div>
         <div className="flex items-center space-x-2">
           <Button
             type="button"
             variant="outline"
             onClick={handlePreview}
-            disabled={!formData.title || !formData.body}
+            disabled={!formData.title || !formData.body || !formData.category}
           >
             <Eye className="h-4 w-4 mr-2" />
             Preview
           </Button>
         </div>
       </div>
+
+      {/* Mode Banner */}
+      {user?.role === 'admin' && !user.hasCRUDAccess && (
+        <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+          <div className="flex items-center">
+            <AlertCircle className="h-5 w-5 text-blue-500 mr-2" />
+            <span className="font-medium text-blue-800">Approval Mode</span>
+          </div>
+          <p className="text-sm text-blue-600 mt-1">
+            You are in Approval Mode. All posts and updates require superadmin approval.
+            {isFutureDate && ' Scheduled posts will be submitted for approval.'}
+          </p>
+        </div>
+      )}
+
+      {user?.role === 'admin' && user.hasCRUDAccess && (
+        <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg">
+          <div className="flex items-center">
+            <CheckCircle className="h-5 w-5 text-green-500 mr-2" />
+            <span className="font-medium text-green-800">CRUD Mode</span>
+          </div>
+          <p className="text-sm text-green-600 mt-1">
+            You have direct CRUD access. You can publish posts directly without approval.
+          </p>
+        </div>
+      )}
 
       {isUpdateRequest && originalPost && (
         <div className="mb-6 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
@@ -461,7 +664,9 @@ const AdminPostEditor = () => {
             This post will be scheduled for {new Date(formData.publishDateTime).toLocaleString()}
           </p>
           <p className="text-xs text-purple-500 mt-2">
-            Note: Scheduled posts require superadmin approval
+            {canScheduleDirectly 
+              ? 'Post will be scheduled automatically'
+              : 'Note: Scheduled posts require superadmin approval'}
           </p>
         </div>
       )}
@@ -510,20 +715,60 @@ const AdminPostEditor = () => {
 
           <div>
             <Label htmlFor="category">Category *</Label>
-            <select
-              id="category"
-              name="category"
-              value={formData.category}
-              onChange={handleChange}
-              className="w-full mt-2 px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-orange-500 focus:outline-none"
-              required
-            >
-              {categories.map((cat) => (
-                <option key={cat} value={cat}>
-                  {cat}
-                </option>
-              ))}
-            </select>
+            <div className="flex space-x-2">
+              <select
+                id="category"
+                name="category"
+                value={formData.category}
+                onChange={handleChange}
+                className="w-full mt-2 px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-orange-500 focus:outline-none"
+                required
+              >
+                <option value="">Select a category</option>
+                {categories.map((cat) => (
+                  <option key={cat._id} value={cat._id}>
+                    {cat.name}
+                  </option>
+                ))}
+              </select>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setShowNewCategoryInput(!showNewCategoryInput)}
+                className="mt-2"
+              >
+                <Plus className="h-4 w-4" />
+              </Button>
+            </div>
+            
+            {showNewCategoryInput && (
+              <div className="mt-2 flex space-x-2">
+                <input
+                  type="text"
+                  value={newCategory}
+                  onChange={(e) => setNewCategory(e.target.value)}
+                  placeholder="Enter new category name"
+                  className="flex-1 px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-orange-500 focus:outline-none"
+                />
+                <Button
+                  type="button"
+                  onClick={handleAddNewCategory}
+                  className="bg-green-600 hover:bg-green-700"
+                >
+                  Add
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => {
+                    setShowNewCategoryInput(false);
+                    setNewCategory('');
+                  }}
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+            )}
           </div>
 
           <div>
@@ -570,7 +815,7 @@ const AdminPostEditor = () => {
               {isFutureDate && (
                 <span className="text-xs text-purple-600 font-medium flex items-center">
                   <Calendar className="h-3 w-3 mr-1" />
-                  Scheduled post
+                  {canScheduleDirectly ? 'Will be scheduled' : 'Will require approval'}
                 </span>
               )}
             </div>
@@ -584,7 +829,9 @@ const AdminPostEditor = () => {
             />
             {isFutureDate && (
               <p className="text-xs text-gray-500 mt-1">
-                Post will be scheduled and require superadmin approval
+                {canScheduleDirectly 
+                  ? 'Post will be scheduled automatically'
+                  : 'Post will be submitted for schedule approval'}
               </p>
             )}
           </div>
@@ -683,24 +930,24 @@ const AdminPostEditor = () => {
           </Button>
           <Button
             type="submit"
-            disabled={loading}
+            disabled={loading || !formData.category}
             className="bg-gradient-to-r from-orange-600 to-red-600 hover:from-orange-700 hover:to-red-700"
           >
             {loading ? (
               <>
                 <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                {isFutureDate ? 'Scheduling...' : 'Submitting...'}
+                {isFutureDate ? 'Processing...' : 'Submitting...'}
               </>
             ) : (
               <>
                 <Send className="h-4 w-4 mr-2" />
                 {isFutureDate 
-                  ? 'Schedule for Approval'
+                  ? canScheduleDirectly ? 'Schedule Post' : 'Submit for Schedule Approval'
                   : isUpdateRequest 
                     ? 'Submit Update Request' 
                     : isEditMode
-                      ? 'Update Post'
-                      : 'Submit for Approval'}
+                      ? canPublishDirectly ? 'Update Post' : 'Submit Update for Approval'
+                      : canPublishDirectly ? 'Publish Post' : 'Submit for Approval'}
               </>
             )}
           </Button>

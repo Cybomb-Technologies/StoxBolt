@@ -1,3 +1,4 @@
+// models/AdminPost.js
 const mongoose = require('mongoose');
 
 const AdminPostSchema = new mongoose.Schema({
@@ -19,9 +20,9 @@ const AdminPostSchema = new mongoose.Schema({
     required: [true, 'Please add body text']
   },
   category: {
-    type: String,
-    required: true,
-    enum: ['Indian', 'US', 'Global', 'Commodities', 'Forex', 'Crypto', 'IPOs']
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Category',
+    required: true
   },
   tags: [{
     type: String,
@@ -177,5 +178,6 @@ AdminPostSchema.index({ authorId: 1, approvalStatus: 1 });
 AdminPostSchema.index({ approvalStatus: 1, createdAt: -1 });
 AdminPostSchema.index({ isScheduledPost: 1, publishDateTime: 1 });
 AdminPostSchema.index({ scheduleApproved: 1 });
+AdminPostSchema.index({ category: 1 });
 
 module.exports = mongoose.model('AdminPost', AdminPostSchema);

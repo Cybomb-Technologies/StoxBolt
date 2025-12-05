@@ -5,7 +5,8 @@ const { authorize } = require('../middleware/role');
 const {
   getScheduledPosts,
   updateTimezone,
-  deleteScheduledPost
+  deleteScheduledPost,
+  triggerAutoPublish  // Add this
 } = require('../controllers/schedulerController');
 
 // All routes are protected
@@ -19,9 +20,15 @@ router.route('/posts/:id')
 
 router.route('/timezone')
   .put(updateTimezone);
+
+// Add manual trigger route for testing
+router.route('/trigger-auto-publish')
+  .get(authorize('superadmin'), triggerAutoPublish);
+
 // Add this route for schedule approvals page
 router.get('/schedule-approvals', protect, authorize('superadmin'), (req, res) => {
   // This would render your React component
   res.render('schedule-approvals');
 });
+
 module.exports = router;

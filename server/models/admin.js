@@ -15,12 +15,16 @@ const adminSchema = new mongoose.Schema({
   password: {
     type: String,
     required: true,
-    select: false // This hides password by default
+    select: false
   },
   role: {
     type: String,
     enum: ['admin', 'superadmin'],
     default: 'admin'
+  },
+  curdAccess: {
+    type: Boolean,
+    default: false
   },
   isActive: {
     type: Boolean,
@@ -28,15 +32,18 @@ const adminSchema = new mongoose.Schema({
   },
   lastLogin: {
     type: Date
+  },
+  createdBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Admin'
   }
 }, {
   timestamps: true
 });
 
-// Add this method if missing:
+// Password comparison method
 adminSchema.methods.matchPassword = async function(enteredPassword) {
   try {
-    // Make sure password field is available
     if (!this.password) {
       console.error('Password field is not available on user object');
       return false;

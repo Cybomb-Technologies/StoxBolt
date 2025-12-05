@@ -27,10 +27,10 @@ const upload = multer({
 // All routes are protected
 router.use(protect);
 
-router.route('/template')
-  .get(downloadTemplate);
+// Download template route
+router.get('/template', downloadTemplate);
 
-router.route('/')
-  .post(authorize('admin', 'superadmin', 'editor'), upload.single('file'), bulkUpload);
+// Bulk upload route
+router.post('/', authorize('admin', 'superadmin', 'editor'), upload.single('file'), bulkUpload);
 
 module.exports = router;

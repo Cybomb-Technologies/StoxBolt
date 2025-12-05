@@ -9,7 +9,8 @@ const {
   updateAdmin,
   deactivateAdmin,
   reactivateAdmin,
-  getAdminStats
+  getAdminStats,
+  toggleCRUDAccess
 } = require('../controllers/adminController');
 
 // All routes are protected
@@ -27,6 +28,10 @@ router.route('/admins/stats')
 router.route('/admins/:id')
   .get(authorize('superadmin'), getAdmin)
   .put(authorize('superadmin'), updateAdmin);
+
+// CRUD access toggle route
+router.route('/admins/:id/toggle-curd')
+  .put(authorize('superadmin'), toggleCRUDAccess);
 
 router.route('/admins/:id/deactivate')
   .put(authorize('superadmin'), deactivateAdmin);

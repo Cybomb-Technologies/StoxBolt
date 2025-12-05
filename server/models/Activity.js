@@ -12,6 +12,7 @@ const ActivitySchema = new mongoose.Schema({
       'publish',
       'unpublish',
       'archive',
+      'upload', // ADDED: For bulk upload operations
       
       // Approval system
       'approval_request',
@@ -66,6 +67,23 @@ const ActivitySchema = new mongoose.Schema({
     required: true
   },
   
+  // Flatten user details for easier access
+  userName: {
+    type: String,
+    default: ''
+  },
+  
+  userEmail: {
+    type: String,
+    default: ''
+  },
+  
+  userRole: {
+    type: String,
+    default: ''
+  },
+  
+  // Keep the detailed object for backward compatibility
   userDetails: {
     name: String,
     email: String,
@@ -194,16 +212,25 @@ ActivitySchema.index({ severity: 1, timestamp: -1 });
 ActivitySchema.index({
   title: 'text',
   description: 'text',
-  'userDetails.name': 'text',
-  'userDetails.email': 'text',
+  user: 'text',
+  userName: 'text',
+  userEmail: 'text',
   action: 'text'
 });
 
 // Pre-save middleware to ensure data consistency
 ActivitySchema.pre('save', function(next) {
-  // Ensure user details are consistent
-  if (!this.userDetails) {
-    this.userDetails = {};
+  // Ensure flat user fields are populated from userDetails
+  if (this.userDetails) {
+    if (!this.userName && this.userDetails.name) {
+      this.userName = this.userDetails.name;
+    }
+    if (!this.userEmail && this.userDetails.email) {
+      this.userEmail = this.userDetails.email;
+    }
+    if (!this.userRole && this.userDetails.role) {
+      this.userRole = this.userDetails.role;
+    }
   }
   
   // Set entityId based on entityType if not provided
@@ -250,6 +277,13 @@ ActivitySchema.statics.createWithContext = async function(data) {
       }
     };
     
+    // Ensure flat user fields are set
+    if (data.userDetails) {
+      activityData.userName = data.userDetails.name || data.userName || '';
+      activityData.userEmail = data.userDetails.email || data.userEmail || '';
+      activityData.userRole = data.userDetails.role || data.userRole || '';
+    }
+    
     return await this.create(activityData);
   } catch (error) {
     console.error('Failed to create activity with context:', error);
@@ -258,6 +292,9 @@ ActivitySchema.statics.createWithContext = async function(data) {
       type: 'error',
       userId: data.userId || 'system',
       user: data.user || 'System',
+      userName: 'System',
+      userEmail: 'system@example.com',
+      userRole: 'system',
       title: 'Activity Creation Failed',
       description: error.message,
       severity: 'error',
@@ -268,12 +305,17 @@ ActivitySchema.statics.createWithContext = async function(data) {
 
 // Instance method to get formatted log message
 ActivitySchema.methods.toLogMessage = function() {
-  return `[${this.timestamp.toISOString()}] [${this.type.toUpperCase()}] [${this.user}] - ${this.title} - ${JSON.stringify(this.metadata)}`;
+  return `[${this.timestamp.toISOString()}] [${this.type.toUpperCase()}] [${this.userEmail || this.user}] - ${this.title} - ${JSON.stringify(this.metadata)}`;
 };
 
 // Virtual for readable date
 ActivitySchema.virtual('readableDate').get(function() {
   return this.timestamp.toLocaleString();
+});
+
+// Virtual for user display name
+ActivitySchema.virtual('displayName').get(function() {
+  return this.userName || this.userEmail || this.user || 'Unknown User';
 });
 
 // Set toObject and toJSON options to include virtuals

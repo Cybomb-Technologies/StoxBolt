@@ -239,7 +239,7 @@ const AdminDashboard = () => {
         title: 'Bulk Upload',
         path: '/admin/bulk-upload',
         icon: <Upload className="h-5 w-5" />,
-        roles: ['admin', 'superadmin'],
+        roles: ['superadmin'],
         description: 'Upload multiple posts'
       },
       {

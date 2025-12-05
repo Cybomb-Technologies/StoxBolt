@@ -1,116 +1,127 @@
 import React, { createContext, useState, useContext, useEffect } from 'react';
-
-const API_BASE_URL = 'http://localhost:5000/api';
+import { useNavigate } from 'react-router-dom';
 
 const AuthContext = createContext();
 
-export const useAuth = () => useContext(AuthContext);
+const baseURL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+
+export const useAuth = () => {
+  const context = useContext(AuthContext);
+  if (!context) {
+    throw new Error('useAuth must be used within an AuthProvider');
+  }
+  return context;
+};
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [token, setToken] = useState(localStorage.getItem('token'));
+  const navigate = useNavigate();
 
-  // Check if user is authenticated on initial load
   useEffect(() => {
-    const checkAuth = async () => {
-      const storedToken = localStorage.getItem('token');
-      const storedUser = localStorage.getItem('user');
-
-      if (storedToken && storedUser) {
-        try {
-          // Verify token with backend
-          const response = await fetch(`${API_BASE_URL}/auth/me`, {
-            headers: {
-              'Authorization': `Bearer ${storedToken}`
-            }
-          });
-
-          if (response.ok) {
-            const data = await response.json();
-            setUser(data.user);
-            setToken(storedToken);
-          } else {
-            // Token is invalid, clear storage
-            handleLogout();
-          }
-        } catch (error) {
-          console.error('Auth check failed:', error);
-          handleLogout();
-        }
-      }
-      setLoading(false);
-    };
-
     checkAuth();
   }, []);
-const login = async (email, password) => {
-  try {
-    console.log('Attempting login with:', { email });
-    
-    const response = await fetch(`${API_BASE_URL}/auth/login`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ email, password }),
-    });
 
-    console.log('Response status:', response.status);
-    
-    const data = await response.json();
-    console.log('Response data:', data);
-    
-    if (!response.ok) {
-      throw new Error(data.message || data.error || 'Login failed');
+  const checkAuth = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const storedUser = localStorage.getItem('user');
+      
+      if (token && storedUser) {
+        // Verify token is still valid
+        const response = await fetch(`${baseURL}/api/auth/me`, {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+        
+        if (response.ok) {
+          const data = await response.json();
+          if (data.success) {
+            const userData = JSON.parse(storedUser);
+            // Merge with server data to ensure CRUD access is up-to-date
+            const updatedUser = {
+              ...userData,
+              ...data.user,
+              hasCRUDAccess: data.user.hasCRUDAccess || false
+            };
+            setUser(updatedUser);
+            localStorage.setItem('user', JSON.stringify(updatedUser));
+          } else {
+            logout();
+          }
+        } else {
+          logout();
+        }
+      }
+    } catch (error) {
+      console.error('Auth check error:', error);
+      logout();
+    } finally {
+      setLoading(false);
     }
+  };
 
-    // Store token and user data
-    localStorage.setItem('token', data.token);
-    localStorage.setItem('user', JSON.stringify(data.user));
-    
-    console.log('Token stored:', data.token ? 'Yes' : 'No');
-    console.log('User stored:', data.user ? 'Yes' : 'No');
-    
-    setToken(data.token);
-    setUser(data.user);
+  const login = async (email, password) => {
+    try {
+      const response = await fetch(`${baseURL}/api/auth/login`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email, password }),
+      });
 
-    return data;
-  } catch (error) {
-    console.error('Login error details:', error);
-    throw error;
-  }
-};
+      const data = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(data.message || 'Login failed');
+      }
 
-  const handleLogout = () => {
-    // Clear local storage
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
-    
-    // Clear state
-    setToken(null);
-    setUser(null);
+      if (data.success && data.token && data.user) {
+        const userData = {
+          ...data.user,
+          hasCRUDAccess: data.user.hasCRUDAccess || false,
+          isSuperadmin: data.user.role === 'superadmin'
+        };
+        
+        localStorage.setItem('token', data.token);
+        localStorage.setItem('user', JSON.stringify(userData));
+        setUser(userData);
+        
+        return { success: true, user: userData };
+      }
+      
+      throw new Error('Invalid response from server');
+    } catch (error) {
+      console.error('Login error:', error);
+      return { success: false, message: error.message };
+    }
   };
 
   const logout = () => {
-    handleLogout();
-    // Note: Navigation should be handled by the component calling logout
-    // e.g., in AdminDashboard.jsx, we'll navigate after logout
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    setUser(null);
+    navigate('/admin/login');
   };
 
-  const updateUser = (updatedUser) => {
+  const updateUser = (updates) => {
+    const updatedUser = { ...user, ...updates };
     setUser(updatedUser);
     localStorage.setItem('user', JSON.stringify(updatedUser));
   };
 
   const value = {
     user,
-    token,
     loading,
     login,
     logout,
     updateUser,
-    isAuthenticated: !!token && !!user,
+    isAuthenticated: !!user,
+    isSuperadmin: user?.role === 'superadmin',
+    isAdmin: user?.role === 'admin',
+    hasCRUDAccess: user?.hasCRUDAccess || false
   };
 
   return (

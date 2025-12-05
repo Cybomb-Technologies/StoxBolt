@@ -71,6 +71,56 @@ const PostPreview = () => {
     }
   };
 
+  // Helper function to safely get category name
+  const getCategoryName = () => {
+    if (!post.category) return 'Uncategorized';
+    
+    if (typeof post.category === 'string') {
+      return post.category;
+    }
+    
+    if (typeof post.category === 'object' && post.category !== null) {
+      return post.category.name || 'Uncategorized';
+    }
+    
+    return 'Uncategorized';
+  };
+
+  // Helper function to safely get author name
+  const getAuthorName = () => {
+    if (typeof post.author === 'string') {
+      return post.author;
+    }
+    
+    if (typeof post.author === 'object' && post.author !== null) {
+      return post.author.name || post.author.email || 'Unknown Author';
+    }
+    
+    return post.authorName || 'Unknown Author';
+  };
+
+  // Helper function to safely format date
+  const formatDate = (dateString) => {
+    try {
+      if (!dateString) return 'No date set';
+      const date = new Date(dateString);
+      return date.toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+    } catch (error) {
+      return 'Invalid date';
+    }
+  };
+
+  // Helper function to safely get publish date
+  const getPublishDate = () => {
+    return post.publishDateTime || post.createdAt || new Date().toISOString();
+  };
+
   if (loading) {
     return (
       <div className="flex justify-center items-center min-h-screen">
@@ -93,6 +143,10 @@ const PostPreview = () => {
   }
 
   const imageUrl = getImageUrl(post.imageUrl);
+  const categoryName = getCategoryName();
+  const authorName = getAuthorName();
+  const publishDate = getPublishDate();
+  const formattedDate = formatDate(publishDate);
 
   return (
     <motion.div
@@ -123,7 +177,7 @@ const PostPreview = () => {
           {/* Category Badge */}
           <div className="mb-4">
             <span className="inline-block px-4 py-1 bg-orange-100 text-orange-700 rounded-full text-sm font-semibold">
-              {post.category}
+              {categoryName}
             </span>
             {post.isSponsored && (
               <span className="inline-block ml-2 px-4 py-1 bg-purple-100 text-purple-700 rounded-full text-sm font-semibold">
@@ -139,17 +193,11 @@ const PostPreview = () => {
           <div className="flex flex-wrap items-center gap-4 text-gray-600 mb-8 pb-6 border-b">
             <div className="flex items-center">
               <User className="h-4 w-4 mr-2" />
-              <span className="font-medium">{post.author}</span>
+              <span className="font-medium">{authorName}</span>
             </div>
             <div className="flex items-center">
               <Calendar className="h-4 w-4 mr-2" />
-              <span>{new Date(post.publishDateTime || post.createdAt).toLocaleDateString('en-US', {
-                year: 'numeric',
-                month: 'long',
-                day: 'numeric',
-                hour: '2-digit',
-                minute: '2-digit'
-              })}</span>
+              <span>{formattedDate}</span>
             </div>
             {post.region && (
               <div className="flex items-center">
@@ -198,11 +246,13 @@ const PostPreview = () => {
 
           {/* Body Content */}
           <div className="prose prose-lg max-w-none mb-8">
-            {post.body.split('\n').map((paragraph, index) => (
+            {post.body ? post.body.split('\n').map((paragraph, index) => (
               <p key={index} className="mb-4 text-gray-700 leading-relaxed">
                 {paragraph || <br />}
               </p>
-            ))}
+            )) : (
+              <p className="text-gray-500 italic">No content available for preview.</p>
+            )}
           </div>
 
           {/* Tags */}
@@ -213,14 +263,18 @@ const PostPreview = () => {
                 <h3 className="font-semibold text-gray-700">Tags:</h3>
               </div>
               <div className="flex flex-wrap gap-2">
-                {post.tags.map((tag, index) => (
-                  <span
-                    key={index}
-                    className="px-3 py-1 bg-gray-100 text-gray-700 rounded-full text-sm hover:bg-gray-200 transition-colors"
-                  >
-                    #{tag}
-                  </span>
-                ))}
+                {post.tags.map((tag, index) => {
+                  // Handle both string tags and object tags
+                  const tagName = typeof tag === 'string' ? tag : tag.name || 'Untagged';
+                  return (
+                    <span
+                      key={index}
+                      className="px-3 py-1 bg-gray-100 text-gray-700 rounded-full text-sm hover:bg-gray-200 transition-colors"
+                    >
+                      #{tagName}
+                    </span>
+                  );
+                })}
               </div>
             </div>
           )}
@@ -238,13 +292,13 @@ const PostPreview = () => {
               <div>
                 <p className="text-sm text-gray-600 mb-1">Meta Description:</p>
                 <p className="text-gray-700 line-clamp-2">
-                  {post.metaDescription || post.body.substring(0, 150) + '...'}
+                  {post.metaDescription || (post.body ? post.body.substring(0, 150) + '...' : 'No description available')}
                 </p>
               </div>
               <div>
                 <p className="text-sm text-gray-600 mb-1">URL Slug:</p>
                 <p className="text-green-600 truncate">
-                  yoursite.com/post/{post._id === 'preview' ? 'sample-url-slug' : post._id}
+                  yoursite.com/post/{post._id === 'preview' ? 'sample-url-slug' : (post.slug || post._id || 'untitled')}
                 </p>
               </div>
             </div>
@@ -258,7 +312,9 @@ const PostPreview = () => {
                   post.status === 'published' ? 'bg-green-500' :
                   post.status === 'scheduled' ? 'bg-yellow-500' :
                   post.status === 'draft' ? 'bg-gray-500' :
-                  'bg-red-500'
+                  post.status === 'pending_approval' ? 'bg-blue-500' :
+                  post.status === 'archived' ? 'bg-red-500' :
+                  'bg-gray-500'
                 }`}></div>
               </div>
               <div className="ml-3">
@@ -267,9 +323,11 @@ const PostPreview = () => {
                 </p>
                 <p className="text-sm text-blue-600 mt-1">
                   {post.status === 'draft' && 'This post is in draft mode and not visible to the public.'}
-                  {post.status === 'scheduled' && `This post is scheduled to publish on ${new Date(post.publishDateTime).toLocaleString()}.`}
+                  {post.status === 'scheduled' && `This post is scheduled to publish on ${formatDate(post.publishDateTime)}.`}
                   {post.status === 'published' && 'This post is live and visible to the public.'}
+                  {post.status === 'pending_approval' && 'This post is pending approval from superadmin.'}
                   {post.status === 'archived' && 'This post is archived and not visible to the public.'}
+                  {!post.status && 'Status information is not available.'}
                 </p>
               </div>
             </div>

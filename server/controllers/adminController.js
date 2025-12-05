@@ -5,24 +5,21 @@ const bcrypt = require('bcryptjs');
 // Helper function to safely create activity log
 const createActivityLog = async (activityData) => {
   try {
-    // Try to create activity with admin-specific type first
     return await Activity.create(activityData);
   } catch (activityError) {
-    // If it fails due to enum validation, try with a more generic type
     if (activityError.name === 'ValidationError' && activityError.errors?.type?.kind === 'enum') {
       console.warn(`Activity type "${activityData.type}" not in enum, trying fallback`);
       
-      // Map admin-specific types to more generic ones
       const typeMapping = {
         'admin_created': 'user_created',
         'admin_updated': 'user_updated',
         'admin_deactivated': 'user_deactivated',
-        'admin_reactivated': 'user_activated'
+        'admin_reactivated': 'user_activated',
+        'curd_access_toggle': 'user_updated'
       };
       
       const fallbackType = typeMapping[activityData.type] || 'system';
       
-      // Try again with fallback type
       try {
         return await Activity.create({
           ...activityData,
@@ -34,7 +31,7 @@ const createActivityLog = async (activityData) => {
     } else {
       console.error('Activity creation error:', activityError.message);
     }
-    return null; // Return null if activity creation fails (don't stop admin operation)
+    return null;
   }
 };
 
@@ -86,11 +83,12 @@ exports.createAdmin = async (req, res) => {
       email,
       password: hashedPassword,
       role: role || 'admin',
+      curdAccess: false, // Default to false
       isActive: true,
       createdBy: req.user._id,
     });
 
-    // Log activity - try with admin_created first
+    // Log activity
     await createActivityLog({
       type: 'admin_created',
       userId: req.user._id,
@@ -100,7 +98,8 @@ exports.createAdmin = async (req, res) => {
         email, 
         role: role || 'admin', 
         userType: 'admin',
-        action: 'created'
+        action: 'created',
+        curdAccess: false
       },
       targetId: admin._id,
       targetType: 'Admin'
@@ -197,7 +196,7 @@ exports.getAdmin = async (req, res) => {
 // @access  Private/Superadmin
 exports.updateAdmin = async (req, res) => {
   try {
-    const { name, email, password, isActive } = req.body;
+    const { name, email, password, isActive, curdAccess } = req.body;
     const admin = await Admin.findById(req.params.id);
 
     if (!admin) {
@@ -218,6 +217,11 @@ exports.updateAdmin = async (req, res) => {
     if (email) admin.email = email;
     if (typeof isActive === 'boolean') admin.isActive = isActive;
     
+    // Update CRUD access if provided
+    if (typeof curdAccess === 'boolean') {
+      admin.curdAccess = curdAccess;
+    }
+    
     if (password) {
       const salt = await bcrypt.genSalt(10);
       admin.password = await bcrypt.hash(password, salt);
@@ -234,6 +238,7 @@ exports.updateAdmin = async (req, res) => {
       details: { 
         email: admin.email, 
         isActive: admin.isActive,
+        curdAccess: admin.curdAccess,
         changes: Object.keys(req.body).filter(key => key !== 'password')
       },
       targetId: admin._id,
@@ -291,6 +296,7 @@ exports.deactivateAdmin = async (req, res) => {
       details: { 
         email: admin.email,
         isActive: false,
+        curdAccess: admin.curdAccess,
         action: 'deactivated'
       },
       targetId: admin._id,
@@ -337,6 +343,7 @@ exports.reactivateAdmin = async (req, res) => {
       details: { 
         email: admin.email,
         isActive: true,
+        curdAccess: admin.curdAccess,
         action: 'reactivated'
       },
       targetId: admin._id,
@@ -357,6 +364,68 @@ exports.reactivateAdmin = async (req, res) => {
   }
 };
 
+// @desc    Toggle CRUD access for admin user (Superadmin only)
+// @route   PUT /api/users/admins/:id/toggle-curd
+// @access  Private/Superadmin
+exports.toggleCRUDAccess = async (req, res) => {
+  try {
+    const admin = await Admin.findById(req.params.id);
+
+    if (!admin) {
+      return res.status(404).json({
+        success: false,
+        message: 'Admin not found'
+      });
+    }
+
+    if (admin.role === 'superadmin') {
+      return res.status(403).json({
+        success: false,
+        message: 'Cannot modify CRUD access for superadmin'
+      });
+    }
+
+    // Toggle CRUD access
+    const newCRUDAccess = !admin.curdAccess;
+    admin.curdAccess = newCRUDAccess;
+    await admin.save();
+
+    // Log activity
+    await createActivityLog({
+      type: 'curd_access_toggle',
+      userId: req.user._id,
+      user: req.user.name,
+      title: `CRUD access ${newCRUDAccess ? 'enabled' : 'disabled'} for ${admin.name}`,
+      details: { 
+        email: admin.email, 
+        isActive: admin.isActive,
+        curdAccess: newCRUDAccess,
+        action: 'curd_access_toggle',
+        changedBy: req.user.name
+      },
+      targetId: admin._id,
+      targetType: 'Admin'
+    });
+
+    const adminResponse = admin.toObject();
+    delete adminResponse.password;
+
+    res.status(200).json({
+      success: true,
+      message: `CRUD access ${newCRUDAccess ? 'enabled' : 'disabled'} successfully`,
+      data: adminResponse
+    });
+
+  } catch (error) {
+    console.error('Toggle CRUD access error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error toggling CRUD access',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+};
+
 // @desc    Get admin statistics (Superadmin only)
 // @route   GET /api/users/admins/stats
 // @access  Private/Superadmin
@@ -365,6 +434,7 @@ exports.getAdminStats = async (req, res) => {
     const totalAdmins = await Admin.countDocuments({ role: 'admin' });
     const activeAdmins = await Admin.countDocuments({ role: 'admin', isActive: true });
     const inactiveAdmins = await Admin.countDocuments({ role: 'admin', isActive: false });
+    const adminsWithCRUD = await Admin.countDocuments({ role: 'admin', curdAccess: true });
 
     res.status(200).json({
       success: true,
@@ -372,6 +442,8 @@ exports.getAdminStats = async (req, res) => {
         totalAdmins,
         activeAdmins,
         inactiveAdmins,
+        adminsWithCRUD,
+        adminsWithoutCRUD: totalAdmins - adminsWithCRUD,
         superadminCount: 1
       }
     });

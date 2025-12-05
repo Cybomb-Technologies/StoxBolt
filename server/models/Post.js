@@ -1,3 +1,4 @@
+// models/Post.js
 const mongoose = require('mongoose');
 
 const PostSchema = new mongoose.Schema({
@@ -18,9 +19,9 @@ const PostSchema = new mongoose.Schema({
     required: [true, 'Please add body text']
   },
   category: {
-    type: String,
-    required: true,
-    enum: ['Indian', 'US', 'Global', 'Commodities', 'Forex', 'Crypto', 'IPOs']
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Category',
+    required: true
   },
   tags: [{
     type: String,
@@ -144,5 +145,6 @@ PostSchema.pre('save', function(next) {
 PostSchema.index({ title: 'text', body: 'text', tags: 'text' });
 PostSchema.index({ isScheduled: 1, scheduleApproved: 1 });
 PostSchema.index({ publishDateTime: 1, status: 1 });
+PostSchema.index({ category: 1 });
 
 module.exports = mongoose.model('Post', PostSchema);

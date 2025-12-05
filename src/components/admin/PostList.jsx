@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
-import { Edit, Trash2, Eye, Search, FileUp, Filter, Loader2, Plus, Info, Clock, CheckCircle, XCircle, AlertCircle, RefreshCw } from 'lucide-react';
+import { Edit, Trash2, Eye, Search, FileUp, Filter, Loader2, Plus, Info, Clock, CheckCircle, XCircle, AlertCircle, RefreshCw, Send } from 'lucide-react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -22,6 +22,8 @@ const PostList = () => {
   const navigate = useNavigate();
   const [posts, setPosts] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [categories, setCategories] = useState([]);
+  const [categoriesLoading, setCategoriesLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
   const [filterCategory, setFilterCategory] = useState('all');
@@ -29,13 +31,67 @@ const PostList = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [totalPosts, setTotalPosts] = useState(0);
-  const [debugInfo, setDebugInfo] = useState(null);
   const { toast } = useToast();
-  const { user } = useAuth();
+  const { user, hasCRUDAccess } = useAuth();
 
-  const categories = ['all', 'Indian', 'US', 'Global', 'Commodities', 'Forex', 'Crypto', 'IPOs'];
+  // Fetch categories from backend
+  const fetchCategories = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      
+      if (!token) {
+        console.warn('No token found for fetching categories');
+        return;
+      }
+
+      const response = await fetch(`${baseURL}/api/categories`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      const data = await response.json();
+      
+      if (response.ok && data.success) {
+        // Transform the categories data for the dropdown
+        const formattedCategories = data.data.map(category => ({
+          id: category._id,
+          name: category.name,
+          slug: category.slug
+        }));
+        setCategories(formattedCategories);
+      } else {
+        console.error('Failed to fetch categories:', data.message);
+        // Fallback to default categories if API fails
+        setCategories([
+          { id: 'indian', name: 'Indian' },
+          { id: 'us', name: 'US' },
+          { id: 'global', name: 'Global' },
+          { id: 'commodities', name: 'Commodities' },
+          { id: 'forex', name: 'Forex' },
+          { id: 'crypto', name: 'Crypto' },
+          { id: 'ipos', name: 'IPOs' }
+        ]);
+      }
+    } catch (error) {
+      console.error('Error fetching categories:', error);
+      // Fallback to default categories on error
+      setCategories([
+        { id: 'indian', name: 'Indian' },
+        { id: 'us', name: 'US' },
+        { id: 'global', name: 'Global' },
+        { id: 'commodities', name: 'Commodities' },
+        { id: 'forex', name: 'Forex' },
+        { id: 'crypto', name: 'Crypto' },
+        { id: 'ipos', name: 'IPOs' }
+      ]);
+    } finally {
+      setCategoriesLoading(false);
+    }
+  };
 
   useEffect(() => {
+    fetchCategories();
     fetchPosts();
   }, [currentPage, filterStatus, filterCategory, searchQuery]);
 
@@ -43,18 +99,15 @@ const PostList = () => {
     setLoading(true);
     try {
       const token = localStorage.getItem('token');
-      const userData = localStorage.getItem('user');
       
       if (!token) {
-        throw new Error('No authentication token found');
+        toast({
+          title: 'Authentication Error',
+          description: 'No authentication token found. Please log in again.',
+          variant: 'destructive'
+        });
+        return;
       }
-
-      if (!userData) {
-        throw new Error('User data not found');
-      }
-
-      const parsedUser = JSON.parse(userData);
-      console.log('Current user:', parsedUser);
 
       // Build query parameters
       const params = new URLSearchParams({
@@ -66,8 +119,6 @@ const PostList = () => {
       if (filterCategory !== 'all') params.append('category', filterCategory);
       if (searchQuery) params.append('search', searchQuery);
 
-      console.log('Fetching posts with params:', params.toString());
-
       const response = await fetch(`${baseURL}/api/posts?${params}`, {
         headers: {
           'Authorization': `Bearer ${token}`
@@ -76,18 +127,15 @@ const PostList = () => {
 
       const data = await response.json();
       
-      console.log('Posts API response status:', response.status);
-      console.log('Posts API response data:', data);
-
       if (!response.ok) {
         if (response.status === 403) {
           setPosts([]);
           setTotalPages(1);
           setTotalPosts(0);
-          setDebugInfo({
-            message: 'Admin has no posts yet or access denied',
-            userRole: parsedUser.role,
-            userId: parsedUser._id
+          toast({
+            title: 'Access Denied',
+            description: 'You do not have permission to view these posts.',
+            variant: 'destructive'
           });
           return;
         }
@@ -98,12 +146,6 @@ const PostList = () => {
         setPosts(data.data || []);
         setTotalPages(data.totalPages || 1);
         setTotalPosts(data.total || 0);
-        setDebugInfo({
-          message: 'Successfully loaded posts',
-          userRole: parsedUser.role,
-          userId: parsedUser._id,
-          count: data.data?.length || 0
-        });
       } else {
         throw new Error(data.message || 'Failed to load posts');
       }
@@ -121,10 +163,6 @@ const PostList = () => {
       setPosts([]);
       setTotalPages(1);
       setTotalPosts(0);
-      setDebugInfo({
-        message: error.message,
-        error: true
-      });
     } finally {
       setLoading(false);
     }
@@ -134,6 +172,15 @@ const PostList = () => {
     try {
       const token = localStorage.getItem('token');
       
+      if (!token) {
+        toast({
+          title: 'Authentication Error',
+          description: 'Please log in again to perform this action.',
+          variant: 'destructive'
+        });
+        return;
+      }
+
       const response = await fetch(`${baseURL}/api/posts/${postId}`, {
         method: 'DELETE',
         headers: {
@@ -151,8 +198,9 @@ const PostList = () => {
         setPosts((prev) => prev.filter((p) => p._id !== postId));
         setTotalPosts(prev => prev - 1);
         toast({
-          title: 'Post Deleted',
-          description: 'The post has been deleted successfully'
+          title: 'Success',
+          description: 'The post has been deleted successfully',
+          className: 'bg-green-100 text-green-800 border-green-200'
         });
       }
     } catch (error) {
@@ -169,6 +217,15 @@ const PostList = () => {
     try {
       const token = localStorage.getItem('token');
       
+      if (!token) {
+        toast({
+          title: 'Authentication Error',
+          description: 'Please log in again to perform this action.',
+          variant: 'destructive'
+        });
+        return;
+      }
+
       const response = await fetch(`${baseURL}/api/posts/${postId}/publish`, {
         method: 'PUT',
         headers: {
@@ -185,8 +242,9 @@ const PostList = () => {
 
       if (data.success) {
         toast({
-          title: 'Post Published',
-          description: 'The post has been published successfully'
+          title: 'Success',
+          description: 'The post has been published successfully',
+          className: 'bg-green-100 text-green-800 border-green-200'
         });
         fetchPosts(); // Refresh the list
       }
@@ -203,6 +261,11 @@ const PostList = () => {
     try {
       // Navigate to edit page for update request
       navigate(`/admin/posts/edit/${postId}?updateRequest=true`);
+      toast({
+        title: 'Update Request',
+        description: 'You are now editing in update request mode. Changes will require approval.',
+        className: 'bg-blue-100 text-blue-800 border-blue-200'
+      });
     } catch (error) {
       toast({
         title: 'Error',
@@ -217,6 +280,7 @@ const PostList = () => {
       draft: 'bg-gray-100 text-gray-700',
       scheduled: 'bg-yellow-100 text-yellow-700',
       published: 'bg-green-100 text-green-700',
+      pending_approval: 'bg-blue-100 text-blue-700',
       archived: 'bg-red-100 text-red-700'
     };
     return colors[status] || colors.draft;
@@ -227,7 +291,9 @@ const PostList = () => {
       return new Date(dateString).toLocaleDateString('en-US', {
         year: 'numeric',
         month: 'short',
-        day: 'numeric'
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
       });
     } catch (error) {
       return 'Invalid date';
@@ -237,17 +303,43 @@ const PostList = () => {
   const handlePreview = (post) => {
     localStorage.setItem('postPreview', JSON.stringify(post));
     navigate('/admin/preview');
+    toast({
+      title: 'Preview Mode',
+      description: 'You are now previewing the post',
+      className: 'bg-blue-100 text-blue-800 border-blue-200'
+    });
   };
 
-  // Check if user can edit a specific post
-  const canEditPost = (post) => {
+  // Truncate long text with ellipsis
+  const truncateText = (text, maxLength = 50) => {
+    if (!text) return '';
+    if (text.length <= maxLength) return text;
+    return text.substring(0, maxLength) + '...';
+  };
+
+  // Get category name by ID
+  const getCategoryName = (categoryId) => {
+    if (!categoryId || categoryId === 'all') return 'Uncategorized';
+    const category = categories.find(cat => cat.id === categoryId || cat._id === categoryId);
+    return category ? category.name : 'Uncategorized';
+  };
+
+  // Check if user can edit a specific post directly (CRUD access or own draft)
+  const canEditPostDirectly = (post) => {
     if (!user) return false;
     
     // Superadmin can edit all posts directly
     if (user.role === 'superadmin') return true;
     
-    // Admin can only edit their own draft posts directly
-    if (user.role === 'admin') {
+    // Admin with CRUD access can edit their own posts
+    if (user.role === 'admin' && hasCRUDAccess) {
+      const authorId = post.authorId?._id || post.authorId;
+      const isOwnPost = authorId === user._id || authorId?.toString() === user._id;
+      return isOwnPost; // Admin with CRUD can edit their own posts regardless of status
+    }
+    
+    // Admin without CRUD access can only edit their own drafts
+    if (user.role === 'admin' && !hasCRUDAccess) {
       const authorId = post.authorId?._id || post.authorId;
       const isOwnPost = authorId === user._id || authorId?.toString() === user._id;
       return isOwnPost && post.status === 'draft';
@@ -260,16 +352,22 @@ const PostList = () => {
   const canRequestUpdate = (post) => {
     if (!user) return false;
     
-    // Admin can request updates for their own published posts
-    if (user.role === 'admin') {
-      const authorId = post.authorId?._id || post.authorId;
-      const isOwnPost = authorId === user._id || authorId?.toString() === user._id;
+    const authorId = post.authorId?._id || post.authorId;
+    const isOwnPost = authorId === user._id || authorId?.toString() === user._id;
+    
+    // Admin without CRUD access can request updates for their own published posts
+    if (user.role === 'admin' && !hasCRUDAccess) {
       return isOwnPost && post.status === 'published';
     }
     
-    // Superadmin can request updates for any published post
+    // Admin with CRUD access can edit published posts directly (no need for request)
+    if (user.role === 'admin' && hasCRUDAccess) {
+      return false; // They edit directly
+    }
+    
+    // Superadmin can edit published posts directly
     if (user.role === 'superadmin') {
-      return post.status === 'published';
+      return false; // They edit directly
     }
     
     return false;
@@ -279,59 +377,69 @@ const PostList = () => {
   const canDeletePost = (post) => {
     if (!user) return false;
     
-    // Only superadmin can delete posts
-    return user.role === 'superadmin';
+    // Superadmin can delete any post
+    if (user.role === 'superadmin') return true;
+    
+    // Admin with CRUD access can delete their own posts
+    if (user.role === 'admin' && hasCRUDAccess) {
+      const authorId = post.authorId?._id || post.authorId;
+      const isOwnPost = authorId === user._id || authorId?.toString() === user._id;
+      return isOwnPost;
+    }
+    
+    return false;
   };
 
   // Check if user can publish a specific post
   const canPublishPost = (post) => {
     if (!user) return false;
     
-    // Only superadmin can publish posts
-    // And only if post is not already published
-    return user.role === 'superadmin' && post.status !== 'published';
-  };
-
-  // Check if admin needs to create post via approval system
-  const shouldUseApprovalSystem = () => {
-    return user?.role === 'admin';
-  };
-
-  const testAPIConnection = async () => {
-    try {
-      const token = localStorage.getItem('token');
-      const userData = localStorage.getItem('user');
-      
-      const response = await fetch(`${baseURL}/api/posts/debug`, {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
-      
-      const data = await response.json();
-      console.log('Debug API response:', data);
-      
-      toast({
-        title: 'Debug Info',
-        description: `User: ${data.user?.name || 'Unknown'}, Role: ${data.user?.role || 'Unknown'}`,
-        variant: data.success ? 'default' : 'destructive'
-      });
-      
-      return data;
-    } catch (error) {
-      console.error('Debug API error:', error);
-      toast({
-        title: 'Debug Error',
-        description: error.message,
-        variant: 'destructive'
-      });
+    // Superadmin can publish any draft post
+    if (user.role === 'superadmin') {
+      return post.status === 'draft' || post.status === 'pending_approval';
     }
+    
+    // Admin with CRUD access can publish their own draft posts
+    if (user.role === 'admin' && hasCRUDAccess) {
+      const authorId = post.authorId?._id || post.authorId;
+      const isOwnPost = authorId === user._id || authorId?.toString() === user._id;
+      return isOwnPost && (post.status === 'draft' || post.status === 'pending_approval');
+    }
+    
+    return false;
+  };
+
+  // Determine the new post button route based on user access
+  const getNewPostRoute = () => {
+    if (user?.role === 'superadmin') {
+      return "/admin/posts/new";
+    }
+    if (user?.role === 'admin') {
+      if (hasCRUDAccess) {
+        return "/admin/posts/new"; // Direct CRUD access
+      } else {
+        return "/admin/posts/new-approval"; // Approval system
+      }
+    }
+    return "/admin/posts/new";
+  };
+
+  // Get user mode display
+  const getUserMode = () => {
+    if (user?.role === 'superadmin') return 'Superadmin Mode';
+    if (user?.role === 'admin') {
+      return hasCRUDAccess ? 'Admin (CRUD Mode)' : 'Admin (Approval Mode)';
+    }
+    return '';
   };
 
   if (loading) {
     return (
-      <div className="flex justify-center items-center py-12">
-        <Loader2 className="h-12 w-12 animate-spin text-orange-600" />
+      <div className="flex justify-center items-center min-h-[400px]">
+        <div className="text-center">
+          <Loader2 className="h-12 w-12 animate-spin text-orange-600 mx-auto mb-4" />
+          <p className="text-gray-600">Loading posts...</p>
+        </div>
       </div>
     );
   }
@@ -342,6 +450,7 @@ const PostList = () => {
       animate={{ opacity: 1 }}
       className="bg-white rounded-2xl shadow-xl p-6"
     >
+      {/* Header Section */}
       <div className="flex flex-col space-y-4 mb-6">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div className="relative flex-1 max-w-md">
@@ -354,7 +463,7 @@ const PostList = () => {
                 setSearchQuery(e.target.value);
                 setCurrentPage(1);
               }}
-              className="w-full pl-10 pr-4 py-2 border-2 border-gray-200 rounded-lg focus:border-orange-500 focus:outline-none"
+              className="w-full pl-10 pr-4 py-2.5 border-2 border-gray-200 rounded-lg focus:border-orange-500 focus:ring-2 focus:ring-orange-200 focus:outline-none transition-all"
             />
           </div>
 
@@ -365,12 +474,13 @@ const PostList = () => {
                 setFilterStatus(e.target.value);
                 setCurrentPage(1);
               }}
-              className="px-4 py-2 border-2 border-gray-200 rounded-lg focus:border-orange-500 focus:outline-none"
+              className="px-4 py-2.5 border-2 border-gray-200 rounded-lg focus:border-orange-500 focus:ring-2 focus:ring-orange-200 focus:outline-none transition-all min-w-[140px]"
             >
               <option value="all">All Status</option>
               <option value="draft">Draft</option>
               <option value="scheduled">Scheduled</option>
               <option value="published">Published</option>
+              <option value="pending_approval">Pending Approval</option>
               <option value="archived">Archived</option>
             </select>
 
@@ -380,21 +490,26 @@ const PostList = () => {
                 setFilterCategory(e.target.value);
                 setCurrentPage(1);
               }}
-              className="px-4 py-2 border-2 border-gray-200 rounded-lg focus:border-orange-500 focus:outline-none"
+              disabled={categoriesLoading}
+              className="px-4 py-2.5 border-2 border-gray-200 rounded-lg focus:border-orange-500 focus:ring-2 focus:ring-orange-200 focus:outline-none transition-all min-w-[140px]"
             >
-              {categories.map((cat) => (
-                <option key={cat} value={cat}>
-                  {cat === 'all' ? 'All Categories' : cat}
+              <option value="all">All Categories</option>
+              {categories.map((category) => (
+                <option key={category.id || category._id} value={category.id || category._id}>
+                  {category.name}
                 </option>
               ))}
+              {categories.length === 0 && !categoriesLoading && (
+                <option value="" disabled>No categories available</option>
+              )}
             </select>
 
             {user && (user.role === 'admin' || user.role === 'superadmin') && (
               <Button
                 asChild
-                className="bg-orange-600 hover:bg-orange-700"
+                className="bg-orange-600 hover:bg-orange-700 shadow-sm"
               >
-                <Link to={shouldUseApprovalSystem() ? "/admin/posts/new-approval" : "/admin/posts/new"}>
+                <Link to={getNewPostRoute()}>
                   <Plus className="h-4 w-4 mr-2" />
                   New Post
                 </Link>
@@ -406,7 +521,7 @@ const PostList = () => {
               <Button
                 asChild
                 variant="outline"
-                className="border-purple-600 text-purple-600 hover:bg-purple-50"
+                className="border-purple-600 text-purple-600 hover:bg-purple-50 shadow-sm"
               >
                 <Link to="/admin/approval">
                   <CheckCircle className="h-4 w-4 mr-2" />
@@ -415,12 +530,12 @@ const PostList = () => {
               </Button>
             )}
 
-            {/* My approvals button for admin */}
-            {user?.role === 'admin' && (
+            {/* My approvals button for admin without CRUD access */}
+            {user?.role === 'admin' && !hasCRUDAccess && (
               <Button
                 asChild
                 variant="outline"
-                className="border-blue-600 text-blue-600 hover:bg-blue-50"
+                className="border-blue-600 text-blue-600 hover:bg-blue-50 shadow-sm"
               >
                 <Link to="/admin/my-approvals">
                   <Clock className="h-4 w-4 mr-2" />
@@ -428,37 +543,26 @@ const PostList = () => {
                 </Link>
               </Button>
             )}
-
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={testAPIConnection}
-              title="Debug API Connection"
-            >
-              <Info className="h-4 w-4" />
-            </Button>
           </div>
         </div>
 
-        <div className="flex items-center justify-between text-sm text-gray-600">
-          <div>
-            Showing {posts.length} of {totalPosts} posts
-            {user && (
-              <span className={`ml-2 px-2 py-1 text-xs rounded ${
-                user.role === 'admin' 
-                  ? 'bg-blue-100 text-blue-700' 
-                  : 'bg-purple-100 text-purple-700'
-              }`}>
-                {user.role === 'admin' ? 'Admin View' : 'Superadmin View'}
-              </span>
-            )}
-            {debugInfo && (
-              <span className="ml-2 px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded">
-                {debugInfo.message}
-              </span>
-            )}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-sm text-gray-600">
+              Showing <span className="font-semibold">{posts.length}</span> of{' '}
+              <span className="font-semibold">{totalPosts}</span> posts
+            </span>
+            <span className={`px-3 py-1.5 text-xs rounded-full font-medium ${
+              user?.role === 'superadmin' 
+                ? 'bg-purple-100 text-purple-700 border border-purple-200' 
+                : hasCRUDAccess 
+                  ? 'bg-green-100 text-green-700 border border-green-200' 
+                  : 'bg-blue-100 text-blue-700 border border-blue-200'
+            }`}>
+              {getUserMode()}
+            </span>
           </div>
-          <div className="flex items-center space-x-2">
+          <div className="flex items-center gap-2">
             <Button
               variant="outline"
               size="sm"
@@ -467,7 +571,13 @@ const PostList = () => {
                 setFilterStatus('all');
                 setFilterCategory('all');
                 setCurrentPage(1);
+                toast({
+                  title: 'Filters Cleared',
+                  description: 'All filters have been reset',
+                  className: 'bg-gray-100 text-gray-800 border-gray-200'
+                });
               }}
+              className="border-gray-300"
             >
               <Filter className="h-4 w-4 mr-1" />
               Clear Filters
@@ -475,140 +585,195 @@ const PostList = () => {
             <Button
               variant="outline"
               size="sm"
-              onClick={fetchPosts}
-              disabled={loading}
+              onClick={() => {
+                fetchCategories();
+                fetchPosts();
+              }}
+              disabled={loading || categoriesLoading}
+              className="border-gray-300"
             >
-              {loading ? (
+              {loading || categoriesLoading ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
               ) : (
-                'Refresh'
+                <>
+                  <RefreshCw className="h-4 w-4 mr-1" />
+                  Refresh
+                </>
               )}
             </Button>
           </div>
         </div>
       </div>
 
-      {/* Admin Info Banner */}
+      {/* User Mode Info Banner */}
       {user?.role === 'admin' && (
-        <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+        <div className={`mb-6 p-4 rounded-lg border ${
+          hasCRUDAccess 
+            ? 'bg-green-50 border-green-200' 
+            : 'bg-blue-50 border-blue-200'
+        }`}>
           <div className="flex items-start">
-            <Info className="h-5 w-5 text-blue-500 mr-2 flex-shrink-0 mt-0.5" />
-            <div>
-              <h3 className="font-semibold text-blue-800">Admin Post Workflow</h3>
-              <p className="text-sm text-blue-600 mt-1">
-                • You can create and edit draft posts directly<br/>
-                • To publish a post or update a published post, it needs superadmin approval<br/>
-                • Use the "Request Update" button for published posts<br/>
-                • Check "My Submissions" for approval status
+            <Info className={`h-5 w-5 mr-3 flex-shrink-0 mt-0.5 ${
+              hasCRUDAccess ? 'text-green-500' : 'text-blue-500'
+            }`} />
+            <div className="flex-1">
+              <h3 className={`font-semibold mb-1 ${
+                hasCRUDAccess ? 'text-green-800' : 'text-blue-800'
+              }`}>
+                {hasCRUDAccess ? 'CRUD Mode' : 'Approval Mode'}
+              </h3>
+              <p className={`text-sm ${
+                hasCRUDAccess ? 'text-green-600' : 'text-blue-600'
+              }`}>
+                {hasCRUDAccess 
+                  ? '• You can create, edit, publish, and delete your own posts directly\n• Can edit all statuses (draft, scheduled, published)\n• No approval required for your actions\n• Scheduled posts are auto-approved'
+                  : '• You can create and edit draft posts directly\n• To publish a post or update a published post, it needs superadmin approval\n• Use the "Request Update" button for published posts\n• Check "My Submissions" for approval status'}
               </p>
             </div>
           </div>
         </div>
       )}
 
-      <div className="overflow-x-auto">
-        <table className="w-full">
-          <thead>
-            <tr className="border-b-2 border-gray-200">
-              <th className="text-left py-3 px-4 font-semibold text-gray-700">Title</th>
-              <th className="text-left py-3 px-4 font-semibold text-gray-700">Category</th>
-              <th className="text-left py-3 px-4 font-semibold text-gray-700">Status</th>
-              <th className="text-left py-3 px-4 font-semibold text-gray-700">Author</th>
-              <th className="text-left py-3 px-4 font-semibold text-gray-700">Date</th>
-              <th className="text-right py-3 px-4 font-semibold text-gray-700">Actions</th>
+      {/* Posts Table */}
+      <div className="overflow-x-auto rounded-lg border border-gray-200">
+        <table className="w-full min-w-[800px]">
+          <thead className="bg-gray-50">
+            <tr>
+              <th className="py-4 px-6 text-left font-semibold text-gray-700 text-sm uppercase tracking-wider w-[300px] max-w-[300px]">
+                <div className="flex items-center">
+                  <span className="truncate">Title</span>
+                </div>
+              </th>
+              <th className="py-4 px-6 text-left font-semibold text-gray-700 text-sm uppercase tracking-wider w-[120px]">
+                Category
+              </th>
+              <th className="py-4 px-6 text-left font-semibold text-gray-700 text-sm uppercase tracking-wider w-[140px]">
+                Status
+              </th>
+              <th className="py-4 px-6 text-left font-semibold text-gray-700 text-sm uppercase tracking-wider w-[150px]">
+                Author
+              </th>
+              <th className="py-4 px-6 text-left font-semibold text-gray-700 text-sm uppercase tracking-wider w-[160px]">
+                Date
+              </th>
+              <th className="py-4 px-6 text-right font-semibold text-gray-700 text-sm uppercase tracking-wider w-[100px]">
+                Actions
+              </th>
             </tr>
           </thead>
-          <tbody>
+          <tbody className="divide-y divide-gray-200">
             {posts.map((post) => (
-              <tr key={post._id} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
-                <td className="py-4 px-4">
-                  <div className="font-medium text-gray-900">{post.title}</div>
-                  <div className="text-sm text-gray-500 truncate max-w-xs">{post.shortTitle}</div>
+              <tr key={post._id} className="hover:bg-gray-50 transition-colors">
+                <td className="py-4 px-6 w-[300px] max-w-[300px]">
+                  <div className="flex flex-col space-y-1">
+                    <div className="font-medium text-gray-900 line-clamp-2 min-h-[2.5rem] break-words">
+                      {truncateText(post.title, 80)}
+                    </div>
+                    {post.shortTitle && (
+                      <div className="text-sm text-gray-500 line-clamp-1 break-words">
+                        {truncateText(post.shortTitle, 60)}
+                      </div>
+                    )}
+                  </div>
                 </td>
-                <td className="py-4 px-4">
-                  <span className="text-sm text-gray-700">{post.category}</span>
+                <td className="py-4 px-6 w-[120px]">
+                  <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800 truncate max-w-full">
+                    {post.category?.name || getCategoryName(post.category)}
+                  </span>
                 </td>
-                <td className="py-4 px-4">
-                  <div className="flex flex-col gap-1">
-                    <span className={`px-3 py-1 rounded-full text-xs font-semibold ${getStatusColor(post.status)}`}>
-                      {post.status?.charAt(0).toUpperCase() + post.status?.slice(1) || 'Unknown'}
+                <td className="py-4 px-6 w-[140px]">
+                  <div className="flex flex-col space-y-1">
+                    <span className={`inline-flex items-center justify-center px-3 py-1.5 rounded-full text-xs font-medium ${getStatusColor(post.status)}`}>
+                      {post.status?.replace('_', ' ')?.toUpperCase() || 'Unknown'}
                     </span>
                     {post.lastApprovedBy && post.status === 'published' && (
-                      <span className="text-xs text-gray-500">
+                      <span className="text-xs text-gray-500 truncate max-w-[120px]">
                         Approved by: {post.lastApprovedBy?.name || 'Superadmin'}
+                      </span>
+                    )}
+                    {post.isScheduled && post.scheduleApproved && (
+                      <span className="text-xs text-gray-500">
+                        {formatDate(post.publishDateTime)}
                       </span>
                     )}
                   </div>
                 </td>
-                <td className="py-4 px-4">
-                  <div className="text-sm text-gray-700">{post.author}</div>
-                  {post.authorId?.name && (
-                    <div className="text-xs text-gray-500">{post.authorId.name}</div>
+                <td className="py-4 px-6 w-[150px]">
+                  <div className="text-sm text-gray-900 font-medium truncate max-w-[140px]">
+                    {post.author || post.authorId?.name || 'Unknown'}
+                  </div>
+                  {post.authorId?.email && (
+                    <div className="text-xs text-gray-500 truncate max-w-[140px]">
+                      {post.authorId.email}
+                    </div>
                   )}
                 </td>
-                <td className="py-4 px-4 text-sm text-gray-600">
+                <td className="py-4 px-6 text-sm text-gray-600 whitespace-nowrap w-[160px]">
                   {formatDate(post.publishDateTime || post.createdAt)}
                 </td>
-                <td className="py-4 px-4">
-                  <div className="flex items-center justify-end space-x-2">
+                <td className="py-4 px-6 w-[100px]">
+                  <div className="flex items-center justify-end space-x-1">
                     <Button
                       variant="ghost"
-                      size="icon"
+                      size="sm"
                       onClick={() => handlePreview(post)}
                       title="Preview Post"
+                      className="h-8 w-8 p-0 hover:bg-blue-50"
                     >
-                      <Eye className="h-4 w-4" />
+                      <Eye className="h-4 w-4 text-gray-500" />
                     </Button>
                     
                     {/* Edit Button - Show if user can edit this post directly */}
-                    {canEditPost(post) && (
+                    {canEditPostDirectly(post) && (
                       <Button
                         variant="ghost"
-                        size="icon"
+                        size="sm"
                         asChild
+                        title="Edit Post"
+                        className="h-8 w-8 p-0 hover:bg-green-50"
                       >
-                        <Link to={`/admin/posts/edit/${post._id}`} title="Edit Post">
-                          <Edit className="h-4 w-4" />
+                        <Link to={`/admin/posts/edit/${post._id}`}>
+                          <Edit className="h-4 w-4 text-gray-500" />
                         </Link>
                       </Button>
                     )}
                     
-                    {/* Request Update Button - For published posts */}
+                    {/* Request Update Button - For published posts when in approval mode */}
                     {canRequestUpdate(post) && (
                       <Button
                         variant="ghost"
-                        size="icon"
+                        size="sm"
                         onClick={() => handleRequestUpdate(post._id)}
-                        className="hover:text-yellow-600"
                         title="Request Update (Needs Approval)"
+                        className="h-8 w-8 p-0 hover:bg-yellow-50"
                       >
-                        <RefreshCw className="h-4 w-4" />
+                        <Send className="h-4 w-4 text-yellow-600" />
                       </Button>
                     )}
                     
-                    {/* Publish Button - Only for superadmin and non-published posts */}
+                    {/* Publish Button - For draft posts when user has publish rights */}
                     {canPublishPost(post) && (
                       <Button
                         variant="ghost"
-                        size="icon"
+                        size="sm"
                         onClick={() => handlePublish(post._id)}
-                        className="hover:text-green-600"
                         title="Publish Post"
+                        className="h-8 w-8 p-0 hover:bg-green-50"
                       >
-                        <FileUp className="h-4 w-4" />
+                        <FileUp className="h-4 w-4 text-green-600" />
                       </Button>
                     )}
                     
-                    {/* Delete Button - Only for superadmin */}
+                    {/* Delete Button */}
                     {canDeletePost(post) && (
                       <Button
                         variant="ghost"
-                        size="icon"
+                        size="sm"
                         onClick={() => setDeletePost(post)}
-                        className="hover:text-red-600"
                         title="Delete Post"
+                        className="h-8 w-8 p-0 hover:bg-red-50"
                       >
-                        <Trash2 className="h-4 w-4" />
+                        <Trash2 className="h-4 w-4 text-red-600" />
                       </Button>
                     )}
                   </div>
@@ -619,41 +784,34 @@ const PostList = () => {
         </table>
       </div>
 
+      {/* Empty State */}
       {posts.length === 0 && !loading && (
         <div className="text-center py-12">
-          <div className="mb-6">
-            <Info className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-            <p className="text-gray-600">No posts found</p>
-            <p className="text-sm text-gray-500 mt-2">
-              {user?.role === 'admin' 
-                ? 'Create your first post or check if you have existing posts'
-                : 'Try changing your filters or create a new post'}
-            </p>
+          <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-gray-100 mb-4">
+            <Info className="h-8 w-8 text-gray-400" />
           </div>
+          <p className="text-gray-600 text-lg font-medium mb-2">No posts found</p>
+          <p className="text-sm text-gray-500 max-w-md mx-auto mb-6">
+            {user?.role === 'admin' 
+              ? 'Create your first post or check if you have existing posts'
+              : 'Try changing your filters or create a new post'}
+          </p>
           {user?.role === 'admin' && (
             <>
-              <p className="text-sm text-gray-500 mb-4">
-                As an admin, you can create draft posts directly. Published posts require superadmin approval.
+              <p className="text-sm text-gray-500 mb-6 max-w-lg mx-auto">
+                {hasCRUDAccess 
+                  ? 'As an admin with CRUD access, you can create and publish posts directly without approval.'
+                  : 'As an admin in Approval Mode, you can create draft posts that require superadmin approval before publishing.'}
               </p>
               <Button
                 asChild
-                className="bg-orange-600 hover:bg-orange-700"
+                className="bg-orange-600 hover:bg-orange-700 shadow-sm"
               >
-                <Link to="/admin/posts/new-approval">
+                <Link to={getNewPostRoute()}>
                   <Plus className="h-4 w-4 mr-2" />
                   Create Your First Post
                 </Link>
               </Button>
-              <div className="mt-4">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={testAPIConnection}
-                >
-                  <Info className="h-4 w-4 mr-2" />
-                  Check User Permissions
-                </Button>
-              </div>
             </>
           )}
         </div>
@@ -661,44 +819,86 @@ const PostList = () => {
 
       {/* Pagination */}
       {totalPages > 1 && (
-        <div className="flex justify-center items-center space-x-2 mt-6 pt-6 border-t">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
-            disabled={currentPage === 1}
-          >
-            Previous
-          </Button>
-          <span className="text-sm text-gray-600">
-            Page {currentPage} of {totalPages}
-          </span>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
-            disabled={currentPage === totalPages}
-          >
-            Next
-          </Button>
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mt-6 pt-6 border-t border-gray-200">
+          <div className="text-sm text-gray-600">
+            Page {currentPage} of {totalPages} • {totalPosts} total posts
+          </div>
+          <div className="flex items-center space-x-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+              disabled={currentPage === 1}
+              className="px-4"
+            >
+              Previous
+            </Button>
+            <div className="flex items-center space-x-1">
+              {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                let pageNum;
+                if (totalPages <= 5) {
+                  pageNum = i + 1;
+                } else if (currentPage <= 3) {
+                  pageNum = i + 1;
+                } else if (currentPage >= totalPages - 2) {
+                  pageNum = totalPages - 4 + i;
+                } else {
+                  pageNum = currentPage - 2 + i;
+                }
+
+                return (
+                  <Button
+                    key={pageNum}
+                    variant={currentPage === pageNum ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setCurrentPage(pageNum)}
+                    className={`px-3 min-w-[40px] ${
+                      currentPage === pageNum ? 'bg-orange-600 hover:bg-orange-700' : ''
+                    }`}
+                  >
+                    {pageNum}
+                  </Button>
+                );
+              })}
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+              disabled={currentPage === totalPages}
+              className="px-4"
+            >
+              Next
+            </Button>
+          </div>
         </div>
       )}
 
+      {/* Delete Confirmation Dialog */}
       <AlertDialog open={!!deletePost} onOpenChange={() => setDeletePost(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-            <AlertDialogDescription>
-              This action cannot be undone. This will permanently delete the post "{deletePost?.title}".
+            <div className="flex items-center space-x-3 mb-2">
+              <div className="flex items-center justify-center w-10 h-10 rounded-full bg-red-100">
+                <AlertCircle className="h-6 w-6 text-red-600" />
+              </div>
+              <AlertDialogTitle>Delete Post</AlertDialogTitle>
+            </div>
+            <AlertDialogDescription className="pt-2">
+              Are you sure you want to delete the post{" "}
+              <span className="font-semibold text-gray-900">
+                "{truncateText(deletePost?.title, 50)}"
+              </span>
+              ? This action cannot be undone and will permanently remove the post.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogCancel className="border-gray-300">Cancel</AlertDialogCancel>
             <AlertDialogAction
-              onClick={() => handleDelete(deletePost._id)}
-              className="bg-red-600 hover:bg-red-700"
+              onClick={() => handleDelete(deletePost?._id)}
+              className="bg-red-600 hover:bg-red-700 focus:ring-red-600"
             >
-              Delete
+              Delete Post
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

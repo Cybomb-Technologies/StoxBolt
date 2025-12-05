@@ -718,19 +718,6 @@ const handleReject = async (post) => {
             </div>
           )}
         </div>
-
-        {/* Debug Panel (only in development) */}
-        {process.env.NODE_ENV === 'development' && (
-          <div className="mt-8 p-4 bg-gray-100 rounded-lg border border-gray-300">
-            <h3 className="text-sm font-medium text-gray-700 mb-2">Debug Info</h3>
-            <div className="text-xs text-gray-600 space-y-1">
-              <div>User Role: {user?.role}</div>
-              <div>API URL: {baseURL}</div>
-              <div>Total Posts: {totalPosts}</div>
-              <div>Current Page: {currentPage}</div>
-            </div>
-          </div>
-        )}
       </div>
     </div>
   );

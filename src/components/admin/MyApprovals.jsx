@@ -688,16 +688,7 @@ if (process.env.NODE_ENV === 'development') {
                             </div>
                           )}
                           
-                          {/* Debug info in development */}
-                          {process.env.NODE_ENV === 'development' && (
-                            <div className="mt-2 text-xs text-gray-500">
-                              ID: {postIdValue} | 
-                              Type: {post.type} | 
-                              Approval Status: {post.approvalStatus} | 
-                              Scheduled: {isScheduled ? 'Yes' : 'No'} |
-                              Schedule Approved: {post.scheduleApproved ? 'Yes' : 'No'}
-                            </div>
-                          )}
+                          
                         </div>
                       </div>
                       
@@ -762,34 +753,7 @@ if (process.env.NODE_ENV === 'development') {
           )}
         </div>
 
-        {/* Debug Panel (only in development) */}
-        {process.env.NODE_ENV === 'development' && (
-          <div className="mt-8 p-4 bg-gray-100 rounded-lg border border-gray-300">
-            <h3 className="text-sm font-medium text-gray-700 mb-2">Debug Info</h3>
-            <div className="text-xs text-gray-600 space-y-1">
-              <div>User: {user?.name}</div>
-              <div>Role: {user?.role}</div>
-              <div>User ID: {user?._id}</div>
-              <div>API URL: {baseURL}</div>
-              <div>Total Submissions: {totalPosts}</div>
-              <div>Current Page: {currentPage}</div>
-              <div>Filter Status: {filterStatus}</div>
-              <div>Search Query: {searchQuery}</div>
-              <div>Loaded Posts: {myPosts.length}</div>
-              <div className="mt-2">
-                <strong>Submission Types:</strong>
-                <ul className="ml-4 mt-1">
-                  <li>AdminPosts: {myPosts.filter(p => p.type === 'approval').length}</li>
-                  <li>Posts: {myPosts.filter(p => p.type === 'post').length}</li>
-                  <li>Scheduled: {myPosts.filter(p => p.isScheduled || p.isScheduledPost).length}</li>
-                  <li>Schedule Pending: {myPosts.filter(p => 
-                    (p.isScheduled || p.isScheduledPost) && !p.scheduleApproved
-                  ).length}</li>
-                </ul>
-              </div>
-            </div>
-          </div>
-        )}
+        
       </div>
     </div>
   );

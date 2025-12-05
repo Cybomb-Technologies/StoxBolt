@@ -12,9 +12,9 @@ const logActivity = async (activityData, req = null) => {
       finalData.userId = req.user._id;
       finalData.user = req.user.email || req.user.username || req.user.name || 'Unknown User';
       finalData.userDetails = {
-        name: req.user.name || req.user.username,
-        email: req.user.email,
-        role: req.user.role
+        name: req.user.name || req.user.username || 'Unknown',
+        email: req.user.email || '',
+        role: req.user.role || 'user'
       };
       
       // Add IP and user agent for audit trail
@@ -45,7 +45,7 @@ exports.getActivities = async (req, res) => {
   try {
     const { 
       page = 1, 
-      limit = 50, 
+      limit = 20,  // Changed from 50 to match frontend
       type, 
       severity, 
       entityType, 
@@ -122,22 +122,67 @@ exports.getActivities = async (req, res) => {
       Activity.countDocuments(query)
     ]);
     
-    // Format dates for readability
-    const formattedActivities = activities.map(activity => ({
-      ...activity,
-      readableDate: new Date(activity.timestamp).toLocaleString('en-US', {
-        year: 'numeric',
-        month: 'short',
-        day: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit',
-        second: '2-digit'
-      }),
-      // Add icon based on type
-      icon: getIconForType(activity.type),
-      // Add color based on severity
-      color: getColorForSeverity(activity.severity)
-    }));
+    // Format activities for frontend
+    const formattedActivities = activities.map(activity => {
+      // Extract user info from populated userId or use flat fields
+      const populatedUser = activity.userId;
+      const userEmail = populatedUser?.email || activity.userEmail || activity.user || '';
+      const userName = populatedUser?.name || populatedUser?.username || activity.userName || '';
+      const userRole = populatedUser?.role || activity.userRole || '';
+      
+      // Determine display name
+      let displayName = userName;
+      if (!displayName && userEmail) {
+        displayName = userEmail.split('@')[0]; // Use email username part
+      }
+      if (!displayName) {
+        displayName = activity.user || 'Unknown User';
+      }
+      
+      // Prepare details from metadata
+      const details = activity.metadata || {};
+      
+      // Add post-specific details if available
+      if (activity.postId) {
+        details.title = activity.postId.title;
+        details.status = activity.postId.status;
+        details.category = activity.postId.category;
+      }
+      
+      if (activity.adminPostId) {
+        details.title = activity.adminPostId.title;
+        details.approvalStatus = activity.adminPostId.approvalStatus;
+      }
+      
+      return {
+        _id: activity._id,
+        id: activity._id,
+        type: activity.type,
+        userId: activity.userId?._id || activity.userId,
+        user: displayName, // For backward compatibility
+        username: userName, // Add username field
+        userEmail: userEmail, // Add email field
+        title: activity.title,
+        description: activity.description,
+        details: details,
+        metadata: activity.metadata,
+        severity: activity.severity,
+        timestamp: activity.timestamp,
+        createdAt: activity.created_at || activity.timestamp,
+        postId: activity.postId?._id || activity.postId,
+        adminPostId: activity.adminPostId?._id || activity.adminPostId,
+        icon: getIconForType(activity.type),
+        color: getColorForSeverity(activity.severity),
+        readableDate: activity.timestamp ? 
+          new Date(activity.timestamp).toLocaleString('en-US', {
+            year: 'numeric',
+            month: 'short',
+            day: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit'
+          }) : 'N/A'
+      };
+    });
     
     // Get activity statistics
     const stats = await getActivityStats(query);
@@ -251,12 +296,19 @@ exports.getUserActivities = async (req, res) => {
     ]);
     
     // Format activities
-    const formattedActivities = activities.map(activity => ({
-      ...activity,
-      readableDate: new Date(activity.timestamp).toLocaleString(),
-      icon: getIconForType(activity.type),
-      color: getColorForSeverity(activity.severity)
-    }));
+    const formattedActivities = activities.map(activity => {
+      const details = activity.metadata || {};
+      
+      return {
+        ...activity,
+        userEmail: activity.userEmail || activity.userDetails?.email || activity.user || '',
+        username: activity.userName || activity.userDetails?.name || activity.user || '',
+        details: details,
+        readableDate: new Date(activity.timestamp).toLocaleString(),
+        icon: getIconForType(activity.type),
+        color: getColorForSeverity(activity.severity)
+      };
+    });
     
     res.status(200).json({
       success: true,
@@ -446,7 +498,7 @@ async function getActivityStats(query = {}) {
     Activity.find(query)
       .sort({ timestamp: -1 })
       .limit(10)
-      .select('type title timestamp user')
+      .select('type title timestamp user userEmail userName')
       .lean(),
     Activity.aggregate([
       { $match: query },
@@ -498,7 +550,12 @@ function getIconForType(type) {
     'schedule_rejected': '📅❌',
     'error': '⚠️',
     'login': '🔐',
-    'logout': '🚪'
+    'logout': '🚪',
+    'upload': '📤',
+    'admin_created': '👤➕',
+    'admin_updated': '👤✏️',
+    'admin_deactivated': '👤⏸️',
+    'admin_reactivated': '👤▶️'
   };
   return icons[type] || '📝';
 }

@@ -4,7 +4,7 @@ import { Helmet } from 'react-helmet';
 import { Toaster } from '@/components/ui/toaster';
 import { AuthProvider } from '@/contexts/AuthContext';
 import ProtectedRoute from '@/components/ProtectedRoute';
-
+import { ToastContainer } from 'react-toastify';
 // Import components directly to avoid any import issues
 const Header = React.lazy(() => import('@/components/Header'));
 const Footer = React.lazy(() => import('@/components/Footer'));
@@ -35,6 +35,10 @@ const ApprovalQueue = React.lazy(() => import('@/components/admin/ApprovalQueue'
 const AdminPostEditor = React.lazy(() => import('@/components/admin/AdminPostEditor'));
 const MyApprovals = React.lazy(() => import('@/components/admin/MyApprovals'));
 const ScheduleApprovals = React.lazy(() => import('@/components/admin/ScheduleApprovals'));
+
+// New components for CRUD/Approval mode routing
+const NewPostRouteHandler = React.lazy(() => import('@/components/admin/NewPostRouteHandler'));
+
 // Loading fallback
 const LoadingFallback = () => (
   <div className="min-h-screen flex items-center justify-center">
@@ -49,6 +53,7 @@ const LoadingFallback = () => (
 const MainLayout = ({ children }) => {
   return (
     <>
+    <ToastContainer />
       <React.Suspense fallback={<LoadingFallback />}>
         <Header />
         <FloatingIndices />
@@ -61,6 +66,39 @@ const MainLayout = ({ children }) => {
       </React.Suspense>
     </>
   );
+};
+
+// CRUD Access Check Wrapper
+const CRUDAccessRoute = ({ children, requireCRUD = false }) => {
+  const user = JSON.parse(localStorage.getItem('user') || '{}');
+  
+  if (requireCRUD && user.role === 'admin' && !user.hasCRUDAccess) {
+    return <Navigate to="/admin/my-approvals" replace />;
+  }
+  
+  return children;
+};
+
+// Admin-only Route (no superadmin access needed)
+const AdminOnlyRoute = ({ children }) => {
+  const user = JSON.parse(localStorage.getItem('user') || '{}');
+  
+  if (user.role !== 'admin' && user.role !== 'superadmin') {
+    return <Navigate to="/admin/overview" replace />;
+  }
+  
+  return children;
+};
+
+// Superadmin-only Route
+const SuperadminOnlyRoute = ({ children }) => {
+  const user = JSON.parse(localStorage.getItem('user') || '{}');
+  
+  if (user.role !== 'superadmin') {
+    return <Navigate to="/admin/overview" replace />;
+  }
+  
+  return children;
 };
 
 function App() {
@@ -126,79 +164,140 @@ function App() {
               </ProtectedRoute>
             }>
               <Route index element={<Navigate to="/admin/overview" replace />} />
+              
+              {/* Dashboard Overview */}
               <Route path="overview" element={
                 <React.Suspense fallback={<LoadingFallback />}>
                   <Overview /> 
                 </React.Suspense>
               } />
+              <Route path="posts/edit/new" element={
+  <React.Suspense fallback={<LoadingFallback />}>
+    <CRUDAccessRoute requireCRUD={false}>
+      <PostEditor />
+    </CRUDAccessRoute>
+  </React.Suspense>
+} />
+              {/* Posts Management */}
+              <Route path="posts" element={<Navigate to="/admin/posts/list" replace />} />
               <Route path="posts/list" element={
                 <React.Suspense fallback={<LoadingFallback />}>
                   <PostList />
                 </React.Suspense>
               } />
+              
+              {/* New Post - Dynamic route based on CRUD access */}
               <Route path="posts/new" element={
                 <React.Suspense fallback={<LoadingFallback />}>
-                  <PostEditor />
+                  <NewPostRouteHandler />
                 </React.Suspense>
               } />
-              <Route path="posts/new-approval" element={
-                <React.Suspense fallback={<LoadingFallback />}>
-                  <AdminPostEditor />
-                </React.Suspense>
-              } />
+              
+              {/* Edit Post - Only accessible with proper permissions */}
               <Route path="posts/edit/:id" element={
                 <React.Suspense fallback={<LoadingFallback />}>
-                  <PostEditor />
+                  <CRUDAccessRoute requireCRUD={false}>
+                    <PostEditor />
+                  </CRUDAccessRoute>
                 </React.Suspense>
               } />
-              <Route path="bulk-upload" element={
+              
+              {/* Approval System Routes */}
+              <Route path="posts/new-approval" element={
                 <React.Suspense fallback={<LoadingFallback />}>
-                  <BulkUpload />
+                  <AdminOnlyRoute>
+                    <AdminPostEditor />
+                  </AdminOnlyRoute>
                 </React.Suspense>
               } />
-              <Route path="scheduler" element={
+              
+              {/* My Approvals (for admin in approval mode) */}
+              <Route path="my-approvals" element={
                 <React.Suspense fallback={<LoadingFallback />}>
-                  <PostScheduler />
+                  <AdminOnlyRoute>
+                    <MyApprovals />
+                  </AdminOnlyRoute>
                 </React.Suspense>
               } />
+              
+              {/* Edit Approval Post */}
+              <Route path="my-approvals/edit/:id" element={
+                <React.Suspense fallback={<LoadingFallback />}>
+                  <AdminOnlyRoute>
+                    <AdminPostEditor />
+                  </AdminOnlyRoute>
+                </React.Suspense>
+              } />
+              
+              {/* Schedule Approvals (superadmin only) */}
               <Route path="schedule-approvals" element={
                 <React.Suspense fallback={<LoadingFallback />}>
-                  <ScheduleApprovals />
+                  <SuperadminOnlyRoute>
+                    <ScheduleApprovals />
+                  </SuperadminOnlyRoute>
                 </React.Suspense>
               } />  
+              
+              {/* Approval Queue (superadmin only) */}
+              <Route path="approval" element={
+                <React.Suspense fallback={<LoadingFallback />}>
+                  <SuperadminOnlyRoute>
+                    <ApprovalQueue />
+                  </SuperadminOnlyRoute>
+                </React.Suspense>
+              } />
+              
+              {/* Other Admin Features */}
+              <Route path="bulk-upload" element={
+                <React.Suspense fallback={<LoadingFallback />}>
+                  <CRUDAccessRoute requireCRUD={true}>
+                    <BulkUpload />
+                  </CRUDAccessRoute>
+                </React.Suspense>
+              } />
+              
+              <Route path="scheduler" element={
+                <React.Suspense fallback={<LoadingFallback />}>
+                  <CRUDAccessRoute requireCRUD={false}>
+                    <PostScheduler />
+                  </CRUDAccessRoute>
+                </React.Suspense>
+              } />
+              
               <Route path="activity" element={
                 <React.Suspense fallback={<LoadingFallback />}>
                   <ActivityLog />
                 </React.Suspense>
               } />
+              
               <Route path="preview" element={
                 <React.Suspense fallback={<LoadingFallback />}>
                   <PostPreview />
                 </React.Suspense>
               } />
+              
+              {/* User Management (superadmin only) */}
               <Route path="users" element={
                 <React.Suspense fallback={<LoadingFallback />}>
-                  <AdminList />
+                  <SuperadminOnlyRoute>
+                    <AdminList />
+                  </SuperadminOnlyRoute>
                 </React.Suspense>
               } />
+              
               <Route path="users/create" element={
                 <React.Suspense fallback={<LoadingFallback />}>
-                  <CreateAdmin />
+                  <SuperadminOnlyRoute>
+                    <CreateAdmin />
+                  </SuperadminOnlyRoute>
                 </React.Suspense>
               } />
+              
               <Route path="users/edit/:id" element={
                 <React.Suspense fallback={<LoadingFallback />}>
-                  <EditAdmin />
-                </React.Suspense>
-              } />
-              <Route path="approval" element={
-                <React.Suspense fallback={<LoadingFallback />}>
-                  <ApprovalQueue />
-                </React.Suspense>
-              } />
-              <Route path="my-approvals" element={
-                <React.Suspense fallback={<LoadingFallback />}>
-                  <MyApprovals />
+                  <SuperadminOnlyRoute>
+                    <EditAdmin />
+                  </SuperadminOnlyRoute>
                 </React.Suspense>
               } />
             </Route>
