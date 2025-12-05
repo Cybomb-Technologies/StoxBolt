@@ -1,3 +1,4 @@
+// models/AdminPost.js
 const mongoose = require('mongoose');
 
 const AdminPostSchema = new mongoose.Schema({
@@ -19,9 +20,9 @@ const AdminPostSchema = new mongoose.Schema({
     required: [true, 'Please add body text']
   },
   category: {
-    type: String,
-    required: true,
-    enum: ['Indian', 'US', 'Global', 'Commodities', 'Forex', 'Crypto', 'IPOs']
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Category',
+    required: true
   },
   tags: [{
     type: String,
@@ -43,7 +44,7 @@ const AdminPostSchema = new mongoose.Schema({
   },
   publishDateTime: {
     type: Date,
-    default: Date.now
+    default: null
   },
   isSponsored: {
     type: Boolean,
@@ -62,18 +63,13 @@ const AdminPostSchema = new mongoose.Schema({
   },
   
   // Approval system fields
-  status: {
-    type: String,
-    enum: ['pending', 'approved', 'rejected', 'needs_review', 'published'],
-    default: 'pending'
-  },
   approvalStatus: {
     type: String,
-    enum: ['pending_review', 'approved', 'rejected', 'changes_requested'],
+    enum: ['pending_review', 'approved', 'rejected', 'changes_requested', 'scheduled_pending', 'scheduled_approved'],
     default: 'pending_review'
   },
   
-  // Reference to main Post (if this is an update request)
+  // Reference to main Post
   postId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Post',
@@ -82,6 +78,10 @@ const AdminPostSchema = new mongoose.Schema({
   
   // Tracking
   isUpdateRequest: {
+    type: Boolean,
+    default: false
+  },
+  isScheduledPost: {
     type: Boolean,
     default: false
   },
@@ -106,6 +106,21 @@ const AdminPostSchema = new mongoose.Schema({
   },
   reviewerNotes: {
     type: String,
+    default: null
+  },
+  
+  // Schedule approval
+  scheduleApproved: {
+    type: Boolean,
+    default: false
+  },
+  scheduleApprovedBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Admin',
+    default: null
+  },
+  scheduleApprovedAt: {
+    type: Date,
     default: null
   },
   
@@ -140,12 +155,29 @@ AdminPostSchema.pre('save', function(next) {
     this.metaDescription = this.body.substring(0, 150) + '...';
   }
   
+  // Check if this is a scheduled post
+  if (this.publishDateTime && new Date(this.publishDateTime) > new Date()) {
+    this.isScheduledPost = true;
+  }
+  
+  // Set approval status for scheduled posts
+  if (this.isScheduledPost) {
+    if (this.scheduleApproved) {
+      this.approvalStatus = 'scheduled_approved';
+    } else {
+      this.approvalStatus = 'scheduled_pending';
+    }
+  }
+  
   next();
 });
 
 // Index for searching
 AdminPostSchema.index({ title: 'text', body: 'text', tags: 'text' });
-AdminPostSchema.index({ authorId: 1, status: 1 });
+AdminPostSchema.index({ authorId: 1, approvalStatus: 1 });
 AdminPostSchema.index({ approvalStatus: 1, createdAt: -1 });
+AdminPostSchema.index({ isScheduledPost: 1, publishDateTime: 1 });
+AdminPostSchema.index({ scheduleApproved: 1 });
+AdminPostSchema.index({ category: 1 });
 
 module.exports = mongoose.model('AdminPost', AdminPostSchema);

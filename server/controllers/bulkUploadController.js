@@ -83,17 +83,26 @@ exports.bulkUpload = async (req, res) => {
           // Insert all posts
           const createdPosts = await Post.insertMany(posts);
           
-          // Log activity
+          // Log activity - FIXED: Use 'create' type instead of 'upload'
           await Activity.create({
-            type: 'upload',
+            type: 'create', // Changed from 'upload' to 'create'
             userId: req.user._id,
             user: req.user.name,
+            userName: req.user.name,
+            userEmail: req.user.email,
+            userRole: req.user.role,
             title: `Bulk upload of ${createdPosts.length} posts`,
-            details: {
+            description: `Bulk imported ${createdPosts.length} posts from CSV file`,
+            entityType: 'post',
+            metadata: {
               count: createdPosts.length,
               errors: errors.length,
-              uploadedByRole: req.user.role
-            }
+              uploadedByRole: req.user.role,
+              fileName: req.file.originalname,
+              fileSize: req.file.size
+            },
+            action: 'bulk_upload',
+            severity: 'success'
           });
           
           res.status(201).json({

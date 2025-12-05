@@ -33,6 +33,8 @@ const login = async (req, res) => {
     }
     
     console.log('User active:', user.isActive);
+    console.log('User role:', user.role);
+    console.log('User CRUD access:', user.curdAccess);
     console.log('Password field exists:', !!user.password);
     
     if (!user.isActive) {
@@ -42,7 +44,7 @@ const login = async (req, res) => {
       });
     }
     
-    // DIRECT password comparison (temporary debug)
+    // DIRECT password comparison
     console.log('Attempting direct bcrypt comparison...');
     
     const isPasswordMatch = await bcrypt.compare(password, user.password);
@@ -78,6 +80,8 @@ const login = async (req, res) => {
       name: user.name,
       email: user.email,
       role: user.role,
+      curdAccess: user.curdAccess,
+      hasCRUDAccess: user.role === 'superadmin' ? true : user.curdAccess,
       isAdmin: ['admin', 'superadmin'].includes(user.role),
       lastLogin: user.lastLogin
     };
@@ -98,6 +102,7 @@ const login = async (req, res) => {
     });
   }
 };
+
 // @desc    Get current logged in user
 // @route   GET /api/auth/me
 // @access  Private
@@ -117,6 +122,8 @@ const getMe = async (req, res) => {
       name: user.name,
       email: user.email,
       role: user.role,
+      curdAccess: user.curdAccess,
+      hasCRUDAccess: user.role === 'superadmin' ? true : user.curdAccess,
       isAdmin: ['admin', 'superadmin'].includes(user.role),
       lastLogin: user.lastLogin,
       createdAt: user.createdAt

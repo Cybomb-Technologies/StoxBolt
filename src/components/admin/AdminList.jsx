@@ -23,9 +23,15 @@ import {
   Eye,
   Lock,
   Users,
-  Activity
+  Activity,
+  ToggleLeft,
+  ToggleRight,
+  Key,
+  Unlock
 } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
+import { toast } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 
 const baseURL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
@@ -35,6 +41,7 @@ const AdminList = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
   const [filterRole, setFilterRole] = useState('all');
+  const [filterCRUD, setFilterCRUD] = useState('all');
   const [selectedAdmin, setSelectedAdmin] = useState(null);
   const [actionType, setActionType] = useState('');
   const [actionLoading, setActionLoading] = useState(false);
@@ -46,7 +53,9 @@ const AdminList = () => {
     totalAdmins: 0,
     activeAdmins: 0,
     inactiveAdmins: 0,
-    superadminCount: 0
+    superadminCount: 0,
+    adminsWithCRUD: 0,
+    adminsWithoutCRUD: 0
   });
   const navigate = useNavigate();
   const itemsPerPage = 10;
@@ -91,6 +100,13 @@ const AdminList = () => {
           filteredAdmins = filteredAdmins.filter(admin => admin.role === filterRole);
         }
         
+        // Apply CRUD filter
+        if (filterCRUD !== 'all') {
+          filteredAdmins = filteredAdmins.filter(admin => 
+            filterCRUD === 'with' ? admin.curdAccess : !admin.curdAccess
+          );
+        }
+        
         // Apply search
         if (searchQuery) {
           const query = searchQuery.toLowerCase();
@@ -114,7 +130,10 @@ const AdminList = () => {
       }
     } catch (error) {
       console.error('Error fetching admins:', error);
-      alert(error.message || 'Failed to load admins');
+      toast.error(error.message || 'Failed to load admins', {
+        position: "top-right",
+        autoClose: 5000,
+      });
       setAdmins([]);
     } finally {
       setLoading(false);
@@ -138,6 +157,7 @@ const AdminList = () => {
       }
     } catch (error) {
       console.error('Error fetching stats:', error);
+      // No toast for stats failure as it's not critical
     }
   };
 
@@ -166,6 +186,10 @@ const AdminList = () => {
           method = 'DELETE';
           successMessage = `${selectedAdmin.name} has been deleted`;
           break;
+        case 'toggle-curd':
+          url = `${baseURL}/api/users/admins/${selectedAdmin._id}/toggle-curd`;
+          successMessage = `CRUD access ${selectedAdmin.curdAccess ? 'disabled' : 'enabled'} for ${selectedAdmin.name}`;
+          break;
         default:
           return;
       }
@@ -185,14 +209,28 @@ const AdminList = () => {
       }
 
       if (data.success) {
-        alert(successMessage);
+        // Show success toast
+        if (actionType === 'toggle-curd') {
+          toast.info(successMessage, {
+            position: "top-right",
+            autoClose: 4000,
+          });
+        } else {
+          toast.success(successMessage, {
+            position: "top-right",
+            autoClose: 3000,
+          });
+        }
         
         // Refresh data
         fetchAdmins();
         fetchStats();
       }
     } catch (error) {
-      alert(error.message || 'Operation failed');
+      toast.error(error.message || 'Operation failed', {
+        position: "top-right",
+        autoClose: 5000,
+      });
     } finally {
       setActionLoading(false);
       setShowConfirmDialog(false);
@@ -201,8 +239,17 @@ const AdminList = () => {
     }
   };
 
+  const handleToggleCRUD = (admin) => {
+    setSelectedAdmin(admin);
+    setActionType('toggle-curd');
+    setShowConfirmDialog(true);
+  };
+
   const handleResetPassword = async (adminId, adminName) => {
-    alert(`Password reset for ${adminName} will be available soon`);
+    toast.info(`Password reset for ${adminName} will be available soon`, {
+      position: "top-right",
+      autoClose: 3000,
+    });
   };
 
   const formatDate = (dateString) => {
@@ -252,6 +299,32 @@ const AdminList = () => {
     );
   };
 
+  const getCRUDBadge = (curdAccess, role) => {
+    if (role === 'superadmin') {
+      return (
+        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800 border border-purple-200">
+          <Lock className="h-3 w-3 mr-1" />
+          Full Access
+        </span>
+      );
+    }
+    
+    if (curdAccess) {
+      return (
+        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 border border-green-200">
+          <Unlock className="h-3 w-3 mr-1" />
+          CRUD Mode
+        </span>
+      );
+    }
+    return (
+      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800 border border-yellow-200">
+        <Key className="h-3 w-3 mr-1" />
+        Approval Mode
+      </span>
+    );
+  };
+
   const handleFilterApply = () => {
     setCurrentPage(1);
     fetchAdmins();
@@ -261,6 +334,7 @@ const AdminList = () => {
     setSearchQuery('');
     setFilterStatus('all');
     setFilterRole('all');
+    setFilterCRUD('all');
     setCurrentPage(1);
     fetchAdmins();
   };
@@ -303,7 +377,7 @@ const AdminList = () => {
         </div>
 
         {/* Stats Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mb-8">
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
             <div className="flex items-center justify-between">
               <div>
@@ -343,11 +417,25 @@ const AdminList = () => {
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-gray-600">Superadmins</p>
-                <p className="text-2xl font-bold text-gray-900 mt-1">{stats.superadminCount}</p>
+                <p className="text-sm font-medium text-gray-600">CRUD Access</p>
+                <p className="text-2xl font-bold text-gray-900 mt-1">{stats.adminsWithCRUD || 0}</p>
+                <p className="text-xs text-gray-500 mt-1">Direct CRUD Mode</p>
               </div>
-              <div className="h-12 w-12 rounded-lg bg-purple-100 flex items-center justify-center">
-                <Lock className="h-6 w-6 text-purple-600" />
+              <div className="h-12 w-12 rounded-lg bg-green-100 flex items-center justify-center">
+                <Unlock className="h-6 w-6 text-green-600" />
+              </div>
+            </div>
+          </div>
+          
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-600">Approval Mode</p>
+                <p className="text-2xl font-bold text-gray-900 mt-1">{stats.adminsWithoutCRUD || 0}</p>
+                <p className="text-xs text-gray-500 mt-1">Requires Approval</p>
+              </div>
+              <div className="h-12 w-12 rounded-lg bg-blue-100 flex items-center justify-center">
+                <Key className="h-6 w-6 text-blue-600" />
               </div>
             </div>
           </div>
@@ -406,6 +494,16 @@ const AdminList = () => {
                   <option value="superadmin">Super Admin</option>
                 </select>
                 
+                <select
+                  value={filterCRUD}
+                  onChange={(e) => setFilterCRUD(e.target.value)}
+                  className="px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 focus:outline-none"
+                >
+                  <option value="all">All Modes</option>
+                  <option value="with">CRUD Mode</option>
+                  <option value="without">Approval Mode</option>
+                </select>
+                
                 <button
                   onClick={handleFilterApply}
                   className="px-4 py-2.5 bg-orange-600 text-white font-medium rounded-lg hover:bg-orange-700 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 transition-colors"
@@ -451,13 +549,13 @@ const AdminList = () => {
               <div className="text-center py-12">
                 <Shield className="h-12 w-12 text-gray-400 mx-auto mb-4" />
                 <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                  {searchQuery || filterStatus !== 'all' || filterRole !== 'all'
+                  {searchQuery || filterStatus !== 'all' || filterRole !== 'all' || filterCRUD !== 'all'
                     ? 'No matching admins found'
                     : 'No admins yet'
                   }
                 </h3>
                 <p className="text-gray-600 max-w-md mx-auto mb-6">
-                  {searchQuery || filterStatus !== 'all' || filterRole !== 'all'
+                  {searchQuery || filterStatus !== 'all' || filterRole !== 'all' || filterCRUD !== 'all'
                     ? 'Try adjusting your search or filters'
                     : 'Get started by creating your first admin user'
                   }
@@ -483,6 +581,7 @@ const AdminList = () => {
                           <h3 className="font-semibold text-gray-900">{admin.name}</h3>
                           {getRoleBadge(admin.role)}
                           {getStatusBadge(admin.isActive)}
+                          {getCRUDBadge(admin.curdAccess, admin.role)}
                         </div>
                         <div className="flex items-center text-gray-600 text-sm mb-1">
                           <Mail className="h-3 w-3 mr-2" />
@@ -491,12 +590,33 @@ const AdminList = () => {
                         <div className="flex items-center text-gray-500 text-sm">
                           <Calendar className="h-3 w-3 mr-2" />
                           Created {formatDate(admin.createdAt)}
+                          {admin.role === 'admin' && (
+                            <span className="ml-4">
+                              Mode: {admin.curdAccess ? 'CRUD' : 'Approval'}
+                            </span>
+                          )}
                         </div>
                       </div>
                     </div>
                     
                     <div className="flex items-center space-x-2">
-                      
+                      {/* CRUD Toggle Button - Only for regular admins */}
+                      {admin.role === 'admin' && (
+                        <button
+                          onClick={() => handleToggleCRUD(admin)}
+                          className={`p-2 rounded-lg transition-colors ${admin.curdAccess 
+                            ? 'bg-green-100 text-green-700 hover:bg-green-200' 
+                            : 'bg-yellow-100 text-yellow-700 hover:bg-yellow-200'
+                          }`}
+                          title={admin.curdAccess ? "Switch to Approval Mode" : "Switch to CRUD Mode"}
+                        >
+                          {admin.curdAccess ? (
+                            <ToggleRight className="h-5 w-5" />
+                          ) : (
+                            <ToggleLeft className="h-5 w-5" />
+                          )}
+                        </button>
+                      )}
                       
                       <button
                         onClick={() => navigate(`/admin/users/edit/${admin._id}`)}
@@ -586,6 +706,7 @@ const AdminList = () => {
                   {actionType === 'deactivate' && 'Deactivate Admin'}
                   {actionType === 'reactivate' && 'Reactivate Admin'}
                   {actionType === 'delete' && 'Delete Admin'}
+                  {actionType === 'toggle-curd' && (selectedAdmin?.curdAccess ? 'Disable CRUD Access' : 'Enable CRUD Access')}
                 </h3>
               </div>
               
@@ -598,6 +719,11 @@ const AdminList = () => {
                 )}
                 {actionType === 'delete' && (
                   `Are you sure you want to permanently delete ${selectedAdmin?.name}? This action cannot be undone.`
+                )}
+                {actionType === 'toggle-curd' && (
+                  selectedAdmin?.curdAccess 
+                    ? `Are you sure you want to disable CRUD access for ${selectedAdmin?.name}? They will switch to Approval Mode and need approval for published posts.`
+                    : `Are you sure you want to enable CRUD access for ${selectedAdmin?.name}? They will switch to CRUD Mode and can directly create, update, and delete posts.`
                 )}
               </p>
               
@@ -615,6 +741,10 @@ const AdminList = () => {
                   className={`px-4 py-2.5 text-white font-medium rounded-lg focus:outline-none focus:ring-2 focus:ring-offset-2 transition-colors disabled:opacity-50 ${
                     actionType === 'delete'
                       ? 'bg-red-600 hover:bg-red-700 focus:ring-red-500'
+                      : actionType === 'toggle-curd'
+                      ? selectedAdmin?.curdAccess
+                        ? 'bg-yellow-600 hover:bg-yellow-700 focus:ring-yellow-500'
+                        : 'bg-green-600 hover:bg-green-700 focus:ring-green-500'
                       : 'bg-orange-600 hover:bg-orange-700 focus:ring-orange-500'
                   }`}
                 >
@@ -628,6 +758,9 @@ const AdminList = () => {
                       {actionType === 'deactivate' && 'Deactivate'}
                       {actionType === 'reactivate' && 'Reactivate'}
                       {actionType === 'delete' && 'Delete'}
+                      {actionType === 'toggle-curd' && (
+                        selectedAdmin?.curdAccess ? 'Disable CRUD' : 'Enable CRUD'
+                      )}
                     </>
                   )}
                 </button>

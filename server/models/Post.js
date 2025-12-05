@@ -1,3 +1,4 @@
+// models/Post.js
 const mongoose = require('mongoose');
 
 const PostSchema = new mongoose.Schema({
@@ -18,9 +19,9 @@ const PostSchema = new mongoose.Schema({
     required: [true, 'Please add body text']
   },
   category: {
-    type: String,
-    required: true,
-    enum: ['Indian', 'US', 'Global', 'Commodities', 'Forex', 'Crypto', 'IPOs']
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Category',
+    required: true
   },
   tags: [{
     type: String,
@@ -42,11 +43,11 @@ const PostSchema = new mongoose.Schema({
   },
   publishDateTime: {
     type: Date,
-    default: Date.now
+    default: null
   },
   status: {
     type: String,
-    enum: ['draft', 'scheduled', 'published', 'archived'],
+    enum: ['draft', 'scheduled', 'pending_approval', 'published', 'archived'],
     default: 'draft'
   },
   isSponsored: {
@@ -80,6 +81,25 @@ const PostSchema = new mongoose.Schema({
     default: null
   },
   
+  // Scheduled post tracking
+  isScheduled: {
+    type: Boolean,
+    default: false
+  },
+  scheduleApproved: {
+    type: Boolean,
+    default: false
+  },
+  scheduleApprovedBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Admin',
+    default: null
+  },
+  scheduleApprovedAt: {
+    type: Date,
+    default: null
+  },
+  
   createdAt: {
     type: Date,
     default: Date.now
@@ -104,10 +124,27 @@ PostSchema.pre('save', function(next) {
     this.metaDescription = this.body.substring(0, 150) + '...';
   }
   
+  // If publishDateTime is set and in future, set isScheduled to true
+  if (this.publishDateTime && new Date(this.publishDateTime) > new Date()) {
+    this.isScheduled = true;
+  }
+  
+  // Set appropriate status based on schedule approval
+  if (this.isScheduled) {
+    if (this.scheduleApproved) {
+      this.status = 'scheduled';
+    } else {
+      this.status = 'pending_approval';
+    }
+  }
+  
   next();
 });
 
 // Index for searching
 PostSchema.index({ title: 'text', body: 'text', tags: 'text' });
+PostSchema.index({ isScheduled: 1, scheduleApproved: 1 });
+PostSchema.index({ publishDateTime: 1, status: 1 });
+PostSchema.index({ category: 1 });
 
 module.exports = mongoose.model('Post', PostSchema);

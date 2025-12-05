@@ -21,8 +21,8 @@ const protect = async (req, res, next) => {
     // Verify token
     const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-super-secret-jwt-key-change-this-in-production');
 
-    // Get user from token
-    req.user = await User.findById(decoded.id).select('-password');
+    // Get user from token WITH password and curdAccess fields
+    req.user = await User.findById(decoded.id).select('+password +curdAccess');
 
     if (!req.user) {
       return res.status(401).json({
@@ -38,6 +38,25 @@ const protect = async (req, res, next) => {
         message: 'Invalid user role'
       });
     }
+
+    // Check if user is active
+    if (!req.user.isActive) {
+      return res.status(401).json({
+        success: false,
+        message: 'Account is deactivated'
+      });
+    }
+
+    // Add CRUD access information - FIXED LOGIC
+    if (req.user.role === 'admin') {
+      req.user.hasCRUDAccess = req.user.curdAccess === true;
+    } else if (req.user.role === 'superadmin') {
+      req.user.hasCRUDAccess = true; // Superadmin always has CRUD access
+      req.user.curdAccess = true; // Ensure curdAccess is true for superadmin
+    }
+
+    // Remove password from user object for security
+    req.user.password = undefined;
 
     next();
   } catch (error) {
@@ -103,14 +122,34 @@ const authorizePostAction = (action) => {
         return next();
       }
 
-      // Admin can only update their own posts
+      // Admin with CRUD access can perform most actions
       if (req.user.role === 'admin') {
-        if (post.authorId.toString() !== req.user._id.toString()) {
+        const isOwnPost = post.authorId.toString() === req.user._id.toString();
+        
+        // For delete/publish actions, admin needs CRUD access
+        if (['delete', 'publish'].includes(action) && !req.user.hasCRUDAccess) {
           return res.status(403).json({
             success: false,
-            message: 'Admin can only update their own posts'
+            message: 'CRUD access is required for this action'
           });
         }
+
+        // Admin can only modify their own posts
+        if (!isOwnPost) {
+          return res.status(403).json({
+            success: false,
+            message: 'You can only modify your own posts'
+          });
+        }
+
+        // For published posts, admin needs CRUD access to update directly
+        if (action === 'update' && post.status === 'published' && !req.user.hasCRUDAccess) {
+          return res.status(403).json({
+            success: false,
+            message: 'Admin must use approval system to update published posts'
+          });
+        }
+
         return next();
       }
 
