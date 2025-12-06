@@ -1,52 +1,64 @@
-
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { ChevronLeft, ChevronRight, User, Clock } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
+import axios from 'axios';
+
+const baseURL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
 const HeroSlider = () => {
   const [currentSlide, setCurrentSlide] = useState(0);
-  const [slides, setSlides] = useState([
-    {
-      id: '1',
-      title: 'Indian Markets Hit All-Time High as Economic Growth Surges',
-      image: 'https://images.unsplash.com/photo-1590283603385-17ffb3a7f29f?auto=format&fit=crop&q=80&w=1600',
-      category: 'Indian'
-    },
-    {
-      id: '2',
-      title: 'Federal Reserve Signals Interest Rate Changes Ahead',
-      image: 'https://images.unsplash.com/photo-1611974765270-ca1258634369?auto=format&fit=crop&q=80&w=1600',
-      category: 'US'
-    },
-    {
-      id: '3',
-      title: 'Gold Prices Soar to Record Levels Amid Global Uncertainty',
-      image: 'https://images.unsplash.com/photo-1610375461246-83df859d849d?auto=format&fit=crop&q=80&w=1600',
-      category: 'Commodities'
-    },
-    {
-      id: '4',
-      title: 'Bitcoin Rallies Past $50,000 Mark in Crypto Market Surge',
-      image: 'https://images.unsplash.com/photo-1518546305927-5a555bb7020d?auto=format&fit=crop&q=80&w=1600',
-      category: 'Crypto'
-    },
-    {
-      id: '5',
-      title: 'Major IPO Season Expected to Break Records This Quarter',
-      image: 'https://images.unsplash.com/photo-1556761175-5973dc0f32e7?auto=format&fit=crop&q=80&w=1600',
-      category: 'IPOs'
-    }
-  ]);
+  const [slides, setSlides] = useState([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const timer = setInterval(() => {
-      setCurrentSlide((prev) => (prev + 1) % slides.length);
-    }, 5000);
+    fetchFeaturedPosts();
+  }, []);
 
-    return () => clearInterval(timer);
+  useEffect(() => {
+    if (slides.length > 0) {
+      const timer = setInterval(() => {
+        setCurrentSlide((prev) => (prev + 1) % slides.length);
+      }, 5000);
+
+      return () => clearInterval(timer);
+    }
   }, [slides.length]);
+
+  const fetchFeaturedPosts = async () => {
+    try {
+      const response = await axios.get(`${baseURL}/api/posts?limit=5&status=published&sort=-createdAt`);
+      if (response.data.success) {
+        const posts = response.data.data.map(post => ({
+          id: post._id,
+          title: post.title,
+          image: post.imageUrl || getDefaultImage(post.category),
+          category: post.category?.name || post.category || 'Featured',
+          author: post.author,
+          publishedAt: post.publishDateTime || post.createdAt,
+          body: post.body
+        }));
+        setSlides(posts);
+      }
+    } catch (error) {
+      console.error('Error fetching featured posts:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const getDefaultImage = (category) => {
+    const categoryImages = {
+      'Indian': 'https://images.unsplash.com/photo-1611974765270-ca1258634369?auto=format&fit=crop&q=80&w=1600',
+      'US': 'https://images.unsplash.com/photo-1590283603385-17ffb3a7f29f?auto=format&fit=crop&q=80&w=1600',
+      'Global': 'https://images.unsplash.com/photo-1518546305927-5a555bb7020d?auto=format&fit=crop&q=80&w=1600',
+      'Commodities': 'https://images.unsplash.com/photo-1556761175-5973dc0f32e7?auto=format&fit=crop&q=80&w=1600',
+      'Forex': 'https://images.unsplash.com/photo-1610375461246-83df859d849d?auto=format&fit=crop&q=80&w=1600',
+      'Crypto': 'https://images.unsplash.com/photo-1526304640151-b5a95f9032d5?auto=format&fit=crop&q=80&w=1600'
+    };
+    return categoryImages[category] || 'https://images.unsplash.com/photo-1611974765270-ca1258634369?auto=format&fit=crop&q=80&w=1600';
+  };
 
   const nextSlide = () => {
     setCurrentSlide((prev) => (prev + 1) % slides.length);
@@ -55,6 +67,23 @@ const HeroSlider = () => {
   const prevSlide = () => {
     setCurrentSlide((prev) => (prev - 1 + slides.length) % slides.length);
   };
+
+  if (loading) {
+    return (
+      <div className="relative h-[500px] bg-gradient-to-r from-blue-50 to-orange-50 animate-pulse">
+        <div className="container mx-auto h-full flex items-center justify-center">
+          <div className="text-center">
+            <div className="h-8 w-48 bg-gray-300 rounded mb-4 mx-auto"></div>
+            <div className="h-4 w-64 bg-gray-200 rounded mx-auto"></div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (slides.length === 0) {
+    return null;
+  }
 
   return (
     <div className="relative h-[500px] bg-gray-900 overflow-hidden">
@@ -82,6 +111,28 @@ const HeroSlider = () => {
               <h2 className="text-3xl md:text-5xl font-bold text-white mb-4 max-w-3xl">
                 {slides[currentSlide].title}
               </h2>
+              
+              <div className="flex items-center space-x-4 text-white text-sm mb-4">
+                <div className="flex items-center space-x-1">
+                  <User className="h-4 w-4" />
+                  <span>{slides[currentSlide].author}</span>
+                </div>
+                <div className="flex items-center space-x-1">
+                  <Clock className="h-4 w-4" />
+                  <span>
+                    {new Date(slides[currentSlide].publishedAt).toLocaleDateString('en-US', {
+                      month: 'short',
+                      day: 'numeric',
+                      year: 'numeric'
+                    })}
+                  </span>
+                </div>
+              </div>
+
+              <p className="text-white/90 mb-6 max-w-2xl line-clamp-2">
+                {slides[currentSlide].body?.substring(0, 150)}...
+              </p>
+
               <Link to={`/post/${slides[currentSlide].id}`}>
                 <Button className="bg-white text-gray-900 hover:bg-gray-100">
                   Read More

@@ -1,3 +1,4 @@
+// routes/postRoutes.js
 const express = require('express');
 const router = express.Router();
 const { 
@@ -18,14 +19,16 @@ const {
 } = require('../controllers/postController');
 const { protect, authorize } = require('../middleware/auth');
 const { checkCRUDAccess } = require('../middleware/curdAccess');
-const ensureCRUDAccess = require('../middleware/crudCheck'); // Add this
+const ensureCRUDAccess = require('../middleware/crudCheck');
 
-// All routes are protected
-router.use(protect);
-router.use(checkCRUDAccess); // Apply CRUD access check to all post routes
-router.use(ensureCRUDAccess); 
-// Get all posts
-router.get('/', getPosts);
+// Public routes - no authentication required
+router.get('/', getPosts); // Allow public access to get posts
+router.get('/:id', getPost); // Allow public access to get single post
+
+// Protected routes
+router.use(protect); // Apply protection to all routes below
+router.use(checkCRUDAccess);
+router.use(ensureCRUDAccess);
 
 // Get pending schedule approvals (superadmin only)
 router.get('/pending-schedule', authorize('superadmin'), getPendingScheduleApprovals);
@@ -38,9 +41,6 @@ router.post('/', createPost);
 
 // Create draft (admin and superadmin)
 router.post('/draft', authorize('admin', 'superadmin'), createDraft);
-
-// Get single post
-router.get('/:id', getPost);
 
 // Update post (now accessible to admin with CRUD access)
 router.put('/:id', updatePost);

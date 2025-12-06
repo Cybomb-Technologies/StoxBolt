@@ -1,0 +1,495 @@
+StoxBolt CMS API Documentation
+📋 Overview
+This document outlines the API endpoints available in the StoxBolt CMS system, their purposes, and usage.
+
+🔐 Authentication API
+POST /api/auth/login
+Purpose: User login/authentication
+
+Controller: authController.js
+
+Description: Authenticates users (admin/superadmin) and returns JWT token
+
+Access: Public
+
+GET /api/auth/me
+Purpose: Get current logged in user info
+
+Controller: authController.js
+
+Description: Returns user profile and permissions
+
+Access: Private (requires authentication)
+
+GET /api/auth/logout
+Purpose: Logout user
+
+Controller: authController.js
+
+Description: Ends user session
+
+Access: Private
+
+📊 User Management API
+GET /api/users/admins
+Purpose: Get all admin users
+
+Controller: adminController.js
+
+Description: Lists all admin users (superadmin only)
+
+Access: Private/Superadmin only
+
+POST /api/users/admins
+Purpose: Create new admin user
+
+Controller: adminController.js
+
+Description: Creates new admin account
+
+Access: Private/Superadmin only
+
+GET /api/users/admins/:id
+Purpose: Get single admin user details
+
+Controller: adminController.js
+
+Access: Private/Superadmin only
+
+PUT /api/users/admins/:id
+Purpose: Update admin user
+
+Controller: adminController.js
+
+Access: Private/Superadmin only
+
+PUT /api/users/admins/:id/toggle-curd
+Purpose: Toggle CRUD access for admin
+
+Controller: adminController.js
+
+Description: Enable/disable CRUD permissions for admin
+
+Access: Private/Superadmin only
+
+PUT /api/users/admins/:id/deactivate
+Purpose: Deactivate admin account
+
+Controller: adminController.js
+
+Access: Private/Superadmin only
+
+PUT /api/users/admins/:id/reactivate
+Purpose: Reactivate admin account
+
+Controller: adminController.js
+
+Access: Private/Superadmin only
+
+GET /api/users/admins/stats
+Purpose: Get admin statistics
+
+Controller: adminController.js
+
+Description: Shows admin counts, active/inactive, CRUD access stats
+
+Access: Private/Superadmin only
+
+📝 Post Management API
+GET /api/posts
+Purpose: Get all posts with filters
+
+Controller: postController.js
+
+Description: Retrieves posts with pagination, status filters, search
+
+Access: Private (with CRUD access check)
+
+GET /api/posts/:id
+Purpose: Get single post details
+
+Controller: postController.js
+
+Access: Private
+
+POST /api/posts
+Purpose: Create new post
+
+Controller: postController.js
+
+Description: Creates post with CRUD access consideration
+
+Access: Private (requires CRUD access)
+
+PUT /api/posts/:id
+Purpose: Update post
+
+Controller: postController.js
+
+Description: Updates post with CRUD access rules
+
+Access: Private (with CRUD access check)
+
+DELETE /api/posts/:id
+Purpose: Delete post
+
+Controller: postController.js
+
+Access: Private (requires CRUD access)
+
+PUT /api/posts/:id/publish
+Purpose: Publish post
+
+Controller: postController.js
+
+Access: Private (requires CRUD access)
+
+POST /api/posts/draft
+Purpose: Create draft post
+
+Controller: postController.js
+
+Access: Private (Admin & Superadmin)
+
+PUT /api/posts/:id/submit-for-approval
+Purpose: Submit draft for approval
+
+Controller: postController.js
+
+Description: For admin without CRUD access to submit for superadmin review
+
+Access: Private (Admin only)
+
+PUT /api/posts/:id/request-update
+Purpose: Request update for published post
+
+Controller: postController.js
+
+Description: Admin without CRUD access can request updates to published posts
+
+Access: Private (Admin only)
+
+📅 Schedule Management API
+GET /api/posts/scheduled
+Purpose: Get scheduled posts
+
+Controller: postController.js
+
+Description: Lists all approved scheduled posts
+
+Access: Private
+
+GET /api/posts/pending-schedule
+Purpose: Get pending schedule approvals
+
+Controller: postController.js
+
+Description: Shows posts needing schedule approval (superadmin only)
+
+Access: Private/Superadmin only
+
+PUT /api/posts/:id/approve-schedule
+Purpose: Approve scheduled post
+
+Controller: postController.js
+
+Access: Private/Superadmin only
+
+PUT /api/posts/:id/reject-schedule
+Purpose: Reject scheduled post
+
+Controller: postController.js
+
+Access: Private/Superadmin only
+
+PUT /api/posts/:id/cancel-schedule
+Purpose: Cancel scheduled post
+
+Controller: postController.js
+
+Description: Cancel scheduled post (admin can cancel their own, superadmin any)
+
+Access: Private
+
+📤 Bulk Upload API
+POST /api/posts/bulk-upload
+Purpose: Bulk upload posts from CSV
+
+Controller: bulkUploadController.js
+
+Access: Private (Admin, Superadmin, Editor)
+
+GET /api/posts/bulk-upload/template
+Purpose: Download CSV template
+
+Controller: bulkUploadController.js
+
+Access: Private
+
+✅ Approval System API
+GET /api/approval/posts
+Purpose: Get all admin posts for approval
+
+Controller: approvalController.js
+
+Description: Shows posts submitted for approval (superadmin view)
+
+Access: Private/Superadmin only
+
+GET /api/approval/my-posts
+Purpose: Get admin's own posts
+
+Controller: approvalController.js
+
+Access: Private (Admin only)
+
+GET /api/approval/my-submissions
+Purpose: Get all user submissions (posts & admin posts)
+
+Controller: approvalController.js
+
+Description: Shows all submissions by a user including scheduled posts
+
+Access: Private (Admin only)
+
+GET /api/approval/pending-schedule
+Purpose: Get pending schedule approvals for admin dashboard
+
+Controller: approvalController.js
+
+Access: Private/Superadmin only
+
+POST /api/approval/posts
+Purpose: Create admin post (for approval)
+
+Controller: approvalController.js
+
+Access: Private (Admin only)
+
+POST /api/approval/posts/:id/request-update
+Purpose: Request update for published post
+
+Controller: approvalController.js
+
+Access: Private (Admin only)
+
+PUT /api/approval/posts/:id/approve
+Purpose: Approve admin post
+
+Controller: approvalController.js
+
+Access: Private/Superadmin only
+
+PUT /api/approval/posts/:id/reject
+Purpose: Reject admin post
+
+Controller: approvalController.js
+
+Access: Private/Superadmin only
+
+PUT /api/approval/posts/:id/request-changes
+Purpose: Request changes for admin post
+
+Controller: approvalController.js
+
+Access: Private/Superadmin only
+
+📈 Activity Log API
+GET /api/activities
+Purpose: Get activity log with advanced filtering
+
+Controller: activityController.js
+
+Description: Retrieves activity logs with filters, pagination, search
+
+Access: Private
+
+POST /api/activities/log
+Purpose: Log activity (public API)
+
+Controller: activityController.js
+
+Description: Logs system activities
+
+Access: Private
+
+GET /api/activities/stats
+Purpose: Get activity statistics
+
+Controller: activityController.js
+
+Access: Private
+
+GET /api/activities/user/:userId
+Purpose: Get user activities
+
+Controller: activityController.js
+
+Access: Private (Admin only)
+
+GET /api/activities/export
+Purpose: Export activities
+
+Controller: activityController.js
+
+Description: Export activities as CSV or JSON
+
+Access: Private (Admin only)
+
+DELETE /api/activities/cleanup
+Purpose: Clean up old activities
+
+Controller: activityController.js
+
+Access: Private (Superadmin only)
+
+🕐 Scheduler API
+GET /api/scheduler/posts
+Purpose: Get scheduled posts
+
+Controller: schedulerController.js
+
+Access: Private
+
+PUT /api/scheduler/timezone
+Purpose: Update timezone setting
+
+Controller: schedulerController.js
+
+Access: Private
+
+DELETE /api/scheduler/posts/:id
+Purpose: Delete scheduled post
+
+Controller: schedulerController.js
+
+Access: Private (Admin, Superadmin, Editor)
+
+GET /api/scheduler/trigger-auto-publish
+Purpose: Manual trigger for scheduled posts
+
+Controller: schedulerController.js
+
+Description: Manual trigger for testing auto-publish cron job
+
+Access: Private/Superadmin only
+
+📂 Category Management API
+GET /api/categories
+Purpose: Get all categories
+
+Controller: categoryController.js
+
+Access: Private
+
+GET /api/categories/:id
+Purpose: Get single category
+
+Controller: categoryController.js
+
+Access: Private
+
+POST /api/categories
+Purpose: Create new category
+
+Controller: categoryController.js
+
+Access: Private (Admin & Superadmin)
+
+PUT /api/categories/:id
+Purpose: Update category
+
+Controller: categoryController.js
+
+Access: Private (Admin & Superadmin)
+
+DELETE /api/categories/:id
+Purpose: Delete category
+
+Controller: categoryController.js
+
+Access: Private (Superadmin only)
+
+📁 File Upload API
+POST /api/upload
+Purpose: Upload image
+
+Description: Uploads images for posts
+
+Access: Private
+
+Limits: 5MB, images only
+
+🔄 CRON Jobs (Internal)
+processScheduledPosts() (Internal Cron)
+Purpose: Auto-publish scheduled posts
+
+Controller: schedulerController.js
+
+Schedule: Runs every minute
+
+Description: Checks for scheduled posts that need to be auto-published
+
+🔑 Permission Summary
+Superadmin
+Full access to all endpoints
+
+Can manage other admins
+
+Can approve/reject scheduled posts
+
+Can cleanup activity logs
+
+Can export data
+
+Admin with CRUD Access
+Full CRUD operations on posts
+
+Can schedule posts directly
+
+Can publish posts directly
+
+Cannot manage other admins
+
+Admin without CRUD Access
+Can create drafts
+
+Must submit posts for approval
+
+Can only update their own drafts
+
+Cannot publish directly
+
+Cannot delete posts
+
+Editor (if applicable)
+Limited to specific post operations
+
+May vary based on configuration
+
+📊 Data Flow
+Admin without CRUD Access → Create Draft → Submit for Approval → Superadmin Review → Approve/Reject → Publish
+
+Admin with CRUD Access → Create/Update Post → Publish directly
+
+Scheduled Posts → Created with future date → Approval required (if admin without CRUD) → Auto-publish at scheduled time
+
+Bulk Upload → CSV import → Posts created as drafts → Follow normal approval flow
+
+🎯 Key Features
+Dual Permission System: CRUD access flag determines admin capabilities
+
+Approval Workflow: Non-CRUD admins require superadmin approval
+
+Scheduling: Posts can be scheduled for future publication
+
+Activity Tracking: Comprehensive audit trail
+
+Bulk Operations: CSV import for multiple posts
+
+Category Management: Organized content categorization
+
+File Upload: Image upload for posts
+
+Note: All private routes require valid JWT token in Authorization header:
+Authorization: Bearer <token>

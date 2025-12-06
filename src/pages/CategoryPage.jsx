@@ -1,44 +1,26 @@
-
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { Helmet } from 'react-helmet';
 import PostCard from '@/components/PostCard';
 import { Loader2 } from 'lucide-react';
 import { motion } from 'framer-motion';
-
+import axios from 'axios';
+const baseURL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 const CategoryPage = () => {
   const { category } = useParams();
   const [posts, setPosts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
-
-  const categoryNames = {
-    indian: 'Indian',
-    us: 'US',
-    global: 'Global',
-    commodities: 'Commodities',
-    forex: 'Forex',
-    crypto: 'Crypto',
-    ipos: 'IPOs'
-  };
-
-  const stockImages = [
-    'https://images.unsplash.com/photo-1611974765270-ca1258634369?auto=format&fit=crop&q=80&w=800',
-    'https://images.unsplash.com/photo-1590283603385-17ffb3a7f29f?auto=format&fit=crop&q=80&w=800',
-    'https://images.unsplash.com/photo-1518546305927-5a555bb7020d?auto=format&fit=crop&q=80&w=800',
-    'https://images.unsplash.com/photo-1556761175-5973dc0f32e7?auto=format&fit=crop&q=80&w=800',
-    'https://images.unsplash.com/photo-1610375461246-83df859d849d?auto=format&fit=crop&q=80&w=800',
-    'https://images.unsplash.com/photo-1526304640151-b5a95f9032d5?auto=format&fit=crop&q=80&w=800'
-  ];
-
-  const categoryName = categoryNames[category] || category;
+  const [totalPages, setTotalPages] = useState(1);
+  const [categoryName, setCategoryName] = useState('');
 
   useEffect(() => {
     setPosts([]);
     setPage(1);
     setHasMore(true);
     fetchPosts(1);
+    fetchCategoryName();
   }, [category]);
 
   useEffect(() => {
@@ -47,45 +29,57 @@ const CategoryPage = () => {
         window.innerHeight + document.documentElement.scrollTop >=
         document.documentElement.offsetHeight - 500 &&
         !loading &&
-        hasMore
+        hasMore &&
+        page < totalPages
       ) {
-        setPage((prev) => prev + 1);
+        const nextPage = page + 1;
+        setPage(nextPage);
+        fetchPosts(nextPage);
       }
     };
 
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
-  }, [loading, hasMore]);
+  }, [loading, hasMore, page, totalPages]);
 
-  useEffect(() => {
-    if (page > 1) {
-      fetchPosts(page);
+  const fetchCategoryName = async () => {
+    try {
+      const response = await axios.get(`${baseURL}/api/categories`);
+      if (response.data.success) {
+        const categories = response.data.data;
+        const cat = categories.find(c => 
+          c.name.toLowerCase() === category.toLowerCase() || 
+          c._id === category
+        );
+        if (cat) {
+          setCategoryName(cat.name);
+        } else {
+          setCategoryName(category);
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching category:', error);
+      setCategoryName(category);
     }
-  }, [page]);
+  };
 
   const fetchPosts = async (pageNum) => {
     setLoading(true);
     try {
-      // API call: GET /api/posts?category=${category}&page=${pageNum}&limit=12
-      await new Promise((resolve) => setTimeout(resolve, 800));
+      const response = await axios.get(`${baseURL}/api/posts?category=${category}&page=${pageNum}&limit=12&status=published`);
       
-      const mockPosts = Array.from({ length: 12 }, (_, i) => ({
-        id: `${category}-${pageNum}-${i + 1}`,
-        title: `${categoryName} Market Analysis: Major Developments ${pageNum}-${i + 1}`,
-        shortTitle: `${categoryName} Update`,
-        body: 'In-depth analysis of recent market movements and their implications for investors.',
-        image: stockImages[(i + pageNum) % stockImages.length],
-        category: categoryName,
-        author: 'Market Analyst',
-        publishedAt: new Date(Date.now() - i * 3600000).toISOString(),
-        isSponsored: i % 6 === 0
-      }));
-
-      if (pageNum === 3) {
-        setHasMore(false);
+      if (response.data.success) {
+        const newPosts = response.data.data;
+        
+        if (pageNum === 1) {
+          setPosts(newPosts);
+        } else {
+          setPosts(prev => [...prev, ...newPosts]);
+        }
+        
+        setTotalPages(response.data.totalPages || 1);
+        setHasMore(pageNum < (response.data.totalPages || 1));
       }
-
-      setPosts((prev) => [...prev, ...mockPosts]);
     } catch (error) {
       console.error('Error fetching posts:', error);
     } finally {
@@ -115,13 +109,19 @@ const CategoryPage = () => {
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {posts.map((post, index) => (
-              <PostCard key={post.id} post={post} index={index} />
+              <PostCard key={post._id} post={post} index={index} />
             ))}
           </div>
 
           {loading && (
             <div className="flex justify-center items-center py-12">
               <Loader2 className="h-8 w-8 animate-spin text-orange-600" />
+            </div>
+          )}
+
+          {!loading && posts.length === 0 && (
+            <div className="text-center py-12">
+              <p className="text-gray-600 font-medium">No posts found in this category</p>
             </div>
           )}
 

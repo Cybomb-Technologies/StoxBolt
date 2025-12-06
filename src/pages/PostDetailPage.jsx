@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { Helmet } from 'react-helmet';
@@ -9,6 +8,9 @@ import { useToast } from '@/components/ui/use-toast';
 import RelatedPostsCarousel from '@/components/RelatedPostsCarousel';
 import IndexSnapshot from '@/components/IndexSnapshot';
 import SocialImageExport from '@/components/SocialImageExport';
+import axios from 'axios';
+
+const baseURL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
 const PostDetailPage = () => {
   const { id } = useParams();
@@ -22,43 +24,75 @@ const PostDetailPage = () => {
     fetchPost();
   }, [id]);
 
+  // Helper function to safely extract category name
+  const getCategoryName = (category) => {
+    if (!category) return 'General';
+    
+    if (typeof category === 'string') return category;
+    
+    // If category is an object with name property
+    if (typeof category === 'object') {
+      return category.name || category.title || category._id || 'General';
+    }
+    
+    return 'General';
+  };
+
+  // Helper function to safely extract category ID
+  const getCategoryId = (category) => {
+    if (!category) return null;
+    
+    if (typeof category === 'string') return category;
+    
+    // If category is an object with _id property
+    if (typeof category === 'object') {
+      return category._id || category.id || null;
+    }
+    
+    return null;
+  };
+
+  // Helper function to get safe post data
+  const getSafePostData = (postData) => {
+    if (!postData) return null;
+    
+    return {
+      ...postData,
+      // Ensure body is a string
+      body: typeof postData.body === 'string' ? postData.body : 
+            postData.body?.content || postData.content || postData.description || '',
+      // Ensure category is extracted properly
+      categoryName: getCategoryName(postData.category),
+      categoryId: getCategoryId(postData.category),
+      // Ensure image exists
+      imageUrl: postData.imageUrl || postData.image || postData.thumbnail || 
+                'https://images.unsplash.com/photo-1590283603385-17ffb3a7f29f?auto=format&fit=crop&q=80&w=800',
+      // Ensure author is a string
+      author: typeof postData.author === 'string' ? postData.author : 
+              postData.author?.name || postData.author?.username || 'Admin',
+      // Ensure tags is an array
+      tags: Array.isArray(postData.tags) ? postData.tags : 
+            (typeof postData.tags === 'string' ? postData.tags.split(',') : [])
+    };
+  };
+
   const fetchPost = async () => {
     setLoading(true);
     try {
-      // API call: GET /api/posts/${id}
-      await new Promise((resolve) => setTimeout(resolve, 500));
+      const response = await axios.get(`${baseURL}/api/posts/${id}`);
       
-      const mockPost = {
-        id,
-        title: 'Indian Stock Market Reaches Historic Milestone as Sensex Crosses 70,000',
-        shortTitle: 'Sensex Historic High',
-        body: `Mumbai: In a landmark achievement for Indian financial markets, the BSE Sensex crossed the psychological barrier of 70,000 points today, marking a significant milestone in the country's economic journey.
-
-The rally was driven by strong corporate earnings, robust economic fundamentals, and increased foreign institutional investor (FII) participation. Market experts attribute this surge to a combination of factors including improved GDP growth projections, controlled inflation rates, and positive global sentiment towards emerging markets.
-
-Leading the charge were banking and IT stocks, with HDFC Bank, Infosys, and TCS showing exceptional gains. The Nifty 50 index also mirrored this performance, crossing the 21,000 mark for the first time in its history.
-
-Finance Minister Nirmala Sitharaman welcomed this development, stating that it reflects the growing confidence in India's economic policies and reforms. "This is a testament to the resilience of our economy and the faith investors have in India's growth story," she said in a statement.
-
-Analysts predict that this momentum could continue, supported by the government's infrastructure push, digital transformation initiatives, and improving corporate profitability. However, they also caution investors to maintain a balanced portfolio and stay informed about global economic developments that could impact market dynamics.
-
-The achievement comes at a time when India is positioning itself as a global economic powerhouse, with various international organizations projecting it to become the world's third-largest economy by 2030.`,
-        image: 'https://images.unsplash.com/photo-1590283603385-17ffb3a7f29f?auto=format&fit=crop&q=80&w=1600',
-        category: 'Indian',
-        author: 'Rajesh Kumar',
-        publishedAt: new Date().toISOString(),
-        tags: ['Sensex', 'Stock Market', 'Indian Economy', 'FII', 'Banking'],
-        region: 'India',
-        isSponsored: false,
-        metaTitle: 'Indian Stock Market Reaches Historic Milestone - Sensex Crosses 70,000',
-        metaDescription: 'BSE Sensex crosses 70,000 points for the first time, driven by strong corporate earnings and robust economic fundamentals.'
-      };
-
-      setPost(mockPost);
+      if (response.data.success) {
+        const safePostData = getSafePostData(response.data.data);
+        console.log('Post data:', safePostData); // Debug log
+        setPost(safePostData);
+      } else {
+        throw new Error(response.data.message || 'Post not found');
+      }
     } catch (error) {
+      console.error('Error fetching post:', error);
       toast({
         title: 'Error',
-        description: 'Failed to load post',
+        description: error.response?.data?.message || 'Failed to load post',
         variant: 'destructive'
       });
     } finally {
@@ -67,9 +101,12 @@ The achievement comes at a time when India is positioning itself as a global eco
   };
 
   const handleShare = () => {
+    if (!post) return;
+    
     if (navigator.share) {
       navigator.share({
         title: post.title,
+        text: post.metaDescription || post.body?.substring(0, 100),
         url: window.location.href
       });
     } else {
@@ -81,18 +118,52 @@ The achievement comes at a time when India is positioning itself as a global eco
     }
   };
 
-  const handleBookmark = () => {
-    setIsBookmarked(!isBookmarked);
-    toast({
-      title: isBookmarked ? 'Removed from bookmarks' : 'Added to bookmarks',
-      description: isBookmarked ? 'Post removed from your saved items' : 'Post saved successfully'
-    });
+  const handleBookmark = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      if (token) {
+        const response = await axios.post(
+          `${baseURL}/api/posts/${id}/bookmark`, 
+          {}, 
+          {
+            headers: { 
+              Authorization: `Bearer ${token}`,
+              'Content-Type': 'application/json'
+            }
+          }
+        );
+        
+        if (response.data.success) {
+          setIsBookmarked(!isBookmarked);
+          toast({
+            title: isBookmarked ? 'Removed from bookmarks' : 'Added to bookmarks',
+            description: isBookmarked ? 'Post removed from your saved items' : 'Post saved successfully'
+          });
+        }
+      } else {
+        toast({
+          title: 'Login Required',
+          description: 'Please login to bookmark posts',
+          variant: 'destructive'
+        });
+      }
+    } catch (error) {
+      console.error('Error bookmarking post:', error);
+      toast({
+        title: 'Error',
+        description: error.response?.data?.message || 'Failed to bookmark post',
+        variant: 'destructive'
+      });
+    }
   };
 
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-600"></div>
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading post...</p>
+        </div>
       </div>
     );
   }
@@ -100,7 +171,13 @@ The achievement comes at a time when India is positioning itself as a global eco
   if (!post) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <p className="text-gray-600">Post not found</p>
+        <div className="text-center">
+          <p className="text-gray-600 text-lg mb-4">Post not found</p>
+          <Link to="/" className="inline-flex items-center text-orange-600 hover:text-orange-700">
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            Back to Home
+          </Link>
+        </div>
       </div>
     );
   }
@@ -109,12 +186,12 @@ The achievement comes at a time when India is positioning itself as a global eco
     <>
       <Helmet>
         <title>{post.metaTitle || post.title} - StoxBolt</title>
-        <meta name="description" content={post.metaDescription || post.body.substring(0, 160)} />
+        <meta name="description" content={post.metaDescription || post.body?.substring(0, 160)} />
         <meta property="og:title" content={post.metaTitle || post.title} />
-        <meta property="og:description" content={post.metaDescription || post.body.substring(0, 160)} />
-        <meta property="og:image" content={post.image} />
+        <meta property="og:description" content={post.metaDescription || post.body?.substring(0, 160)} />
+        <meta property="og:image" content={post.imageUrl} />
         <meta property="og:type" content="article" />
-        <meta property="article:published_time" content={post.publishedAt} />
+        <meta property="article:published_time" content={post.publishDateTime || post.createdAt} />
         <meta property="article:author" content={post.author} />
       </Helmet>
 
@@ -130,26 +207,26 @@ The achievement comes at a time when India is positioning itself as a global eco
             animate={{ opacity: 1, y: 0 }}
             className="bg-white rounded-2xl shadow-xl overflow-hidden"
           >
-            <img
-              src={post.image}
-              alt={post.title}
-              className="w-full h-96 object-cover"
-            />
+            {post.imageUrl && (
+              <div className="relative h-96 overflow-hidden">
+                <img
+                  src={post.imageUrl}
+                  alt={post.title}
+                  className="w-full h-full object-cover"
+                  onError={(e) => {
+                    e.target.src = 'https://images.unsplash.com/photo-1590283603385-17ffb3a7f29f?auto=format&fit=crop&q=80&w=800';
+                  }}
+                />
+              </div>
+            )}
 
-            <div className="p-8">
-              <div className="flex items-center justify-between mb-4">
-                <span className="px-4 py-1 bg-orange-600 text-white text-sm font-semibold rounded-full">
-                  {post.category}
+            <div className="p-6 md:p-8">
+              <div className="flex flex-col md:flex-row md:items-center justify-between mb-4 gap-4">
+                <span className="px-4 py-2 bg-orange-600 text-white text-sm font-semibold rounded-full inline-block w-fit">
+                  {post.categoryName}
                 </span>
                 <div className="flex items-center space-x-2">
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => setShowSocialExport(true)}
-                    className="hover:bg-orange-50 hover:text-orange-600"
-                  >
-                    <Download className="h-5 w-5" />
-                  </Button>
+                  
                   <Button
                     variant="ghost"
                     size="icon"
@@ -169,39 +246,51 @@ The achievement comes at a time when India is positioning itself as a global eco
                 </div>
               </div>
 
-              <h1 className="text-4xl font-bold text-gray-900 mb-4">
+              <h1 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
                 {post.title}
               </h1>
 
-              <div className="flex items-center space-x-6 text-gray-600 mb-6 pb-6 border-b">
+              <div className="flex flex-wrap items-center gap-4 md:gap-6 text-gray-600 mb-6 pb-6 border-b">
                 <div className="flex items-center space-x-2">
                   <User className="h-4 w-4" />
                   <span className="text-sm font-medium">{post.author}</span>
                 </div>
                 <div className="flex items-center space-x-2">
                   <Clock className="h-4 w-4" />
-                  <span className="text-sm">{new Date(post.publishedAt).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</span>
+                  <span className="text-sm">
+                    {post.publishDateTime || post.createdAt ? 
+                      new Date(post.publishDateTime || post.createdAt).toLocaleDateString('en-US', { 
+                        year: 'numeric', 
+                        month: 'long', 
+                        day: 'numeric' 
+                      }) : 
+                      'Recently'}
+                  </span>
                 </div>
               </div>
 
               <div className="prose prose-lg max-w-none">
-                {post.body.split('\n\n').map((paragraph, index) => (
-                  <p key={index} className="mb-4 text-gray-700 leading-relaxed">
-                    {paragraph}
-                  </p>
-                ))}
+                {post.body ? (
+                  post.body.split('\n\n').map((paragraph, index) => (
+                    <p key={index} className="mb-4 text-gray-700 leading-relaxed">
+                      {paragraph}
+                    </p>
+                  ))
+                ) : (
+                  <p className="text-gray-600 italic">No content available.</p>
+                )}
               </div>
 
               {post.tags && post.tags.length > 0 && (
                 <div className="mt-8 pt-6 border-t">
                   <h3 className="text-sm font-semibold text-gray-600 mb-3">Tags:</h3>
                   <div className="flex flex-wrap gap-2">
-                    {post.tags.map((tag) => (
+                    {post.tags.map((tag, index) => (
                       <span
-                        key={tag}
+                        key={index}
                         className="px-3 py-1 bg-gray-100 text-gray-700 text-sm rounded-full hover:bg-gray-200 transition-colors"
                       >
-                        #{tag}
+                        #{typeof tag === 'string' ? tag : JSON.stringify(tag)}
                       </span>
                     ))}
                   </div>
@@ -210,12 +299,22 @@ The achievement comes at a time when India is positioning itself as a global eco
             </div>
           </motion.div>
 
-          <IndexSnapshot />
-          <RelatedPostsCarousel category={post.category} currentPostId={post.id} />
+          <div className="mt-8">
+            <IndexSnapshot />
+          </div>
+
+          {post.categoryId && (
+            <div className="mt-8">
+              <RelatedPostsCarousel 
+                category={post.categoryId} 
+                currentPostId={post._id || post.id} 
+              />
+            </div>
+          )}
         </div>
       </article>
 
-      {showSocialExport && (
+      {showSocialExport && post && (
         <SocialImageExport
           post={post}
           onClose={() => setShowSocialExport(false)}
