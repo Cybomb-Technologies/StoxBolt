@@ -11,34 +11,42 @@ const isValidObjectId = (id) => {
 // @desc    Get all posts with CRUD access consideration
 // @route   GET /api/posts
 // @access  Private
+// In the getPosts function, update the beginning:
 exports.getPosts = async (req, res) => {
   try {
     const { 
-      status, 
+      status = 'published', // Default to published for public access
       category, 
       search, 
       page = 1, 
-      limit = 10 
+      limit = 10,
+      sort = '-createdAt'
     } = req.query;
     
     const query = {};
     
-    // Filter by status
-    if (status && status !== 'all') {
-      if (status === 'scheduled') {
-        query.isScheduled = true;
-        query.scheduleApproved = true;
-        query.status = 'scheduled';
-      } else if (status === 'pending_schedule') {
-        query.isScheduled = true;
-        query.scheduleApproved = false;
-        query.status = { $in: ['pending_approval', 'draft'] };
-      } else {
-        query.status = status;
+    // For public access, only show published posts
+    if (!req.user) {
+      // Public access - only show published posts
+      query.status = 'published';
+    } else {
+      // Authenticated users can filter by status
+      if (status && status !== 'all') {
+        if (status === 'scheduled') {
+          query.isScheduled = true;
+          query.scheduleApproved = true;
+          query.status = 'scheduled';
+        } else if (status === 'pending_schedule') {
+          query.isScheduled = true;
+          query.scheduleApproved = false;
+          query.status = { $in: ['pending_approval', 'draft'] };
+        } else {
+          query.status = status;
+        }
+      } else if (req.user.role === 'admin' && !req.user.hasCRUDAccess) {
+        // Admin without CRUD access can only see their own posts
+        query.authorId = req.user._id;
       }
-    } else if (req.user.role === 'admin' && !req.user.hasCRUDAccess) {
-      // Admin without CRUD access can only see their own posts
-      query.authorId = req.user._id;
     }
     // Superadmin and admin with CRUD access can see all posts
     
@@ -89,9 +97,12 @@ exports.getPosts = async (req, res) => {
 // @desc    Get single post with CRUD access consideration
 // @route   GET /api/posts/:id
 // @access  Private
+// In the getPost function, update the beginning:
 exports.getPost = async (req, res) => {
   try {
-    const post = await Post.findById(req.params.id).populate('authorId', 'name email').populate('category', 'name');
+    const post = await Post.findById(req.params.id)
+      .populate('authorId', 'name email')
+      .populate('category', 'name');
     
     if (!post) {
       return res.status(404).json({
@@ -100,8 +111,16 @@ exports.getPost = async (req, res) => {
       });
     }
     
-    // Check permissions with CRUD access consideration
-    if (req.user.role === 'admin') {
+    // For public access, only allow viewing published posts
+    if (!req.user && post.status !== 'published') {
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied. This post is not published.'
+      });
+    }
+    
+    // Check permissions for authenticated users
+    if (req.user && req.user.role === 'admin') {
       const isOwnPost = post.authorId && post.authorId._id.toString() === req.user._id.toString();
       
       // Admin can only access:
@@ -114,7 +133,6 @@ exports.getPost = async (req, res) => {
         });
       }
     }
-    
     res.status(200).json({
       success: true,
       data: post

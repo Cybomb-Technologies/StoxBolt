@@ -10,19 +10,20 @@ const {
 } = require('../controllers/categoryController');
 const { protect, authorize } = require('../middleware/auth');
 
-// Get all categories (public or protected based on your needs)
-router.get('/', protect, getCategories);
+// Public routes
+router.get('/', getCategories); // Allow public access to get categories
+router.get('/:id', getCategory); // Allow public access to get single category
 
-// Get single category
-router.get('/:id', protect, getCategory);
+// Protected routes
+router.use(protect); // Apply protection to all routes below
 
 // Create new category (admin and superadmin only)
-router.post('/', protect, authorize('admin', 'superadmin'), createCategory);
+router.post('/', authorize('admin', 'superadmin'), createCategory);
 
 // Update category (admin and superadmin only)
-router.put('/:id', protect, authorize('admin', 'superadmin'), updateCategory);
+router.put('/:id', authorize('admin', 'superadmin'), updateCategory);
 
 // Delete category (superadmin only)
-router.delete('/:id', protect, authorize('superadmin'), deleteCategory);
+router.delete('/:id', authorize('superadmin'), deleteCategory);
 
 module.exports = router;
