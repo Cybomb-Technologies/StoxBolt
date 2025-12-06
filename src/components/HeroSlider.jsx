@@ -33,9 +33,9 @@ const HeroSlider = () => {
         const posts = response.data.data.map(post => ({
           id: post._id,
           title: post.title,
-          image: post.imageUrl || getDefaultImage(post.category),
+          image: post.imageUrl || post.image || post.thumbnail || post.featuredImage || '',
           category: post.category?.name || post.category || 'Featured',
-          author: post.author,
+          author: typeof post.author === 'string' ? post.author : post.author?.name || post.author?.username || 'Admin',
           publishedAt: post.publishDateTime || post.createdAt,
           body: post.body
         }));
@@ -46,18 +46,6 @@ const HeroSlider = () => {
     } finally {
       setLoading(false);
     }
-  };
-
-  const getDefaultImage = (category) => {
-    const categoryImages = {
-      'Indian': 'https://images.unsplash.com/photo-1611974765270-ca1258634369?auto=format&fit=crop&q=80&w=1600',
-      'US': 'https://images.unsplash.com/photo-1590283603385-17ffb3a7f29f?auto=format&fit=crop&q=80&w=1600',
-      'Global': 'https://images.unsplash.com/photo-1518546305927-5a555bb7020d?auto=format&fit=crop&q=80&w=1600',
-      'Commodities': 'https://images.unsplash.com/photo-1556761175-5973dc0f32e7?auto=format&fit=crop&q=80&w=1600',
-      'Forex': 'https://images.unsplash.com/photo-1610375461246-83df859d849d?auto=format&fit=crop&q=80&w=1600',
-      'Crypto': 'https://images.unsplash.com/photo-1526304640151-b5a95f9032d5?auto=format&fit=crop&q=80&w=1600'
-    };
-    return categoryImages[category] || 'https://images.unsplash.com/photo-1611974765270-ca1258634369?auto=format&fit=crop&q=80&w=1600';
   };
 
   const nextSlide = () => {
@@ -86,7 +74,7 @@ const HeroSlider = () => {
   }
 
   return (
-    <div className="relative h-[500px] bg-gray-900 overflow-hidden">
+    <div className="relative h-[650px] bg-gray-900 overflow-hidden">
       <AnimatePresence mode="wait">
         <motion.div
           key={currentSlide}
@@ -96,11 +84,19 @@ const HeroSlider = () => {
           transition={{ duration: 0.5 }}
           className="absolute inset-0"
         >
-          <img
-            src={slides[currentSlide].image}
-            alt={slides[currentSlide].title}
-            className="w-full h-full object-cover"
-          />
+          <div className="relative w-full h-full">
+            {slides[currentSlide].image ? (
+              <img
+                src={slides[currentSlide].image}
+                alt={slides[currentSlide].title}
+                className="w-full h-full object-cover"
+                onError={(e) => {
+                  e.target.style.display = 'none';
+                }}
+              />
+            ) : null}
+          </div>
+          
           <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent" />
           
           <div className="absolute bottom-0 left-0 right-0 p-8 md:p-12">

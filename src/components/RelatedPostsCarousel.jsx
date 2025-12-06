@@ -15,9 +15,7 @@ const RelatedPostsCarousel = ({ category, currentPostId }) => {
   const [error, setError] = useState(null);
   const { toast } = useToast();
 
-  // Helper function to transform post data
   const transformPostData = (post) => {
-    // Safely extract category name
     const getCategoryName = (categoryData) => {
       if (!categoryData) return '';
       if (typeof categoryData === 'string') return categoryData;
@@ -27,7 +25,6 @@ const RelatedPostsCarousel = ({ category, currentPostId }) => {
       return '';
     };
 
-    // Safely extract category ID
     const getCategoryId = (categoryData) => {
       if (!categoryData) return '';
       if (typeof categoryData === 'string') return categoryData;
@@ -38,24 +35,24 @@ const RelatedPostsCarousel = ({ category, currentPostId }) => {
     };
 
     return {
-      id: post._id || post.id || `post-${Math.random()}`,
-      _id: post._id || post.id,
-      title: post.title || 'Untitled Post',
-      body: typeof post.body === 'string' ? post.body : 
-            post.body?.content || post.content || post.description || '',
-      summary: post.summary || post.excerpt || 
-               (typeof post.body === 'string' ? post.body.substring(0, 100) : ''),
-      image: post.image || post.imageUrl || post.thumbnail || post.featuredImage || 
-             `https://images.unsplash.com/photo-1590283603385-17ffb3a7f29f?auto=format&fit=crop&q=80&w=800`,
-      category: getCategoryName(post.category),
-      categoryId: getCategoryId(post.category),
-      createdAt: post.createdAt,
-      updatedAt: post.updatedAt,
-      author: post.author ? 
-        (typeof post.author === 'string' ? post.author : post.author.name || post.author.username) : 
-        'Admin'
-    };
+    id: post._id || post.id,
+    _id: post._id || post.id,
+    title: post.title || 'Untitled Post',
+    body: typeof post.body === 'string' ? post.body : 
+          post.body?.content || post.content || post.description || '',
+    summary: post.summary || post.excerpt || 
+             (typeof post.body === 'string' ? post.body.substring(0, 100) : ''),
+    // Update this line to check all image properties:
+    image: post.imageUrl || post.image || post.thumbnail || post.featuredImage || '',
+    category: getCategoryName(post.category),
+    categoryId: getCategoryId(post.category),
+    createdAt: post.createdAt,
+    updatedAt: post.updatedAt,
+    author: post.author ? 
+      (typeof post.author === 'string' ? post.author : post.author.name || post.author.username) : 
+      'Admin'
   };
+};
 
   useEffect(() => {
     fetchRelatedPosts();
@@ -66,13 +63,9 @@ const RelatedPostsCarousel = ({ category, currentPostId }) => {
     setError(null);
     
     try {
-      // Build query parameters
       const params = new URLSearchParams();
       
-      // Handle category - could be string or object ID
       if (category) {
-        // If category is an object ID string, use it directly
-        // If it's a string that might be a name, still pass it
         params.append('category', category);
       }
       
@@ -83,15 +76,9 @@ const RelatedPostsCarousel = ({ category, currentPostId }) => {
 
       const response = await axios.get(`${baseURL}/api/posts?${params.toString()}`);
       
-      console.log('Related posts API response:', response.data); // Debug log
-      
       if (response.data.success) {
         const postsData = response.data.data || [];
-        console.log('Raw posts data:', postsData); // Debug log
-        
         const transformedPosts = postsData.map(transformPostData);
-        console.log('Transformed posts:', transformedPosts); // Debug log
-        
         setPosts(transformedPosts);
       } else {
         setError('Failed to fetch related posts');
@@ -125,18 +112,6 @@ const RelatedPostsCarousel = ({ category, currentPostId }) => {
     setCurrentIndex((prev) => Math.max(prev - 1, 0));
   };
 
-  const getDefaultImage = (index) => {
-    const stockImages = [
-      'https://images.unsplash.com/photo-1611974765270-ca1258634369?auto=format&fit=crop&q=80&w=800',
-      'https://images.unsplash.com/photo-1590283603385-17ffb3a7f29f?auto=format&fit=crop&q=80&w=800',
-      'https://images.unsplash.com/photo-1518546305927-5a555bb7020d?auto=format&fit=crop&q=80&w=800',
-      'https://images.unsplash.com/photo-1556761175-5973dc0f32e7?auto=format&fit=crop&q=80&w=800',
-      'https://images.unsplash.com/photo-1610375461246-83df859d849d?auto=format&fit=crop&q=80&w=800',
-      'https://images.unsplash.com/photo-1526304640151-b5a95f9032d5?auto=format&fit=crop&q=80&w=800'
-    ];
-    return stockImages[index % stockImages.length];
-  };
-
   if (loading) {
     return (
       <div className="mt-12 bg-white rounded-2xl shadow-xl p-8 flex justify-center items-center">
@@ -147,7 +122,6 @@ const RelatedPostsCarousel = ({ category, currentPostId }) => {
   }
 
   if (error || posts.length === 0) {
-    // Don't show error or empty state - just return null
     return null;
   }
 
@@ -164,9 +138,7 @@ const RelatedPostsCarousel = ({ category, currentPostId }) => {
             style={{ width: `${(posts.length * 100) / 3}%` }}
           >
             {posts.map((post, index) => {
-              const postId = post.id || post._id || `post-${index}`;
-              const postImage = post.image || getDefaultImage(index);
-              const postCategory = post.category || '';
+              const postId = post.id || post._id;
               
               return (
                 <Link
@@ -176,17 +148,19 @@ const RelatedPostsCarousel = ({ category, currentPostId }) => {
                 >
                   <div className="bg-gray-50 rounded-xl overflow-hidden hover:shadow-lg transition-all h-full">
                     <div className="relative h-48 overflow-hidden">
-                      <img
-                        src={postImage}
-                        alt={post.title}
-                        className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
-                        onError={(e) => {
-                          e.target.src = getDefaultImage(index);
-                        }}
-                      />
-                      {postCategory && (
+                      {post.image ? (
+                        <img
+                          src={post.image}
+                          alt={post.title}
+                          className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
+                          onError={(e) => {
+                            e.target.style.display = 'none';
+                          }}
+                        />
+                      ) : null}
+                      {post.category && (
                         <div className="absolute top-3 right-3 bg-orange-500 text-white px-3 py-1 rounded-full text-xs font-semibold">
-                          {postCategory}
+                          {post.category}
                         </div>
                       )}
                     </div>

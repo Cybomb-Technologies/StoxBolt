@@ -87,7 +87,7 @@ const MainLayout = ({ children }) => {
       <React.Suspense fallback={<LoadingFallback />}>
         <Header />
         <FloatingIndices />
-        <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 pt-16">
+        <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50">
           <main className="flex-grow">{children}</main>
         </div>
         <Footer />
