@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { Helmet } from 'react-helmet';
 import { motion } from 'framer-motion';
-import { Share2, Bookmark, Clock, User, ArrowLeft, Download } from 'lucide-react';
+import { Share2, Bookmark, Clock, User, ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
 import RelatedPostsCarousel from '@/components/RelatedPostsCarousel';
@@ -24,13 +24,11 @@ const PostDetailPage = () => {
     fetchPost();
   }, [id]);
 
-  // Helper function to safely extract category name
   const getCategoryName = (category) => {
     if (!category) return 'General';
     
     if (typeof category === 'string') return category;
     
-    // If category is an object with name property
     if (typeof category === 'object') {
       return category.name || category.title || category._id || 'General';
     }
@@ -38,13 +36,11 @@ const PostDetailPage = () => {
     return 'General';
   };
 
-  // Helper function to safely extract category ID
   const getCategoryId = (category) => {
     if (!category) return null;
     
     if (typeof category === 'string') return category;
     
-    // If category is an object with _id property
     if (typeof category === 'object') {
       return category._id || category.id || null;
     }
@@ -52,25 +48,18 @@ const PostDetailPage = () => {
     return null;
   };
 
-  // Helper function to get safe post data
   const getSafePostData = (postData) => {
     if (!postData) return null;
     
     return {
       ...postData,
-      // Ensure body is a string
       body: typeof postData.body === 'string' ? postData.body : 
             postData.body?.content || postData.content || postData.description || '',
-      // Ensure category is extracted properly
       categoryName: getCategoryName(postData.category),
       categoryId: getCategoryId(postData.category),
-      // Ensure image exists
-      imageUrl: postData.imageUrl || postData.image || postData.thumbnail || 
-                'https://images.unsplash.com/photo-1590283603385-17ffb3a7f29f?auto=format&fit=crop&q=80&w=800',
-      // Ensure author is a string
+      imageUrl: postData.imageUrl || postData.image || postData.thumbnail || '',
       author: typeof postData.author === 'string' ? postData.author : 
               postData.author?.name || postData.author?.username || 'Admin',
-      // Ensure tags is an array
       tags: Array.isArray(postData.tags) ? postData.tags : 
             (typeof postData.tags === 'string' ? postData.tags.split(',') : [])
     };
@@ -83,7 +72,6 @@ const PostDetailPage = () => {
       
       if (response.data.success) {
         const safePostData = getSafePostData(response.data.data);
-        console.log('Post data:', safePostData); // Debug log
         setPost(safePostData);
       } else {
         throw new Error(response.data.message || 'Post not found');
@@ -207,18 +195,18 @@ const PostDetailPage = () => {
             animate={{ opacity: 1, y: 0 }}
             className="bg-white rounded-2xl shadow-xl overflow-hidden"
           >
-            {post.imageUrl && (
+            {post.imageUrl ? (
               <div className="relative h-96 overflow-hidden">
                 <img
                   src={post.imageUrl}
                   alt={post.title}
                   className="w-full h-full object-cover"
                   onError={(e) => {
-                    e.target.src = 'https://images.unsplash.com/photo-1590283603385-17ffb3a7f29f?auto=format&fit=crop&q=80&w=800';
+                    e.target.style.display = 'none';
                   }}
                 />
               </div>
-            )}
+            ) : null}
 
             <div className="p-6 md:p-8">
               <div className="flex flex-col md:flex-row md:items-center justify-between mb-4 gap-4">
@@ -226,7 +214,6 @@ const PostDetailPage = () => {
                   {post.categoryName}
                 </span>
                 <div className="flex items-center space-x-2">
-                  
                   <Button
                     variant="ghost"
                     size="icon"
