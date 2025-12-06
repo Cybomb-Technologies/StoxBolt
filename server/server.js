@@ -3,18 +3,8 @@ const mongoose = require('mongoose');
 const cors = require('cors');
 const helmet = require('helmet');
 const morgan = require('morgan');
+const path = require('path'); // Add this
 require('dotenv').config();
-
-const authRoutes = require('./routes/authRoutes');
-const postRoutes = require('./routes/postRoutes');
-const schedulerRoutes = require('./routes/schedulerRoutes');
-const activityRoutes = require('./routes/activityRoutes');
-const userRoutes = require('./routes/userRoutes');
-const uploadRoutes = require('./routes/uploadRoutes');
-const bulkUploadRoutes = require('./routes/bulkUploadRoutes');
-const approvalRoutes = require('./routes/approvalRoutes'); // Add this line
-// In server.js, add:
-const categoryRoutes = require('./routes/categoryRoutes');
 
 const app = express();
 
@@ -41,6 +31,27 @@ app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 app.use(morgan('dev'));
 
+// Debug middleware to check paths
+app.use((req, res, next) => {
+  console.log(`${req.method} ${req.url}`);
+  next();
+});
+
+// Import routes
+const authRoutes = require('./routes/authRoutes');
+const postRoutes = require('./routes/postRoutes');
+const schedulerRoutes = require('./routes/schedulerRoutes');
+const activityRoutes = require('./routes/activityRoutes');
+const userRoutes = require('./routes/userRoutes');
+const uploadRoutes = require('./routes/uploadRoutes');
+const bulkUploadRoutes = require('./routes/bulkUploadRoutes');
+const approvalRoutes = require('./routes/approvalRoutes');
+const categoryRoutes = require('./routes/categoryRoutes');
+
+// Try different paths for userAuthRoutes
+const userAuthRoutes = require('./routes/User-routes/User-routes');
+
+
 // Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/posts', postRoutes);
@@ -49,24 +60,58 @@ app.use('/api/activities', activityRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/upload', uploadRoutes);
 app.use('/api/bulk-upload', bulkUploadRoutes);
-app.use('/api/approval', approvalRoutes); // Add this line
+app.use('/api/approval', approvalRoutes);
 app.use('/api/categories', categoryRoutes);
-// Health check
+app.use('/api/user-auth', userAuthRoutes);
+
+// Enhanced health check
 app.get('/health', (req, res) => {
+  const dbStatus = mongoose.connection.readyState;
+  const statusMap = {
+    0: 'Disconnected',
+    1: 'Connected',
+    2: 'Connecting',
+    3: 'Disconnecting'
+  };
+  
   res.json({ 
     status: 'OK', 
-    timestamp: new Date(),
-    database: mongoose.connection.readyState === 1 ? 'Connected' : 'Disconnected'
+    timestamp: new Date().toISOString(),
+    database: statusMap[dbStatus] || 'Unknown',
+    routesLoaded: {
+      auth: true,
+      posts: true,
+      scheduler: true,
+      activities: true,
+      users: true,
+      upload: true,
+      bulkUpload: true,
+      approval: true,
+      categories: true,
+      userAuth: !!userAuthRoutes
+    }
+  });
+});
+
+// Route test endpoint
+app.get('/test-paths', (req, res) => {
+  res.json({
+    currentDir: __dirname,
+    routesDir: path.join(__dirname, 'routes'),
+    userRoutesPath: path.join(__dirname, 'routes', 'User-routes', 'User-routes.js'),
+    fileExists: require('fs').existsSync(path.join(__dirname, 'routes', 'User-routes', 'User-routes.js'))
   });
 });
 
 // Error handling middleware
 app.use((err, req, res, next) => {
-  console.error('Error stack:', err.stack);
+  console.error('🔥 Server Error:', err.message);
+  console.error('Stack:', err.stack);
   res.status(500).json({
     success: false,
     message: 'Internal server error',
-    error: process.env.NODE_ENV === 'development' ? err.message : undefined
+    error: process.env.NODE_ENV === 'development' ? err.message : undefined,
+    path: err.path || 'Unknown'
   });
 });
 
@@ -74,11 +119,25 @@ app.use((err, req, res, next) => {
 app.use('*', (req, res) => {
   res.status(404).json({
     success: false,
-    message: 'Route not found'
+    message: `Route ${req.originalUrl} not found`,
+    availableRoutes: [
+      '/api/auth',
+      '/api/posts',
+      '/api/scheduler',
+      '/api/activities',
+      '/api/users',
+      '/api/upload',
+      '/api/bulk-upload',
+      '/api/approval',
+      '/api/categories',
+      '/api/user-auth',
+      '/health',
+      '/test-paths'
+    ]
   });
 });
 
-// MongoDB connection with retry logic
+// MongoDB connection
 const connectDB = async () => {
   try {
     await mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/stoxbolt', {
@@ -98,7 +157,12 @@ connectDB();
 const PORT = process.env.PORT || 5000;
 
 const server = app.listen(PORT, () => {
-  console.log(`🚀 Server running on port ${PORT}`);
+  console.log(`
+🚀 Server running on port ${PORT}
+📁 Current directory: ${__dirname}
+🔗 Test paths at: http://localhost:${PORT}/test-paths
+🩺 Health check: http://localhost:${PORT}/health
+  `);
 });
 
 // Graceful shutdown
@@ -109,11 +173,4 @@ process.on('SIGTERM', () => {
   });
 });
 
-process.on('unhandledRejection', (err) => {
-  console.error('Unhandled Rejection:', err);
-});
-
-process.on('uncaughtException', (err) => {
-  console.error('Uncaught Exception:', err);
-  process.exit(1);
-});
+module.exports = { app, server };
