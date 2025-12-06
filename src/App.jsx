@@ -22,19 +22,19 @@ const FloatingIndices = React.lazy(() => import('@/components/FloatingIndices'))
 
 // Admin Components
 const PostList = React.lazy(() => import('@/components/admin/PostList'));
-const PostEditor = React.lazy(() => import('@/components/admin/PostEditor'));
+const PostEditor = React.lazy(() => import('@/components/superadmin/PostEditor'));
 const PostPreview = React.lazy(() => import('@/components/admin/PostPreview'));
-const BulkUpload = React.lazy(() => import('@/components/admin/BulkUpload'));
+const BulkUpload = React.lazy(() => import('@/components/superadmin/BulkUpload'));
 const PostScheduler = React.lazy(() => import('@/components/admin/PostScheduler'));
-const ActivityLog = React.lazy(() => import('@/components/admin/ActivityLog'));
-const AdminList = React.lazy(() => import('@/components/admin/AdminList'));
-const CreateAdmin = React.lazy(() => import('@/components/admin/CreateAdmin'));
-const EditAdmin = React.lazy(() => import('@/components/admin/EditAdmin'));
+const ActivityLog = React.lazy(() => import('@/components/superadmin/ActivityLog'));
+const AdminList = React.lazy(() => import('@/components/superadmin/AdminList'));
+const CreateAdmin = React.lazy(() => import('@/components/superadmin/CreateAdmin'));
+const EditAdmin = React.lazy(() => import('@/components/superadmin/EditAdmin'));
 const Overview = React.lazy(() => import('@/components/admin/Overview'));
-const ApprovalQueue = React.lazy(() => import('@/components/admin/ApprovalQueue'));
+const ApprovalQueue = React.lazy(() => import('@/components/superadmin/ApprovalQueue'));
 const AdminPostEditor = React.lazy(() => import('@/components/admin/AdminPostEditor'));
 const MyApprovals = React.lazy(() => import('@/components/admin/MyApprovals'));
-const ScheduleApprovals = React.lazy(() => import('@/components/admin/ScheduleApprovals'));
+const ScheduleApprovals = React.lazy(() => import('@/components/superadmin/ScheduleApprovals'));
 
 // New components for CRUD/Approval mode routing
 const NewPostRouteHandler = React.lazy(() => import('@/components/admin/NewPostRouteHandler'));
