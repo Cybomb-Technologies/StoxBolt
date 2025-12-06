@@ -3,7 +3,7 @@ import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/components/ui/use-toast';
-import { Calendar, Clock, Trash2, Loader2, AlertCircle } from 'lucide-react';
+import { Calendar, Clock, Trash2, Loader2, AlertCircle, CheckCircle } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 const baseURL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
@@ -35,21 +35,33 @@ const PostScheduler = () => {
       const data = await response.json();
       
       if (!response.ok) {
-        throw new Error(data.message || 'Failed to fetch scheduled posts');
+        // Don't throw for 500 errors, just log and show empty
+        console.error('API Error:', data.message);
+        setScheduledPosts([]);
+        return;
       }
 
       if (data.success) {
-        setScheduledPosts(data.data || []);
+        // Filter out posts that are already published AND have publishDateTime in the past
+        const now = new Date();
+        const filteredPosts = data.data.filter(post => {
+          // If post is published AND publishDateTime is in the past, don't show it
+          if (post.status === 'published') {
+            const publishDate = new Date(post.publishDateTime);
+            return publishDate > now; // Only show published posts with future dates
+          }
+          // Show all scheduled posts
+          return post.status === 'scheduled';
+        });
+        
+        setScheduledPosts(filteredPosts || []);
       } else {
-        throw new Error(data.message || 'Failed to load scheduled posts');
+        console.error('Failed to load scheduled posts:', data.message);
+        setScheduledPosts([]);
       }
     } catch (error) {
       console.error('Error fetching scheduled posts:', error);
-      toast({
-        title: 'Error',
-        description: error.message || 'Failed to load scheduled posts',
-        variant: 'destructive'
-      });
+      // Don't show toast for every error, just log it
       setScheduledPosts([]);
     } finally {
       setLoading(false);
@@ -154,11 +166,16 @@ const PostScheduler = () => {
     }
   };
 
-  const getTimeRemaining = (dateString) => {
+  const getTimeRemaining = (dateString, status) => {
     try {
       const now = new Date();
       const scheduled = new Date(dateString);
       const diff = scheduled - now;
+      
+      // If post is already published, show "Published" instead of time remaining
+      if (status === 'published') {
+        return 'Published';
+      }
       
       if (diff <= 0) return 'Overdue';
       
@@ -178,6 +195,14 @@ const PostScheduler = () => {
   const handleRefresh = () => {
     setRefreshing(true);
     fetchScheduledPosts();
+  };
+
+  // Add this helper function to get category name safely
+  const getCategoryName = (category) => {
+    if (!category) return 'Uncategorized';
+    if (typeof category === 'string') return category;
+    if (category.name) return category.name;
+    return 'Uncategorized';
   };
 
   if (loading) {
@@ -245,34 +270,43 @@ const PostScheduler = () => {
         ) : (
           <div className="space-y-3">
             {scheduledPosts.map((post) => {
-              const timeRemaining = getTimeRemaining(post.publishDateTime);
+              const timeRemaining = getTimeRemaining(post.publishDateTime, post.status);
               const isOverdue = timeRemaining === 'Overdue';
+              const isPublished = post.status === 'published';
               
               return (
                 <div
                   key={post._id}
-                  className={`p-4 rounded-xl transition-colors ${isOverdue ? 'bg-red-50 border-2 border-red-200' : 'bg-gray-50 hover:bg-gray-100'}`}
+                  className={`p-4 rounded-xl transition-colors ${isOverdue ? 'bg-red-50 border-2 border-red-200' : isPublished ? 'bg-green-50 border-2 border-green-200' : 'bg-gray-50 hover:bg-gray-100'}`}
                 >
                   <div className="flex items-start justify-between">
-                    <div className="flex-1">
+                    <div className="flex-1 min-w-0">
                       <div className="flex items-start justify-between mb-2">
-                        <h4 className="font-semibold text-gray-900">{post.title}</h4>
-                        <div className={`px-2 py-1 rounded-full text-xs font-semibold ${isOverdue ? 'bg-red-100 text-red-700' : 'bg-orange-100 text-orange-700'}`}>
+                        <h4 className="font-semibold text-gray-900 truncate pr-2" title={post.title}>
+                          {post.title}
+                        </h4>
+                        <div className={`px-2 py-1 rounded-full text-xs font-semibold whitespace-nowrap flex-shrink-0 ${isOverdue ? 'bg-red-100 text-red-700' : isPublished ? 'bg-green-100 text-green-700' : 'bg-orange-100 text-orange-700'}`}>
                           {timeRemaining}
                         </div>
                       </div>
                       
                       <div className="flex flex-wrap items-center gap-4 mt-2 text-sm text-gray-600">
                         <span className="flex items-center space-x-1">
-                          <Calendar className="h-4 w-4" />
-                          <span>{formatDateTime(post.publishDateTime)}</span>
+                          <Calendar className="h-4 w-4 flex-shrink-0" />
+                          <span className="whitespace-nowrap">{formatDateTime(post.publishDateTime)}</span>
                         </span>
-                        <span className="px-2 py-1 bg-blue-100 text-blue-700 rounded-full text-xs">
-                          {post.category}
+                        <span className="px-2 py-1 bg-blue-100 text-blue-700 rounded-full text-xs whitespace-nowrap">
+                          {getCategoryName(post.category)}
                         </span>
-                        <span className="text-sm">
+                        <span className="text-sm whitespace-nowrap">
                           By: {post.author || post.authorId?.name || 'Unknown'}
                         </span>
+                        {isPublished && (
+                          <span className="flex items-center text-green-600 whitespace-nowrap">
+                            <CheckCircle className="h-4 w-4 mr-1 flex-shrink-0" />
+                            Published
+                          </span>
+                        )}
                       </div>
                       
                       {post.shortTitle && (
@@ -282,24 +316,24 @@ const PostScheduler = () => {
                       )}
                     </div>
                     
-                    <div className="ml-4 flex items-center space-x-2">
-                      {isOverdue && user?.role === 'superadmin' && (
+                    <div className="ml-4 flex items-center space-x-2 flex-shrink-0">
+                      {isOverdue && user?.role === 'superadmin' && !isPublished && (
                         <Button
                           variant="outline"
                           size="sm"
                           onClick={() => handlePublishNow(post._id)}
-                          className="hover:text-green-600"
+                          className="hover:text-green-600 whitespace-nowrap"
                           title="Publish Now"
                         >
                           Publish
                         </Button>
                       )}
-                      {user?.role === 'superadmin' && (
+                      {user?.role === 'superadmin' && !isPublished && (
                         <Button
                           variant="ghost"
                           size="icon"
                           onClick={() => handleDelete(post._id)}
-                          className="hover:text-red-600"
+                          className="hover:text-red-600 flex-shrink-0"
                           title="Remove from Schedule"
                         >
                           <Trash2 className="h-5 w-5" />
@@ -308,10 +342,17 @@ const PostScheduler = () => {
                     </div>
                   </div>
                   
-                  {isOverdue && (
+                  {isOverdue && !isPublished && (
                     <div className="flex items-center mt-3 text-sm text-red-600">
-                      <AlertCircle className="h-4 w-4 mr-2" />
-                      This post was scheduled for {formatDateTime(post.publishDateTime)} but was not published
+                      <AlertCircle className="h-4 w-4 mr-2 flex-shrink-0" />
+                      <span>This post was scheduled for {formatDateTime(post.publishDateTime)} but was not published</span>
+                    </div>
+                  )}
+                  
+                  {isPublished && (
+                    <div className="flex items-center mt-3 text-sm text-green-600">
+                      <CheckCircle className="h-4 w-4 mr-2 flex-shrink-0" />
+                      <span>This post has been published</span>
                     </div>
                   )}
                 </div>
