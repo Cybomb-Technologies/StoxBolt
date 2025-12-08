@@ -232,14 +232,14 @@ const Overview = () => {
       setRefreshing(true);
       setError(null);
       
-      const token = localStorage.getItem('token');
-      if (!token) {
-        throw new Error('No authentication token found');
+      const adminToken = localStorage.getItem('adminToken');
+      if (!adminToken) {
+        throw new Error('No authentication adminToken found');
       }
 
       // Create headers object
       const headers = {
-        'Authorization': `Bearer ${token}`,
+        'Authorization': `Bearer ${adminToken}`,
         'Content-Type': 'application/json'
       };
 

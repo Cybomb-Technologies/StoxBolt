@@ -43,14 +43,14 @@ const BulkUpload = () => {
     setUploadResult(null);
 
     try {
-      const token = localStorage.getItem('token');
+      const adminToken = localStorage.getItem('adminToken');
       const formData = new FormData();
       formData.append('file', file);
 
       const response = await fetch(`${baseURL}/api/bulk-upload`, {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${token}`
+          'Authorization': `Bearer ${adminToken}`
         },
         body: formData
       });
@@ -93,10 +93,10 @@ const BulkUpload = () => {
 
   const downloadTemplate = async () => {
     try {
-      const token = localStorage.getItem('token');
+      const adminToken = localStorage.getItem('adminToken');
       const response = await fetch(`${baseURL}/api/bulk-upload/template`, {
         headers: {
-          'Authorization': `Bearer ${token}`
+          'Authorization': `Bearer ${adminToken}`
         }
       });
 

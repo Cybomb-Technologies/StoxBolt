@@ -52,9 +52,9 @@ const MyApprovals = () => {
     setError(null);
     
     try {
-      const token = localStorage.getItem('token');
-      if (!token) {
-        throw new Error('No authentication token found');
+      const adminToken = localStorage.getItem('adminToken');
+      if (!adminToken) {
+        throw new Error('No authentication adminToken found');
       }
 
       // Build query parameters
@@ -78,7 +78,7 @@ const MyApprovals = () => {
       
       const response = await fetch(url, {
         headers: {
-          'Authorization': `Bearer ${token}`,
+          'Authorization': `Bearer ${adminToken}`,
           'Content-Type': 'application/json'
         },
         credentials: 'include'

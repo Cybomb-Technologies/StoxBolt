@@ -58,16 +58,16 @@ const fetchPendingApprovals = async () => {
   setLoading(true);
   setError(null);
   try {
-    const token = localStorage.getItem('token');
-    if (!token) {
-      throw new Error('No authentication token found');
+    const adminToken = localStorage.getItem('adminToken');
+    if (!adminToken) {
+      throw new Error('No authentication adminToken found');
     }
 
     console.log('Fetching pending approvals from:', `${baseURL}/api/posts/pending-schedule`);
     
     const response = await fetch(`${baseURL}/api/posts/pending-schedule`, {
       headers: {
-        'Authorization': `Bearer ${token}`,
+        'Authorization': `Bearer ${adminToken}`,
         'Content-Type': 'application/json'
       },
       credentials: 'include' // Add this if using cookies
@@ -188,13 +188,13 @@ const fetchPendingApprovals = async () => {
     setProcessingId(postId);
     
     try {
-      const token = localStorage.getItem('token');
+      const adminToken = localStorage.getItem('adminToken');
       console.log('Approving schedule for post:', postId, 'Title:', post.title);
       
       const response = await fetch(`${baseURL}/api/posts/${postId}/approve-schedule`, {
         method: 'PUT',
         headers: {
-          'Authorization': `Bearer ${token}`,
+          'Authorization': `Bearer ${adminToken}`,
           'Content-Type': 'application/json'
         }
       });
@@ -252,12 +252,12 @@ const handleReject = async (post) => {
   
   setProcessingId(postId);
   try {
-    const token = localStorage.getItem('token');
+    const adminToken = localStorage.getItem('adminToken');
     
     const response = await fetch(`${baseURL}/api/posts/${postId}/reject-schedule`, {
       method: 'PUT',
       headers: {
-        'Authorization': `Bearer ${token}`,
+        'Authorization': `Bearer ${adminToken}`,
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({ rejectionReason: reason })
@@ -440,7 +440,7 @@ const handleReject = async (post) => {
                       console.log('Debug info:', {
                         baseURL,
                         userRole: user?.role,
-                        tokenExists: !!localStorage.getItem('token')
+                        adminTokenExists: !!localStorage.getItem('adminToken')
                       });
                       toast({
                         title: 'Debug Info',

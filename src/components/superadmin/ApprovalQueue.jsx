@@ -52,11 +52,11 @@ const ApprovalQueue = () => {
   const fetchAdminPosts = async () => {
     setLoading(true);
     try {
-      const token = localStorage.getItem('token');
+      const adminToken = localStorage.getItem('adminToken');
       
       const response = await fetch(`${baseURL}/api/approval/posts`, {
         headers: {
-          'Authorization': `Bearer ${token}`
+          'Authorization': `Bearer ${adminToken}`
         }
       });
 
@@ -120,12 +120,12 @@ const ApprovalQueue = () => {
   const handleApprove = async (postId) => {
     setActionLoading(true);
     try {
-      const token = localStorage.getItem('token');
+      const adminToken = localStorage.getItem('adminToken');
       
       const response = await fetch(`${baseURL}/api/approval/posts/${postId}/approve`, {
         method: 'PUT',
         headers: {
-          'Authorization': `Bearer ${token}`,
+          'Authorization': `Bearer ${adminToken}`,
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({ notes })
@@ -162,12 +162,12 @@ const ApprovalQueue = () => {
   const handleReject = async (postId) => {
     setActionLoading(true);
     try {
-      const token = localStorage.getItem('token');
+      const adminToken = localStorage.getItem('adminToken');
       
       const response = await fetch(`${baseURL}/api/approval/posts/${postId}/reject`, {
         method: 'PUT',
         headers: {
-          'Authorization': `Bearer ${token}`,
+          'Authorization': `Bearer ${adminToken}`,
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({ reason: notes })
@@ -204,12 +204,12 @@ const ApprovalQueue = () => {
   const handleRequestChanges = async (postId) => {
     setActionLoading(true);
     try {
-      const token = localStorage.getItem('token');
+      const adminToken = localStorage.getItem('adminToken');
       
       const response = await fetch(`${baseURL}/api/approval/posts/${postId}/request-changes`, {
         method: 'PUT',
         headers: {
-          'Authorization': `Bearer ${token}`,
+          'Authorization': `Bearer ${adminToken}`,
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({ notes })

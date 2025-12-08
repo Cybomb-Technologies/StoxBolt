@@ -83,10 +83,10 @@ const AdminDashboard = () => {
 
   const fetchPendingApprovals = async () => {
     try {
-      const token = localStorage.getItem('token');
+      const adminToken = localStorage.getItem('adminToken');
       const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/approval/posts?status=pending_review&limit=1`, {
         headers: {
-          'Authorization': `Bearer ${token}`
+          'Authorization': `Bearer ${adminToken}`
         }
       });
 
@@ -101,10 +101,10 @@ const AdminDashboard = () => {
 
   const fetchPendingScheduleApprovals = async () => {
     try {
-      const token = localStorage.getItem('token');
+      const adminToken = localStorage.getItem('adminToken');
       const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/posts/pending-schedule`, {
         headers: {
-          'Authorization': `Bearer ${token}`
+          'Authorization': `Bearer ${adminToken}`
         }
       });
 
@@ -126,10 +126,10 @@ const AdminDashboard = () => {
       }
 
       // Otherwise fetch from API
-      const token = localStorage.getItem('token');
+      const adminToken = localStorage.getItem('adminToken');
       const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/auth/user`, {
         headers: {
-          'Authorization': `Bearer ${token}`
+          'Authorization': `Bearer ${adminToken}`
         }
       });
 
@@ -147,11 +147,11 @@ const AdminDashboard = () => {
 
   const fetchUserPendingSubmissions = async () => {
     try {
-      const token = localStorage.getItem('token');
+      const adminToken = localStorage.getItem('adminToken');
       
       const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/approval/posts/my-pending`, {
         headers: {
-          'Authorization': `Bearer ${token}`
+          'Authorization': `Bearer ${adminToken}`
         }
       });
 

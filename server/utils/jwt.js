@@ -8,9 +8,9 @@ const generateToken = (userId, role) => {
   );
 };
 
-const verifyToken = (token) => {
+const verifyToken = (adminToken) => {
   try {
-    return jwt.verify(token, process.env.JWT_SECRET || 'your-fallback-secret-for-development-only');
+    return jwt.verify(adminToken, process.env.JWT_SECRET || 'your-fallback-secret-for-development-only');
   } catch (error) {
     console.error('Token verification error:', error);
     return null;

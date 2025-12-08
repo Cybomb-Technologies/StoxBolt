@@ -69,10 +69,10 @@ const login = async (req, res) => {
     await user.save({ validateBeforeSave: false });
     
     // Create token
-    const token = generateToken(user._id, user.role);
+    const adminToken = generateToken(user._id, user.role);
     
     console.log('✅ Login successful!');
-    console.log('Generated token length:', token.length);
+    console.log('Generated token length:', adminToken.length);
     
     // Response
     const userResponse = {
@@ -88,7 +88,7 @@ const login = async (req, res) => {
     
     res.status(200).json({
       success: true,
-      token,
+      adminToken,
       user: userResponse,
       message: 'Login successful'
     });

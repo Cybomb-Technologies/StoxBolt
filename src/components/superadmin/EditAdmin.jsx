@@ -46,11 +46,11 @@ const EditAdmin = () => {
   const fetchAdmin = async () => {
     setLoading(true);
     try {
-      const token = localStorage.getItem("token");
+      const adminToken = localStorage.getItem("adminToken");
 
       const response = await fetch(`${baseURL}/api/users/admins/${id}`, {
         headers: {
-          Authorization: `Bearer ${token}`,
+          Authorization: `Bearer ${adminToken}`,
         },
       });
 
@@ -121,7 +121,7 @@ const EditAdmin = () => {
     setSaving(true);
 
     try {
-      const token = localStorage.getItem("token");
+      const adminToken = localStorage.getItem("adminToken");
 
       const updateData = {
         name: formData.name,
@@ -136,7 +136,7 @@ const EditAdmin = () => {
       const response = await fetch(`${baseURL}/api/users/admins/${id}`, {
         method: "PUT",
         headers: {
-          Authorization: `Bearer ${token}`,
+          Authorization: `Bearer ${adminToken}`,
           "Content-Type": "application/json",
         },
         body: JSON.stringify(updateData),
@@ -174,14 +174,14 @@ const EditAdmin = () => {
 
   const handleToggleStatus = async () => {
     try {
-      const token = localStorage.getItem("token");
+      const adminToken = localStorage.getItem("adminToken");
       const action = formData.isActive ? "deactivate" : "reactivate";
       const endpoint = `${baseURL}/api/users/admins/${id}/${action}`;
 
       const response = await fetch(endpoint, {
         method: "PUT",
         headers: {
-          Authorization: `Bearer ${token}`,
+          Authorization: `Bearer ${adminToken}`,
           "Content-Type": "application/json",
         },
       });

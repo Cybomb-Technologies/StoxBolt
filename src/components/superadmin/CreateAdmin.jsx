@@ -61,9 +61,9 @@ const CreateAdmin = () => {
     setLoading(true);
 
     try {
-      const token = localStorage.getItem("token");
-      if (!token) {
-        toast.error("No authentication token found. Please login again.", {
+      const adminToken = localStorage.getItem("adminToken");
+      if (!adminToken) {
+        toast.error("No authentication adminToken found. Please login again.", {
           position: "top-right",
           autoClose: 5000,
         });
@@ -74,7 +74,7 @@ const CreateAdmin = () => {
       const response = await fetch(`${baseURL}/api/users/admins`, {
         method: "POST",
         headers: {
-          Authorization: `Bearer ${token}`,
+          Authorization: `Bearer ${adminToken}`,
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
@@ -93,7 +93,7 @@ const CreateAdmin = () => {
             position: "top-right",
             autoClose: 5000,
           });
-          localStorage.removeItem("token");
+          localStorage.removeItem("adminToken");
           navigate("/login");
           return;
         }

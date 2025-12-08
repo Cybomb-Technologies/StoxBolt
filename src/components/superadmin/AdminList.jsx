@@ -68,15 +68,15 @@ const AdminList = () => {
   const fetchAdmins = async () => {
     setLoading(true);
     try {
-      const token = localStorage.getItem('token');
+      const adminToken = localStorage.getItem('adminToken');
       
-      if (!token) {
-        throw new Error('No authentication token found');
+      if (!adminToken) {
+        throw new Error('No authentication adminToken found');
       }
 
       const response = await fetch(`${baseURL}/api/users/admins`, {
         headers: {
-          'Authorization': `Bearer ${token}`
+          'Authorization': `Bearer ${adminToken}`
         }
       });
 
@@ -142,11 +142,11 @@ const AdminList = () => {
 
   const fetchStats = async () => {
     try {
-      const token = localStorage.getItem('token');
+      const adminToken = localStorage.getItem('adminToken');
       
       const response = await fetch(`${baseURL}/api/users/admins/stats`, {
         headers: {
-          'Authorization': `Bearer ${token}`
+          'Authorization': `Bearer ${adminToken}`
         }
       });
 
@@ -166,7 +166,7 @@ const AdminList = () => {
 
     setActionLoading(true);
     try {
-      const token = localStorage.getItem('token');
+      const adminToken = localStorage.getItem('adminToken');
       let url = '';
       let method = 'PUT';
       let successMessage = '';
@@ -197,7 +197,7 @@ const AdminList = () => {
       const response = await fetch(url, {
         method,
         headers: {
-          'Authorization': `Bearer ${token}`,
+          'Authorization': `Bearer ${adminToken}`,
           'Content-Type': 'application/json'
         }
       });

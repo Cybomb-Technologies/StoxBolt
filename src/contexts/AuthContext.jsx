@@ -24,14 +24,14 @@ export const AuthProvider = ({ children }) => {
 
   const checkAuth = async () => {
     try {
-      const token = localStorage.getItem('token');
+      const adminToken = localStorage.getItem('adminToken');
       const storedUser = localStorage.getItem('user');
       
-      if (token && storedUser) {
-        // Verify token is still valid
+      if (adminToken && storedUser) {
+        // Verify adminToken is still valid
         const response = await fetch(`${baseURL}/api/auth/me`, {
           headers: {
-            'Authorization': `Bearer ${token}`
+            'Authorization': `Bearer ${adminToken}`
           }
         });
         
@@ -78,14 +78,14 @@ export const AuthProvider = ({ children }) => {
         throw new Error(data.message || 'Login failed');
       }
 
-      if (data.success && data.token && data.user) {
+      if (data.success && data.adminToken && data.user) {
         const userData = {
           ...data.user,
           hasCRUDAccess: data.user.hasCRUDAccess || false,
           isSuperadmin: data.user.role === 'superadmin'
         };
         
-        localStorage.setItem('token', data.token);
+        localStorage.setItem('adminToken', data.adminToken);
         localStorage.setItem('user', JSON.stringify(userData));
         setUser(userData);
         
@@ -100,7 +100,7 @@ export const AuthProvider = ({ children }) => {
   };
 
   const logout = () => {
-    localStorage.removeItem('token');
+    localStorage.removeItem('adminToken');
     localStorage.removeItem('user');
     setUser(null);
     navigate('/admin/login');

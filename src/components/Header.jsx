@@ -40,24 +40,59 @@ const Header = () => {
   /* ✅ LOCAL USER STATE (FIX) */
   const [headerUser, setHeaderUser] = useState(null);
 
-  /* ✅ ALWAYS SYNC USER */
-  useEffect(() => {
-    if (user) {
-      setHeaderUser(user);
-    } else {
-      const token = localStorage.getItem('token');
-      if (token) {
-        const decoded = decodeToken(token);
-        if (decoded) {
-          setHeaderUser({
-            username: decoded.username,
-            email: decoded.email,
-            isWriter: decoded.isWriter || false
-          });
-        }
+  /* ✅ FETCH USER PROFILE DATA FOR HEADER - SIMPLIFIED VERSION */
+const fetchUserProfile = async () => {
+  try {
+    const token = localStorage.getItem('token');
+    if (!token) {
+      setHeaderUser(null);
+      return;
+    }
+
+    try {
+      // Use the same endpoint as profile page
+      const response = await axios.get(`${baseURL}/api/user-auth/profile`, {
+        headers: { 
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        timeout: 3000
+      });
+
+      if (response.data.success) {
+        const userData = response.data.data;
+        setHeaderUser({
+          username: userData.username,
+          email: userData.email,
+          isWriter: userData.isWriter || false
+        });
+      }
+    } catch (apiError) {
+      console.log('Profile API failed, checking token...');
+      // If API fails, decode token and use that
+      const decoded = decodeToken(token);
+      if (decoded && decoded.email && decoded.email !== 'admin') {
+        setHeaderUser({
+          username: decoded.username || decoded.email.split('@')[0],
+          email: decoded.email,
+          isWriter: decoded.isWriter || false
+        });
+      } else {
+        setHeaderUser(null);
       }
     }
-  }, [user]);
+  } catch (error) {
+    console.error('Error fetching user profile:', error);
+    setHeaderUser(null);
+  }
+};
+
+/* ✅ ALWAYS SYNC USER */
+useEffect(() => {
+  // Always fetch from API to ensure consistency with profile page
+  fetchUserProfile();
+}, [user]); // Still depend on user context changes
+
 
   /* ✅ FETCH CATEGORIES FROM BACKEND */
   useEffect(() => {
@@ -127,15 +162,26 @@ const Header = () => {
   const mainCategories = categories.slice(0, 6);
   const dropdownCategories = categories.slice(6);
 
-  /* ✅ NAME + FIRST LETTER */
-  const displayName =
-    headerUser?.username ||
-    headerUser?.name ||
-    (headerUser?.email ? headerUser.email.split('@')[0] : '');
+  /* ✅ GET DISPLAY NAME - Filter admin and handle edge cases */
+  const getDisplayInfo = () => {
+    if (!headerUser) return { displayName: '', firstLetter: '' };
+    
+    let displayName = '';
+    
+    // Prefer username, fallback to email prefix
+    if (headerUser.username && headerUser.username !== 'admin') {
+      displayName = headerUser.username;
+    } else if (headerUser.email && headerUser.email !== 'admin') {
+      displayName = headerUser.email.split('@')[0];
+    }
+    
+    // Capitalize first letter for display
+    const firstLetter = displayName ? displayName.charAt(0).toUpperCase() : '';
+    
+    return { displayName, firstLetter };
+  };
 
-  const firstLetter = displayName
-    ? displayName.charAt(0).toUpperCase()
-    : '';
+  const { displayName, firstLetter } = getDisplayInfo();
 
   const handleLogout = async () => {
     await logout();
@@ -144,9 +190,14 @@ const Header = () => {
     navigate('/', { replace: true });
   };
 
-  /* ✅ Handle profile click - redirect to profile page */
+  /* ✅ Handle profile click - redirect to profile page only if not admin */
   const handleProfileClick = () => {
-    navigate('/profile');
+    if (headerUser) {
+      navigate('/profile');
+    } else {
+      // If headerUser is null (likely admin), redirect to login
+      navigate('/user-login');
+    }
   };
 
   /* ✅ Close mobile menu when clicking outside or pressing ESC */
