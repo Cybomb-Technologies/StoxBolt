@@ -33,4 +33,20 @@ CategorySchema.pre('save', function(next) {
   next();
 });
 
+// Add a static method to find category by name or ID
+CategorySchema.statics.findCategory = async function(identifier) {
+  if (!identifier) return null;
+  
+  // Check if identifier is a valid ObjectId
+  if (mongoose.Types.ObjectId.isValid(identifier)) {
+    return this.findById(identifier);
+  }
+  
+  // Otherwise, treat it as a category name
+  return this.findOne({ 
+    name: { $regex: new RegExp(`^${identifier}$`, 'i') },
+    isActive: true 
+  });
+};
+
 module.exports = mongoose.model('Category', CategorySchema);

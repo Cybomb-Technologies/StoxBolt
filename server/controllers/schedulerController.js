@@ -133,54 +133,66 @@ exports.deleteScheduledPost = async (req, res) => {
   }
 };
 
-// @desc    Process scheduled posts (cron job) - IMPROVED VERSION
-// @route   Internal
+// In schedulerController.js - Update the processScheduledPosts function:
 exports.processScheduledPosts = async () => {
   try {
     console.log('=== PROCESSING SCHEDULED POSTS CRON JOB ===');
     const now = new Date();
-    console.log('Current time (UTC):', now.toISOString());
-    console.log('Current time (Local):', now.toString());
+    console.log('Current time:', now.toISOString());
+    console.log('Local time:', now.toString());
     
-    // Find posts scheduled for publication that are approved
-    // Use a buffer of 5 minutes to catch any missed posts
-    const bufferTime = new Date(now.getTime() - (5 * 60 * 1000)); // 5 minutes ago
+    // Find posts that are scheduled, approved, and their publish time has passed
+    // Look for posts scheduled in the past 30 minutes to catch any that might have been missed
+    const thirtyMinutesAgo = new Date(now.getTime() - (30 * 60 * 1000));
     
-    const posts = await Post.find({
+    const query = {
       isScheduled: true,
       scheduleApproved: true,
-      status: { $in: ['scheduled', 'pending_approval'] }, // Check both statuses
+      status: 'scheduled',
       publishDateTime: { 
         $lte: now,
-        $gte: bufferTime // Only posts from last 5 minutes to avoid reprocessing old ones
+        $gte: thirtyMinutesAgo // Only check posts scheduled in the last 30 minutes
       }
-    }).populate('authorId', 'name email');
+    };
+    
+    console.log('Query for auto-publish:', JSON.stringify(query, null, 2));
+    
+    const posts = await Post.find(query)
+      .populate('authorId', 'name email')
+      .lean()
+      .exec();
     
     console.log(`Found ${posts.length} posts to auto-publish`);
     
+    const processedPosts = [];
+    
     for (const post of posts) {
-      console.log(`Processing post: ${post.title}`);
+      console.log(`\nProcessing post: ${post.title}`);
+      console.log(`Post ID: ${post._id}`);
       console.log(`Scheduled for: ${post.publishDateTime}`);
-      console.log(`Scheduled time (Local): ${new Date(post.publishDateTime).toString()}`);
-      console.log(`Author: ${post.authorId?.name || 'Unknown'}`);
-      
-      // Calculate time difference
-      const scheduledTime = new Date(post.publishDateTime);
-      const timeDiffMs = now - scheduledTime;
-      const timeDiffMins = Math.floor(timeDiffMs / (1000 * 60));
-      
-      console.log(`Time difference: ${timeDiffMins} minutes`);
+      console.log(`Current time: ${now}`);
       
       // Update post to published
-      post.status = 'published';
-      post.publishDateTime = now; // Update to actual publish time
-      post.isScheduled = false; // Remove scheduled flag
-      post.lastApprovedBy = post.authorId?._id || null;
-      post.lastApprovedAt = now;
+      const updatedPost = await Post.findByIdAndUpdate(
+        post._id,
+        {
+          status: 'published',
+          isScheduled: false,
+          lastApprovedBy: post.authorId?._id || null,
+          lastApprovedAt: now,
+          $unset: { 
+            scheduleApproved: "",
+            scheduleApprovedBy: "",
+            scheduleApprovedAt: ""
+          }
+        },
+        { new: true }
+      );
       
-      await post.save();
+      console.log(`Updated post status to: ${updatedPost.status}`);
+      console.log(`Auto-published: ${post.title}`);
       
-      console.log(`Auto-published: ${post.title} (ID: ${post._id})`);
+      processedPosts.push(updatedPost);
       
       // Log activity
       try {
@@ -195,12 +207,11 @@ exports.processScheduledPosts = async () => {
             scheduled: true,
             scheduledTime: post.publishDateTime,
             actualPublishTime: now,
-            timeDifferenceMinutes: timeDiffMins,
             author: post.authorId?.name || 'Unknown'
           }
         });
       } catch (activityError) {
-        console.error(`Failed to log activity for post ${post._id}:`, activityError.message);
+        console.error(`Activity log error: ${activityError.message}`);
       }
     }
     
@@ -210,7 +221,7 @@ exports.processScheduledPosts = async () => {
     
     console.log('=== CRON JOB COMPLETED ===');
     
-    return posts.length;
+    return processedPosts.length;
     
   } catch (error) {
     console.error('Process scheduled posts error:', error);
