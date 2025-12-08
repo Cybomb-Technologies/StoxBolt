@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { Helmet } from 'react-helmet';
 import { motion } from 'framer-motion';
-import { Share2, Bookmark, Clock, User, ArrowLeft } from 'lucide-react';
+import { Share2, Bookmark, Clock, User, ArrowLeft, BookmarkCheck } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
 import RelatedPostsCarousel from '@/components/RelatedPostsCarousel';
@@ -17,11 +17,15 @@ const PostDetailPage = () => {
   const [post, setPost] = useState(null);
   const [loading, setLoading] = useState(true);
   const [isBookmarked, setIsBookmarked] = useState(false);
+  const [bookmarking, setBookmarking] = useState(false);
   const [showSocialExport, setShowSocialExport] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
     fetchPost();
+    if (localStorage.getItem('token')) {
+      checkBookmarkStatus();
+    }
   }, [id]);
 
   const getCategoryName = (category) => {
@@ -88,6 +92,73 @@ const PostDetailPage = () => {
     }
   };
 
+  const checkBookmarkStatus = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) return;
+
+      const response = await axios.get(
+        `${baseURL}/api/user-auth/bookmarks/${id}/status`,
+        {
+          headers: { Authorization: `Bearer ${token}` }
+        }
+      );
+
+      if (response.data.success) {
+        setIsBookmarked(response.data.isBookmarked);
+      }
+    } catch (error) {
+      console.error('Error checking bookmark status:', error);
+      // Don't show error toast for this, as it's not critical
+    }
+  };
+
+  const handleBookmark = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        toast({
+          title: 'Login Required',
+          description: 'Please login to bookmark posts',
+          variant: 'destructive'
+        });
+        return;
+      }
+
+      setBookmarking(true);
+      const response = await axios.post(
+        `${baseURL}/api/user-auth/posts/${id}/bookmark`, 
+        {}, 
+        {
+          headers: { 
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+      
+      if (response.data.success) {
+        setIsBookmarked(response.data.isBookmarked);
+        toast({
+          title: response.data.isBookmarked ? 'Added to Bookmarks' : 'Removed from Bookmarks',
+          description: response.data.isBookmarked 
+            ? 'Post saved successfully' 
+            : 'Post removed from your saved items',
+          variant: 'default'
+        });
+      }
+    } catch (error) {
+      console.error('Error bookmarking post:', error);
+      toast({
+        title: 'Error',
+        description: error.response?.data?.message || 'Failed to bookmark post',
+        variant: 'destructive'
+      });
+    } finally {
+      setBookmarking(false);
+    }
+  };
+
   const handleShare = () => {
     if (!post) return;
     
@@ -102,45 +173,6 @@ const PostDetailPage = () => {
       toast({
         title: 'Link Copied!',
         description: 'Post link copied to clipboard'
-      });
-    }
-  };
-
-  const handleBookmark = async () => {
-    try {
-      const token = localStorage.getItem('token');
-      if (token) {
-        const response = await axios.post(
-          `${baseURL}/api/posts/${id}/bookmark`, 
-          {}, 
-          {
-            headers: { 
-              Authorization: `Bearer ${token}`,
-              'Content-Type': 'application/json'
-            }
-          }
-        );
-        
-        if (response.data.success) {
-          setIsBookmarked(!isBookmarked);
-          toast({
-            title: isBookmarked ? 'Removed from bookmarks' : 'Added to bookmarks',
-            description: isBookmarked ? 'Post removed from your saved items' : 'Post saved successfully'
-          });
-        }
-      } else {
-        toast({
-          title: 'Login Required',
-          description: 'Please login to bookmark posts',
-          variant: 'destructive'
-        });
-      }
-    } catch (error) {
-      console.error('Error bookmarking post:', error);
-      toast({
-        title: 'Error',
-        description: error.response?.data?.message || 'Failed to bookmark post',
-        variant: 'destructive'
       });
     }
   };
@@ -226,9 +258,16 @@ const PostDetailPage = () => {
                     variant="ghost"
                     size="icon"
                     onClick={handleBookmark}
+                    disabled={bookmarking}
                     className={`hover:bg-orange-50 ${isBookmarked ? 'text-orange-600' : 'hover:text-orange-600'}`}
                   >
-                    <Bookmark className={`h-5 w-5 ${isBookmarked ? 'fill-current' : ''}`} />
+                    {bookmarking ? (
+                      <div className="h-5 w-5 border-2 border-orange-600 border-t-transparent rounded-full animate-spin"></div>
+                    ) : isBookmarked ? (
+                      <BookmarkCheck className="h-5 w-5 fill-current" />
+                    ) : (
+                      <Bookmark className="h-5 w-5" />
+                    )}
                   </Button>
                 </div>
               </div>

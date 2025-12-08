@@ -41,106 +41,106 @@ const ChangePasswordForm = ({ email, onSuccess }) => {
   };
 
   const handleSubmit = async (e) => {
-    e.preventDefault();
-    
-    // Validation
-    if (!currentPassword || !newPassword || !confirmPassword) {
-      toast({
-        title: 'Validation Error',
-        description: 'Please fill all password fields',
-        variant: 'destructive'
-      });
-      return;
+  e.preventDefault();
+  
+  // Validation (keep existing validation)
+  if (!currentPassword || !newPassword || !confirmPassword) {
+    toast({
+      title: 'Validation Error',
+      description: 'Please fill all password fields',
+      variant: 'destructive'
+    });
+    return;
+  }
+
+  if (newPassword.length < 6) {
+    toast({
+      title: 'Password Too Short',
+      description: 'Password must be at least 6 characters long',
+      variant: 'destructive'
+    });
+    return;
+  }
+
+  if (newPassword !== confirmPassword) {
+    toast({
+      title: 'Passwords Do Not Match',
+      description: 'New password and confirm password must match',
+      variant: 'destructive'
+    });
+    return;
+  }
+
+  if (passwordStrength < 50) {
+    toast({
+      title: 'Weak Password',
+      description: 'Please choose a stronger password',
+      variant: 'destructive'
+    });
+    return;
+  }
+
+  if (currentPassword === newPassword) {
+    toast({
+      title: 'Same Password',
+      description: 'New password must be different from current password',
+      variant: 'destructive'
+    });
+    return;
+  }
+
+  setLoading(true);
+
+  try {
+    const token = localStorage.getItem('token');
+    const response = await fetch(`${API_URL}/api/user-auth/change-password`, { // Changed endpoint
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify({ 
+        currentPassword,
+        newPassword
+      })
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.message || 'Password change failed');
     }
 
-    if (newPassword.length < 6) {
-      toast({
-        title: 'Password Too Short',
-        description: 'Password must be at least 6 characters long',
-        variant: 'destructive'
-      });
-      return;
-    }
-
-    if (newPassword !== confirmPassword) {
-      toast({
-        title: 'Passwords Do Not Match',
-        description: 'New password and confirm password must match',
-        variant: 'destructive'
-      });
-      return;
-    }
-
-    if (passwordStrength < 50) {
-      toast({
-        title: 'Weak Password',
-        description: 'Please choose a stronger password',
-        variant: 'destructive'
-      });
-      return;
-    }
-
-    if (currentPassword === newPassword) {
-      toast({
-        title: 'Same Password',
-        description: 'New password must be different from current password',
-        variant: 'destructive'
-      });
-      return;
-    }
-
-    setLoading(true);
-
-    try {
-      const token = localStorage.getItem('token');
-      const response = await fetch(`${API_URL}/api/user-auth/forgot-password/reset`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({ 
-          currentPassword,
-          newPassword
-        })
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.message || 'Password change failed');
-      }
-
-      if (data.success) {
-        // Clear form
-        setCurrentPassword('');
-        setNewPassword('');
-        setConfirmPassword('');
-        
-        toast({
-          title: 'Success!',
-          description: 'Password changed successfully',
-          variant: 'default'
-        });
-        
-        if (onSuccess) {
-          onSuccess();
-        }
-      } else {
-        throw new Error(data.message || 'Password change failed');
-      }
-    } catch (error) {
-      console.error('Change password error:', error);
+    if (data.success) {
+      // Clear form
+      setCurrentPassword('');
+      setNewPassword('');
+      setConfirmPassword('');
       
       toast({
-        title: 'Failed to Change Password',
-        description: error.message,
-        variant: 'destructive'
+        title: 'Success!',
+        description: 'Password changed successfully',
+        variant: 'default'
       });
-    } finally {
-      setLoading(false);
+      
+      if (onSuccess) {
+        onSuccess();
+      }
+    } else {
+      throw new Error(data.message || 'Password change failed');
     }
-  };
+  } catch (error) {
+    console.error('Change password error:', error);
+    
+    toast({
+      title: 'Failed to Change Password',
+      description: error.message,
+      variant: 'destructive'
+    });
+  } finally {
+    setLoading(false);
+  }
+};
 
   return (
     <motion.div
