@@ -26,7 +26,6 @@ const ensureCRUDAccess = require('../middleware/crudCheck');
 router.get('/', getPosts);
 
 // GET /api/posts/:id - Public access to get single post
-router.get('/:id', getPost);
 
 // ========== PROTECTED ROUTES ==========
 // All routes below require authentication
@@ -74,5 +73,5 @@ router.put('/:id/cancel-schedule', cancelSchedule);
 // ========== DELETE ROUTES ==========
 // DELETE /api/posts/:id - Delete post
 router.delete('/:id', deletePost);
-
+router.get('/:id', getPost);
 module.exports = router;
