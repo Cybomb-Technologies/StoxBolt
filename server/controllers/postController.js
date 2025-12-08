@@ -1999,7 +1999,7 @@ exports.getPendingScheduleApprovals = async (req, res) => {
       if (!authorId) return { name: 'Unknown', email: '' };
       
       try {
-        const Admin = require('../models/Admin');
+        const Admin = require('../models/admin');
         const admin = await Admin.findById(authorId).select('name email').lean();
         return admin || { name: 'Unknown', email: '' };
       } catch (error) {
