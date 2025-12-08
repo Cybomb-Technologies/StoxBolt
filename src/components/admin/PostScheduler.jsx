@@ -37,9 +37,9 @@ const PostScheduler = () => {
     setLoading(true);
     setError(null);
     try {
-      const token = localStorage.getItem('token');
-      if (!token) {
-        throw new Error('No authentication token found');
+      const adminToken = localStorage.getItem('adminToken');
+      if (!adminToken) {
+        throw new Error('No authentication adminToken found');
       }
       
       console.log('Fetching all scheduled posts data...');
@@ -47,7 +47,7 @@ const PostScheduler = () => {
       // Fetch scheduled posts (approved)
       const scheduledResponse = await fetch(`${baseURL}/api/posts/scheduled`, {
         headers: {
-          'Authorization': `Bearer ${token}`
+          'Authorization': `Bearer ${adminToken}`
         }
       });
       
@@ -155,13 +155,13 @@ const PostScheduler = () => {
     }
     
     try {
-      const token = localStorage.getItem('token');
+      const adminToken = localStorage.getItem('adminToken');
       console.log('Deleting scheduled post:', postId);
       
       const response = await fetch(`${baseURL}/api/scheduler/posts/${postId}`, {
         method: 'DELETE',
         headers: {
-          'Authorization': `Bearer ${token}`,
+          'Authorization': `Bearer ${adminToken}`,
           'Content-Type': 'application/json'
         }
       });
@@ -194,13 +194,13 @@ const PostScheduler = () => {
     }
     
     try {
-      const token = localStorage.getItem('token');
+      const adminToken = localStorage.getItem('adminToken');
       console.log('Publishing post now:', postId);
       
       const response = await fetch(`${baseURL}/api/posts/${postId}/publish`, {
         method: 'PUT',
         headers: {
-          'Authorization': `Bearer ${token}`,
+          'Authorization': `Bearer ${adminToken}`,
           'Content-Type': 'application/json'
         }
       });
@@ -295,10 +295,10 @@ const PostScheduler = () => {
 
   const triggerAutoPublish = async () => {
     try {
-      const token = localStorage.getItem('token');
+      const adminToken = localStorage.getItem('adminToken');
       const response = await fetch(`${baseURL}/api/scheduler/trigger-auto-publish`, {
         headers: {
-          'Authorization': `Bearer ${token}`
+          'Authorization': `Bearer ${adminToken}`
         }
       });
       

@@ -63,9 +63,9 @@ const ActivityLog = () => {
   const fetchActivityLog = async () => {
     try {
       setLoading(true);
-      const token = localStorage.getItem('token');
-      if (!token) {
-        throw new Error('No authentication token found');
+      const adminToken = localStorage.getItem('adminToken');
+      if (!adminToken) {
+        throw new Error('No authentication adminToken found');
       }
 
       const params = new URLSearchParams({
@@ -79,7 +79,7 @@ const ActivityLog = () => {
 
       const response = await fetch(`${baseURL}/api/activities?${params}`, {
         headers: {
-          'Authorization': `Bearer ${token}`,
+          'Authorization': `Bearer ${adminToken}`,
           'Content-Type': 'application/json'
         }
       });

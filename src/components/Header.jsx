@@ -40,24 +40,59 @@ const Header = () => {
   /* ✅ LOCAL USER STATE (FIX) */
   const [headerUser, setHeaderUser] = useState(null);
 
-  /* ✅ ALWAYS SYNC USER */
-  useEffect(() => {
-    if (user) {
-      setHeaderUser(user);
-    } else {
-      const token = localStorage.getItem('token');
-      if (token) {
-        const decoded = decodeToken(token);
-        if (decoded) {
-          setHeaderUser({
-            username: decoded.username,
-            email: decoded.email,
-            isWriter: decoded.isWriter || false
-          });
-        }
+  /* ✅ FETCH USER PROFILE DATA FOR HEADER - SIMPLIFIED VERSION */
+const fetchUserProfile = async () => {
+  try {
+    const token = localStorage.getItem('token');
+    if (!token) {
+      setHeaderUser(null);
+      return;
+    }
+
+    try {
+      // Use the same endpoint as profile page
+      const response = await axios.get(`${baseURL}/api/user-auth/profile`, {
+        headers: { 
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        timeout: 3000
+      });
+
+      if (response.data.success) {
+        const userData = response.data.data;
+        setHeaderUser({
+          username: userData.username,
+          email: userData.email,
+          isWriter: userData.isWriter || false
+        });
+      }
+    } catch (apiError) {
+      console.log('Profile API failed, checking token...');
+      // If API fails, decode token and use that
+      const decoded = decodeToken(token);
+      if (decoded && decoded.email && decoded.email !== 'admin') {
+        setHeaderUser({
+          username: decoded.username || decoded.email.split('@')[0],
+          email: decoded.email,
+          isWriter: decoded.isWriter || false
+        });
+      } else {
+        setHeaderUser(null);
       }
     }
-  }, [user]);
+  } catch (error) {
+    console.error('Error fetching user profile:', error);
+    setHeaderUser(null);
+  }
+};
+
+/* ✅ ALWAYS SYNC USER */
+useEffect(() => {
+  // Always fetch from API to ensure consistency with profile page
+  fetchUserProfile();
+}, [user]); // Still depend on user context changes
+
 
   /* ✅ FETCH CATEGORIES FROM BACKEND */
   useEffect(() => {
@@ -127,21 +162,42 @@ const Header = () => {
   const mainCategories = categories.slice(0, 6);
   const dropdownCategories = categories.slice(6);
 
-  /* ✅ NAME + FIRST LETTER */
-  const displayName =
-    headerUser?.username ||
-    headerUser?.name ||
-    (headerUser?.email ? headerUser.email.split('@')[0] : '');
+  /* ✅ GET DISPLAY NAME - Filter admin and handle edge cases */
+  const getDisplayInfo = () => {
+    if (!headerUser) return { displayName: '', firstLetter: '' };
+    
+    let displayName = '';
+    
+    // Prefer username, fallback to email prefix
+    if (headerUser.username && headerUser.username !== 'admin') {
+      displayName = headerUser.username;
+    } else if (headerUser.email && headerUser.email !== 'admin') {
+      displayName = headerUser.email.split('@')[0];
+    }
+    
+    // Capitalize first letter for display
+    const firstLetter = displayName ? displayName.charAt(0).toUpperCase() : '';
+    
+    return { displayName, firstLetter };
+  };
 
-  const firstLetter = displayName
-    ? displayName.charAt(0).toUpperCase()
-    : '';
+  const { displayName, firstLetter } = getDisplayInfo();
 
   const handleLogout = async () => {
     await logout();
     localStorage.removeItem('token');
     setHeaderUser(null);
     navigate('/', { replace: true });
+  };
+
+  /* ✅ Handle profile click - redirect to profile page only if not admin */
+  const handleProfileClick = () => {
+    if (headerUser) {
+      navigate('/profile');
+    } else {
+      // If headerUser is null (likely admin), redirect to login
+      navigate('/user-login');
+    }
   };
 
   /* ✅ Close mobile menu when clicking outside or pressing ESC */
@@ -218,7 +274,6 @@ const Header = () => {
           </Link>
 
           {/* DESKTOP MENU */}
-          {/* DESKTOP MENU */}
           <nav className="hidden lg:flex items-center space-x-1">
             {loading ? (
               // Loading skeleton
@@ -284,29 +339,21 @@ const Header = () => {
 
           {/* RIGHT SECTION - Desktop only */}
           <div className="hidden lg:flex items-center space-x-3">
-            {/* ✅ PROFILE / LOGIN - Desktop only */}
+            {/* ✅ USER LOGIN/LOGOUT - Desktop only */}
             {headerUser ? (
               <div className="flex items-center gap-3">
-                {headerUser.isWriter && (
-                  <Link to="/admin">
-                    <button 
-                      className="inline-flex items-center justify-center p-2 rounded-md text-gray-700 hover:bg-orange-50 hover:text-orange-600 transition-colors"
-                      title="Dashboard"
-                    >
-                      <LayoutDashboard className="h-5 w-5" />
-                    </button>
-                  </Link>
-                )}
-
-                {/* PROFILE */}
-                <div className="flex items-center gap-2 px-2 py-1 rounded-full bg-orange-50">
-                  <div className="w-8 h-8 rounded-full bg-orange-600 text-white flex items-center justify-center font-bold">
+                {/* PROFILE BUTTON - Clickable to go to profile page */}
+                <button
+                  onClick={handleProfileClick}
+                  className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-orange-50 hover:bg-orange-100 transition-colors cursor-pointer group"
+                >
+                  <div className="w-8 h-8 rounded-full bg-orange-600 text-white flex items-center justify-center font-bold group-hover:bg-orange-700 transition-colors">
                     {firstLetter}
                   </div>
-                  <span className="text-sm font-medium truncate max-w-[100px]">
+                  <span className="text-sm font-medium truncate max-w-[120px] text-gray-700 group-hover:text-orange-600 transition-colors">
                     {displayName}
                   </span>
-                </div>
+                </button>
 
                 {/* LOGOUT */}
                 <button
@@ -411,7 +458,14 @@ const Header = () => {
                   <div className="border-t p-4">
                     {headerUser ? (
                       <div className="space-y-3">
-                        <div className="flex items-center px-2">
+                        {/* Profile section - Clickable to go to profile */}
+                        <button
+                          onClick={() => {
+                            handleProfileClick();
+                            handleCloseMenu();
+                          }}
+                          className="flex items-center px-2 w-full text-left hover:bg-orange-50 rounded-lg p-2 transition-colors"
+                        >
                           <div className="w-10 h-10 rounded-full bg-orange-600 text-white flex items-center justify-center font-bold mr-3">
                             {firstLetter}
                           </div>
@@ -419,18 +473,9 @@ const Header = () => {
                             <p className="font-medium text-gray-900 truncate">{displayName}</p>
                             <p className="text-sm text-gray-500 truncate">{headerUser.email}</p>
                           </div>
-                        </div>
-                        <div className="grid grid-cols-2 gap-2">
-                          {headerUser.isWriter && (
-                            <Link
-                              to="/admin"
-                              className="flex items-center justify-center px-4 py-2 bg-gray-100 text-gray-700 rounded-lg font-medium hover:bg-gray-200 transition-colors"
-                              onClick={handleCloseMenu}
-                            >
-                              <LayoutDashboard className="mr-2 h-4 w-4" />
-                              Dashboard
-                            </Link>
-                          )}
+                        </button>
+                        
+                        <div className="grid grid-cols-1 gap-2">
                           <button
                             onClick={() => {
                               handleLogout();

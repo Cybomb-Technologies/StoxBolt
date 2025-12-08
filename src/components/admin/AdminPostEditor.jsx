@@ -74,10 +74,10 @@ const AdminPostEditor = () => {
 
   const fetchCategories = async () => {
     try {
-      const token = localStorage.getItem('token');
+      const adminToken = localStorage.getItem('adminToken');
       const response = await fetch(`${baseURL}/api/categories`, {
         headers: {
-          Authorization: `Bearer ${token}`,
+          Authorization: `Bearer ${adminToken}`,
         },
       });
 
@@ -121,11 +121,11 @@ const AdminPostEditor = () => {
     }
 
     try {
-      const token = localStorage.getItem('token');
+      const adminToken = localStorage.getItem('adminToken');
       const response = await fetch(`${baseURL}/api/categories`, {
         method: 'POST',
         headers: {
-          Authorization: `Bearer ${token}`,
+          Authorization: `Bearer ${adminToken}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({ name: newCategory.trim() }),
@@ -179,10 +179,10 @@ const AdminPostEditor = () => {
 
   const fetchOriginalPost = async () => {
     try {
-      const token = localStorage.getItem('token');
+      const adminToken = localStorage.getItem('adminToken');
       const response = await fetch(`${baseURL}/api/posts/${id}`, {
         headers: {
-          Authorization: `Bearer ${token}`,
+          Authorization: `Bearer ${adminToken}`,
         },
       });
 
@@ -234,10 +234,10 @@ const AdminPostEditor = () => {
 
   const fetchAdminPost = async () => {
     try {
-      const token = localStorage.getItem('token');
+      const adminToken = localStorage.getItem('adminToken');
       const response = await fetch(`${baseURL}/api/approval/posts/${id}`, {
         headers: {
-          Authorization: `Bearer ${token}`,
+          Authorization: `Bearer ${adminToken}`,
         },
       });
 
@@ -316,11 +316,11 @@ const AdminPostEditor = () => {
       const formData = new FormData();
       formData.append('image', imageFile);
 
-      const token = localStorage.getItem('token');
+      const adminToken = localStorage.getItem('adminToken');
       const response = await fetch(`${baseURL}/api/upload`, {
         method: 'POST',
         headers: {
-          Authorization: `Bearer ${token}`,
+          Authorization: `Bearer ${adminToken}`,
         },
         body: formData,
       });
@@ -475,7 +475,7 @@ const handleSubmit = async (e) => {
       }
     }
 
-    const token = localStorage.getItem('token');
+    const adminToken = localStorage.getItem('adminToken');
     
     console.log('Making request to:', endpoint);
     console.log('Method:', method);
@@ -484,7 +484,7 @@ const handleSubmit = async (e) => {
     const response = await fetch(endpoint, {
       method: method,
       headers: {
-        Authorization: `Bearer ${token}`,
+        Authorization: `Bearer ${adminToken}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify(postData),

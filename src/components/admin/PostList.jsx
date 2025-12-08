@@ -37,16 +37,16 @@ const PostList = () => {
   // Fetch categories from backend
   const fetchCategories = async () => {
     try {
-      const token = localStorage.getItem('token');
+      const adminadminToken = localStorage.getItem('adminadminToken');
       
-      if (!token) {
-        console.warn('No token found for fetching categories');
+      if (!adminadminToken) {
+        console.warn('No adminadminToken found for fetching categories');
         return;
       }
 
       const response = await fetch(`${baseURL}/api/categories`, {
         headers: {
-          'Authorization': `Bearer ${token}`
+          'Authorization': `Bearer ${adminadminToken}`
         }
       });
 
@@ -98,12 +98,12 @@ const PostList = () => {
   const fetchPosts = async () => {
     setLoading(true);
     try {
-      const token = localStorage.getItem('token');
+      const adminToken = localStorage.getItem('adminToken');
       
-      if (!token) {
+      if (!adminToken) {
         toast({
           title: 'Authentication Error',
-          description: 'No authentication token found. Please log in again.',
+          description: 'No authentication adminToken found. Please log in again.',
           variant: 'destructive'
         });
         return;
@@ -121,7 +121,7 @@ const PostList = () => {
 
       const response = await fetch(`${baseURL}/api/posts?${params}`, {
         headers: {
-          'Authorization': `Bearer ${token}`
+          'Authorization': `Bearer ${adminToken}`
         }
       });
 
@@ -170,9 +170,9 @@ const PostList = () => {
 
   const handleDelete = async (postId) => {
     try {
-      const token = localStorage.getItem('token');
+      const adminToken = localStorage.getItem('adminToken');
       
-      if (!token) {
+      if (!adminToken) {
         toast({
           title: 'Authentication Error',
           description: 'Please log in again to perform this action.',
@@ -184,7 +184,7 @@ const PostList = () => {
       const response = await fetch(`${baseURL}/api/posts/${postId}`, {
         method: 'DELETE',
         headers: {
-          'Authorization': `Bearer ${token}`
+          'Authorization': `Bearer ${adminToken}`
         }
       });
 
@@ -215,9 +215,9 @@ const PostList = () => {
 
   const handlePublish = async (postId) => {
     try {
-      const token = localStorage.getItem('token');
+      const adminToken = localStorage.getItem('adminToken');
       
-      if (!token) {
+      if (!adminToken) {
         toast({
           title: 'Authentication Error',
           description: 'Please log in again to perform this action.',
@@ -229,7 +229,7 @@ const PostList = () => {
       const response = await fetch(`${baseURL}/api/posts/${postId}/publish`, {
         method: 'PUT',
         headers: {
-          'Authorization': `Bearer ${token}`,
+          'Authorization': `Bearer ${adminToken}`,
           'Content-Type': 'application/json'
         }
       });

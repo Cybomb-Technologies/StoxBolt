@@ -3,15 +3,15 @@ const User = require('../models/admin');
 
 const protect = async (req, res, next) => {
   try {
-    let token;
+    let adminToken;
 
     // Check for token in Authorization header
     if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
-      token = req.headers.authorization.split(' ')[1];
+      adminToken = req.headers.authorization.split(' ')[1];
     }
 
     // If no token, return error
-    if (!token) {
+    if (!adminToken) {
       return res.status(401).json({
         success: false,
         message: 'Not authorized, no token'
@@ -19,7 +19,7 @@ const protect = async (req, res, next) => {
     }
 
     // Verify token
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-super-secret-jwt-key-change-this-in-production');
+    const decoded = jwt.verify(adminToken, process.env.JWT_SECRET || 'your-super-secret-jwt-key-change-this-in-production');
 
     // Get user from token WITH password and curdAccess fields
     req.user = await User.findById(decoded.id).select('+password +curdAccess');
