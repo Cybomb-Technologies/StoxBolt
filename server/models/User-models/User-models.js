@@ -41,6 +41,19 @@ const UserSchema = new mongoose.Schema({
   createdAt: {
     type: Date,
     default: Date.now
+  },
+  savedPosts: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Post', // Make sure this matches your Post model name
+    default: []
+  }],
+  isWriter: {
+    type: Boolean,
+    default: false
+  },
+  emailVerified: {
+    type: Boolean,
+    default: false
   }
 }, {
   timestamps: true

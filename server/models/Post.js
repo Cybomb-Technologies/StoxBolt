@@ -100,6 +100,12 @@ const PostSchema = new mongoose.Schema({
     default: null
   },
   
+  // Rejection tracking
+  rejectionReason: {
+    type: String,
+    default: null
+  },
+  
   createdAt: {
     type: Date,
     default: Date.now
@@ -127,14 +133,21 @@ PostSchema.pre('save', function(next) {
   // If publishDateTime is set and in future, set isScheduled to true
   if (this.publishDateTime && new Date(this.publishDateTime) > new Date()) {
     this.isScheduled = true;
-  }
-  
-  // Set appropriate status based on schedule approval
-  if (this.isScheduled) {
+    
+    // Set appropriate status based on schedule approval
     if (this.scheduleApproved) {
       this.status = 'scheduled';
     } else {
       this.status = 'pending_approval';
+    }
+  } else if (this.publishDateTime && new Date(this.publishDateTime) <= new Date()) {
+    // If publish date is in past and post is scheduled but not approved, mark as overdue
+    if (this.isScheduled && !this.scheduleApproved) {
+      this.status = 'pending_approval';
+    } else if (this.isScheduled && this.scheduleApproved) {
+      // If scheduled and approved but date passed, should be published by cron
+      this.status = 'published';
+      this.isScheduled = false;
     }
   }
   
@@ -146,5 +159,6 @@ PostSchema.index({ title: 'text', body: 'text', tags: 'text' });
 PostSchema.index({ isScheduled: 1, scheduleApproved: 1 });
 PostSchema.index({ publishDateTime: 1, status: 1 });
 PostSchema.index({ category: 1 });
+PostSchema.index({ status: 1, createdAt: -1 });
 
 module.exports = mongoose.model('Post', PostSchema);

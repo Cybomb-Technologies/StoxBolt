@@ -53,94 +53,122 @@ const ScheduleApprovals = () => {
     }
   }, [user, currentPage]);
 
-  const fetchPendingApprovals = async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const token = localStorage.getItem('token');
-      if (!token) {
-        throw new Error('No authentication token found');
-      }
-
-      console.log('Fetching pending approvals from:', `${baseURL}/api/posts/pending-schedule`);
-      
-      const response = await fetch(`${baseURL}/api/posts/pending-schedule`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      });
-
-      console.log('Response status:', response.status);
-      
-      const data = await response.json();
-      console.log('Response data:', data);
-      
-      if (!response.ok) {
-        // Check for specific error statuses
-        if (response.status === 401) {
-          throw new Error('Session expired. Please log in again.');
-        } else if (response.status === 403) {
-          throw new Error('Access denied. Only superadmin can view schedule approvals.');
-        } else if (response.status === 404) {
-          throw new Error('Endpoint not found. Please check the API URL.');
-        } else {
-          throw new Error(data.message || `Server error: ${response.status}`);
-        }
-      }
-
-      if (data.success) {
-        let filteredPosts = data.data || [];
-        
-        console.log('Received posts:', filteredPosts.length);
-        
-        // Apply search
-        if (searchQuery) {
-          const query = searchQuery.toLowerCase();
-          filteredPosts = filteredPosts.filter(post => 
-            post.title?.toLowerCase().includes(query) || 
-            (post.authorId?.name || post.author || '').toLowerCase().includes(query) ||
-            (post.category || '').toLowerCase().includes(query)
-          );
-        }
-        
-        // Calculate pagination
-        const totalFiltered = filteredPosts.length;
-        const startIndex = (currentPage - 1) * itemsPerPage;
-        const endIndex = startIndex + itemsPerPage;
-        const paginatedPosts = filteredPosts.slice(startIndex, endIndex);
-        
-        setPendingPosts(paginatedPosts);
-        setTotalPages(Math.ceil(totalFiltered / itemsPerPage));
-        setTotalPosts(totalFiltered);
-        
-        // Show success toast if we found posts
-        if (filteredPosts.length > 0) {
-          toast({
-            title: 'Success',
-            description: `Found ${filteredPosts.length} posts pending approval`,
-            variant: 'default'
-          });
-        }
-      } else {
-        throw new Error(data.message || 'Failed to fetch pending approvals');
-      }
-    } catch (error) {
-      console.error('Error fetching pending approvals:', error);
-      setError(error.message || 'Failed to load pending approvals');
-      
-      toast({
-        title: 'Error',
-        description: error.message || 'Failed to load pending approvals',
-        variant: 'destructive',
-        duration: 5000
-      });
-      
-      setPendingPosts([]);
-    } finally {
-      setLoading(false);
+ // In ScheduleApprovals.jsx - Update the fetchPendingApprovals function
+const fetchPendingApprovals = async () => {
+  setLoading(true);
+  setError(null);
+  try {
+    const token = localStorage.getItem('token');
+    if (!token) {
+      throw new Error('No authentication token found');
     }
-  };
+
+    console.log('Fetching pending approvals from:', `${baseURL}/api/posts/pending-schedule`);
+    
+    const response = await fetch(`${baseURL}/api/posts/pending-schedule`, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      },
+      credentials: 'include' // Add this if using cookies
+    });
+
+    console.log('Response status:', response.status);
+    
+    // Handle non-JSON responses
+    const contentType = response.headers.get('content-type');
+    if (!contentType || !contentType.includes('application/json')) {
+      const text = await response.text();
+      console.error('Non-JSON response:', text);
+      throw new Error(`Server returned non-JSON response: ${response.status} ${response.statusText}`);
+    }
+    
+    const data = await response.json();
+    console.log('Response data:', data);
+    
+    if (!response.ok) {
+      // Check for specific error statuses
+      if (response.status === 401) {
+        throw new Error('Session expired. Please log in again.');
+      } else if (response.status === 403) {
+        throw new Error('Access denied. Only superadmin can view schedule approvals.');
+      } else if (response.status === 404) {
+        throw new Error('Endpoint not found. Please check the API URL.');
+      } else if (response.status === 500) {
+        // Server error - use the error message from response if available
+        const errorMsg = data.message || data.error || `Server error: ${response.status}`;
+        throw new Error(errorMsg);
+      } else {
+        throw new Error(data.message || `Server error: ${response.status}`);
+      }
+    }
+
+    if (data.success) {
+      let filteredPosts = data.data || [];
+      
+      console.log('Received posts:', filteredPosts.length);
+      
+      // Apply search
+      if (searchQuery) {
+        const query = searchQuery.toLowerCase();
+        filteredPosts = filteredPosts.filter(post => 
+          post.title?.toLowerCase().includes(query) || 
+          (post.authorId?.name || post.author || '').toLowerCase().includes(query) ||
+          (post.categoryName || post.category?.name || '').toLowerCase().includes(query)
+        );
+      }
+      
+      // Calculate pagination
+      const totalFiltered = filteredPosts.length;
+      const startIndex = (currentPage - 1) * itemsPerPage;
+      const endIndex = startIndex + itemsPerPage;
+      const paginatedPosts = filteredPosts.slice(startIndex, endIndex);
+      
+      setPendingPosts(paginatedPosts);
+      setTotalPages(Math.ceil(totalFiltered / itemsPerPage));
+      setTotalPosts(totalFiltered);
+      
+      // Show success toast if we found posts
+      if (filteredPosts.length > 0) {
+        toast({
+          title: 'Success',
+          description: `Found ${filteredPosts.length} posts pending approval`,
+          variant: 'default'
+        });
+      }
+    } else {
+      // Handle case where success is false but response is 200
+      throw new Error(data.message || 'Failed to fetch pending approvals');
+    }
+  } catch (error) {
+    console.error('Error fetching pending approvals:', error);
+    console.error('Error details:', error.message, error.stack);
+    
+    // More specific error messages
+    let userMessage = error.message || 'Failed to load pending approvals';
+    
+    if (error.message.includes('NetworkError') || error.message.includes('Failed to fetch')) {
+      userMessage = 'Network error. Please check your internet connection and server status.';
+    } else if (error.message.includes('500')) {
+      userMessage = 'Server error. The backend service encountered an issue.';
+    } else if (error.message.includes('non-JSON response')) {
+      userMessage = 'Server returned an invalid response. Check if the backend is running properly.';
+    }
+    
+    setError(userMessage);
+    
+    toast({
+      title: 'Error',
+      description: userMessage,
+      variant: 'destructive',
+      duration: 5000
+    });
+    
+    setPendingPosts([]);
+  } finally {
+    setLoading(false);
+  }
+};
 
   const handleApprove = async (post) => {
     // Use approvalId if available (for AdminPosts), otherwise use _id
@@ -208,7 +236,7 @@ const ScheduleApprovals = () => {
       setProcessingId(null);
     }
   };
-// In ScheduleApprovals.jsx - Update handleReject function
+// In the handleReject function, add better refresh logic:
 const handleReject = async (post) => {
   const reason = window.prompt('Please enter rejection reason:');
   if (!reason || reason.trim() === '') {
@@ -222,20 +250,9 @@ const handleReject = async (post) => {
   
   const postId = post.approvalId || post._id;
   
-  if (!postId) {
-    console.error('No post ID found for rejection:', post);
-    toast({
-      title: 'Error',
-      description: 'Invalid post ID',
-      variant: 'destructive'
-    });
-    return;
-  }
-  
   setProcessingId(postId);
   try {
     const token = localStorage.getItem('token');
-    console.log('Rejecting schedule for post:', postId);
     
     const response = await fetch(`${baseURL}/api/posts/${postId}/reject-schedule`, {
       method: 'PUT',
@@ -243,81 +260,46 @@ const handleReject = async (post) => {
         'Authorization': `Bearer ${token}`,
         'Content-Type': 'application/json'
       },
-      body: JSON.stringify({ 
-        rejectionReason: reason,
-        // Add additional context
-        context: {
-          fromComponent: 'ScheduleApprovals',
-          postType: post.type || 'unknown',
-          isScheduledPost: post.isScheduledPost || post.isScheduled || false,
-          source: post.source || 'unknown'
-        }
-      })
+      body: JSON.stringify({ rejectionReason: reason })
     });
 
     const data = await response.json();
-    console.log('Reject response:', data);
     
     if (!response.ok) {
-      if (response.status === 400 && data.message?.includes('already')) {
-        toast({
-          title: 'Already Processed',
-          description: 'This schedule was already processed',
-          variant: 'default'
-        });
-        
-        // Force refresh the list
-        fetchPendingApprovals();
-        return;
-      } else {
-        throw new Error(data.message || `Failed to reject schedule (Status: ${response.status})`);
-      }
-    } 
-    
-    if (data.success) {
-      toast({
-        title: 'Schedule Rejected',
-        description: 'Post schedule has been rejected and moved to drafts',
-        variant: 'default'
-      });
-      
-      // OPTION 1: Filter from local state (immediate UI update)
-      setPendingPosts(prevPosts => prevPosts.filter(p => {
-        // Remove based on multiple identifiers
-        return !(
-          p._id === post._id || 
-          p.approvalId === postId ||
-          (post.adminPostId && p.adminPostId === post.adminPostId)
-        );
-      }));
-      
-      // Update total count
-      setTotalPosts(prev => Math.max(0, prev - 1));
-      
-      // OPTION 2: Force refresh after a short delay
-      setTimeout(() => {
-        fetchPendingApprovals();
-      }, 1000);
-      
-      // If no more posts, refresh immediately
-      if (pendingPosts.length <= 1) {
-        fetchPendingApprovals();
-      }
+      throw new Error(data.message || `Failed to reject schedule (Status: ${response.status})`);
     }
+    
+    // CRITICAL FIX: Force complete refresh of the list
+    toast({
+      title: 'Schedule Rejected',
+      description: 'Post schedule has been rejected and moved to drafts',
+      variant: 'default'
+    });
+    
+    // OPTION 1: Immediate filter from local state
+    setPendingPosts(prevPosts => prevPosts.filter(p => {
+      // Remove based on all possible identifiers
+      return !(
+        p._id === post._id || 
+        p.approvalId === postId ||
+        (post.adminPostId && p.adminPostId === post.adminPostId)
+      );
+    }));
+    
+    // OPTION 2: Force complete data refresh after 1 second
+    setTimeout(() => {
+      fetchPendingApprovals();
+    }, 1000);
+    
+    // Also update total count
+    setTotalPosts(prev => Math.max(0, prev - 1));
+    
   } catch (error) {
     console.error('Reject error:', error);
     
-    let userMessage = error.message || 'Failed to reject schedule';
-    
-    if (error.message.includes('NetworkError') || error.message.includes('Failed to fetch')) {
-      userMessage = 'Network error. Please check your internet connection.';
-    } else if (error.message.includes('500')) {
-      userMessage = 'Server error. Please try again or contact support.';
-    }
-    
     toast({
       title: 'Error',
-      description: userMessage,
+      description: error.message || 'Failed to reject schedule',
       variant: 'destructive',
       duration: 5000
     });

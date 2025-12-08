@@ -1101,43 +1101,40 @@ exports.submitForApproval = async (req, res) => {
 
 
 
+// @desc    Approve scheduled post
+// @route   PUT /api/posts/:id/approve-schedule
+// @access  Private (Superadmin only)
 exports.approveSchedule = async (req, res) => {
   try {
     console.log('=== APPROVE SCHEDULE STARTED ===');
-    console.log('Post ID from request:', req.params.id);
+    console.log('Approval ID:', req.params.id);
     console.log('User:', req.user.name, req.user.role);
     
-    // Validate post ID
-    if (!req.params.id || req.params.id === 'undefined' || req.params.id === 'null') {
-      console.log('ERROR: Invalid post ID provided:', req.params.id);
-      return res.status(400).json({
+    // Only superadmin can approve scheduled posts
+    if (req.user.role !== 'superadmin') {
+      return res.status(403).json({
         success: false,
-        message: 'Invalid post ID provided'
+        message: 'Only superadmin can approve scheduled posts'
       });
     }
     
-    // First check if it's an AdminPost ID (might be from AdminPost collection)
-    let post = await Post.findById(req.params.id);
-    let adminPost = await AdminPost.findOne({ 
-      $or: [
-        { _id: req.params.id },
-        { postId: req.params.id }
-      ] 
-    });
+    // Try to find in AdminPost first
+    let adminPost = await AdminPost.findById(req.params.id)
+      .populate('authorId', 'name email');
     
-    console.log('Post found:', !!post);
-    console.log('AdminPost found:', !!adminPost);
-    
-    // If no Post found but AdminPost exists, check if we need to create a Post
-    if (!post && adminPost) {
-      console.log('Creating Post from AdminPost data');
-      // Check if there's already a post linked to this AdminPost
+    if (adminPost) {
+      console.log('Found AdminPost:', adminPost._id);
+      
+      // Check if there's already a Post linked
+      let post = null;
       if (adminPost.postId) {
         post = await Post.findById(adminPost.postId);
+        console.log('Found linked Post:', post?._id);
       }
       
-      // If still no post, create one
+      // If no Post exists, create one
       if (!post) {
+        console.log('Creating new Post from AdminPost');
         post = await Post.create({
           title: adminPost.title,
           shortTitle: adminPost.shortTitle,
@@ -1156,65 +1153,78 @@ exports.approveSchedule = async (req, res) => {
           isScheduled: true,
           scheduleApproved: true,
           scheduleApprovedBy: req.user._id,
-          scheduleApprovedAt: Date.now(),
-          createdAt: adminPost.createdAt || Date.now()
+          scheduleApprovedAt: new Date(),
+          createdAt: adminPost.createdAt || new Date()
         });
         
-        console.log('New Post created with ID:', post._id);
+        console.log('Created Post:', post._id);
+        
+        // Update AdminPost with Post reference
+        adminPost.postId = post._id;
+      } else {
+        // Update existing Post
+        post.isScheduled = true;
+        post.scheduleApproved = true;
+        post.scheduleApprovedBy = req.user._id;
+        post.scheduleApprovedAt = new Date();
+        post.status = 'scheduled';
+        await post.save();
+        console.log('Updated existing Post:', post._id);
       }
       
-      // Update AdminPost with the new postId if not already set
-      if (!adminPost.postId) {
-        adminPost.postId = post._id;
-        await adminPost.save();
-        console.log('Updated AdminPost with postId:', post._id);
-      }
-    }
-    
-    if (!post && !adminPost) {
-      console.log('ERROR: Neither Post nor AdminPost found');
-      return res.status(404).json({
-        success: false,
-        message: 'Post not found'
+      // Update AdminPost status
+      adminPost.scheduleApproved = true;
+      adminPost.scheduleApprovedBy = req.user._id;
+      adminPost.scheduleApprovedAt = new Date();
+      adminPost.approvalStatus = 'scheduled_approved';
+      await adminPost.save();
+      console.log('Updated AdminPost:', adminPost._id);
+      
+      // Log activity with correct enum value
+      await Activity.create({
+        type: 'update', // Changed from 'approval' to 'update'
+        userId: req.user._id,
+        user: req.user.name,
+        title: adminPost.title,
+        postId: post._id,
+        details: {
+          type: 'schedule_approved',
+          reason: 'Scheduled post approved by superadmin',
+          publishDateTime: adminPost.publishDateTime,
+          approvedBy: req.user.name,
+          source: 'AdminPost'
+        }
+      });
+      
+      console.log('=== APPROVE SCHEDULE COMPLETED (AdminPost) ===');
+      
+      return res.status(200).json({
+        success: true,
+        message: 'Scheduled post approved successfully',
+        data: {
+          post,
+          adminPost
+        }
       });
     }
     
-    // Only superadmin can approve scheduled posts
-    if (req.user.role !== 'superadmin') {
-      console.log('ERROR: Unauthorized user role:', req.user.role);
-      return res.status(403).json({
-        success: false,
-        message: 'Only superadmin can approve scheduled posts'
-      });
-    }
+    // If not found in AdminPost, try Post collection
+    let post = await Post.findById(req.params.id)
+      .populate('authorId', 'name email');
     
-    // If post exists, approve it
     if (post) {
-      console.log('Processing Post approval for:', post.title);
+      console.log('Found Post:', post._id);
       
       // Check if post is scheduled
       if (!post.isScheduled) {
-        console.log('ERROR: Post is not scheduled');
         return res.status(400).json({
           success: false,
           message: 'Post is not scheduled'
         });
       }
       
-      // Check if schedule is already approved
+      // Check if already approved
       if (post.scheduleApproved) {
-        console.log('WARNING: Schedule already approved for post:', post.title);
-        
-        // Even if already approved, update AdminPost status
-        if (adminPost && adminPost.approvalStatus !== 'scheduled_approved') {
-          adminPost.approvalStatus = 'scheduled_approved';
-          adminPost.scheduleApproved = true;
-          adminPost.scheduleApprovedBy = req.user._id;
-          adminPost.scheduleApprovedAt = Date.now();
-          await adminPost.save();
-          console.log('AdminPost updated even though Post was already approved');
-        }
-        
         return res.status(200).json({
           success: true,
           message: 'Schedule already approved',
@@ -1225,71 +1235,59 @@ exports.approveSchedule = async (req, res) => {
       // Approve the schedule
       post.scheduleApproved = true;
       post.scheduleApprovedBy = req.user._id;
-      post.scheduleApprovedAt = Date.now();
+      post.scheduleApprovedAt = new Date();
       post.status = 'scheduled';
       await post.save();
-      console.log('Post approved and saved');
+      
+      console.log('Approved Post:', post._id);
+      
+      // Log activity with correct enum value
+      await Activity.create({
+        type: 'update', // Changed from 'approval' to 'update'
+        userId: req.user._id,
+        user: req.user.name,
+        title: post.title,
+        postId: post._id,
+        details: {
+          type: 'schedule_approved',
+          reason: 'Scheduled post approved by superadmin',
+          publishDateTime: post.publishDateTime,
+          approvedBy: req.user.name,
+          source: 'Post'
+        }
+      });
+      
+      console.log('=== APPROVE SCHEDULE COMPLETED (Post) ===');
+      
+      return res.status(200).json({
+        success: true,
+        message: 'Scheduled post approved successfully',
+        data: post
+      });
     }
     
-    // Update AdminPost status if it exists
-    if (adminPost) {
-      console.log('Updating AdminPost status for:', adminPost.title);
-      adminPost.scheduleApproved = true;
-      adminPost.scheduleApprovedBy = req.user._id;
-      adminPost.scheduleApprovedAt = Date.now();
-      adminPost.approvalStatus = 'scheduled_approved';
-      adminPost.status = 'scheduled';
-      
-      // If this is a scheduled pending approval, update all relevant fields
-      if (adminPost.approvalStatus === 'scheduled_pending') {
-        adminPost.approvalStatus = 'scheduled_approved';
-      }
-      
-      await adminPost.save();
-      console.log('AdminPost updated successfully');
-    }
-    
-    // Log activity
-    await Activity.create({
-      type: 'approval',
-      userId: req.user._id,
-      user: req.user.name,
-      title: post ? post.title : adminPost.title,
-      postId: post ? post._id : adminPost.postId,
-      details: { 
-        type: 'schedule_approved',
-        publishDateTime: post ? post.publishDateTime : adminPost.publishDateTime,
-        approvedBy: req.user.name,
-        source: adminPost ? 'AdminPost' : 'Post'
-      }
-    });
-    
-    console.log('=== APPROVE SCHEDULE COMPLETED ===');
-    
-    res.status(200).json({
-      success: true,
-      message: 'Scheduled post approved',
-      data: post || adminPost
+    // If neither found
+    console.log('ERROR: Post not found with ID:', req.params.id);
+    return res.status(404).json({
+      success: false,
+      message: 'Post not found'
     });
     
   } catch (error) {
     console.error('Approve schedule error:', error);
     console.error('Error stack:', error.stack);
     
-    let errorMessage = 'Server error: ' + error.message;
-    if (error.name === 'CastError') {
-      errorMessage = `Invalid ID format: ${req.params.id}`;
-    }
-    
     res.status(500).json({
       success: false,
-      message: errorMessage,
+      message: 'Server error: ' + error.message,
       error: process.env.NODE_ENV === 'development' ? error.stack : undefined
     });
   }
 };
 
-// In postController.js - Update the rejectSchedule function
+// @desc    Reject scheduled post
+// @route   PUT /api/posts/:id/reject-schedule
+// @access  Private (Superadmin only)
 exports.rejectSchedule = async (req, res) => {
   try {
     const { rejectionReason } = req.body;
@@ -1297,25 +1295,20 @@ exports.rejectSchedule = async (req, res) => {
     console.log('Post ID from request:', req.params.id);
     console.log('Rejection reason:', rejectionReason);
     
-    // First check if it's an AdminPost ID
-    let post = await Post.findById(req.params.id);
+    // CRITICAL FIX: Use proper ID detection
+    const postId = req.params.id;
+    
+    // First try to find and update Post
+    let post = await Post.findById(postId);
     let adminPost = await AdminPost.findOne({ 
       $or: [
-        { _id: req.params.id },
-        { postId: req.params.id }
+        { _id: postId },
+        { postId: postId }
       ] 
     });
     
-    console.log('Post found:', !!post);
-    console.log('AdminPost found:', !!adminPost);
-    if (adminPost) {
-      console.log('AdminPost current status:', {
-        approvalStatus: adminPost.approvalStatus,
-        scheduleApproved: adminPost.scheduleApproved,
-        rejectionReason: adminPost.rejectionReason,
-        isScheduledPost: adminPost.isScheduledPost
-      });
-    }
+    console.log('Found Post:', !!post);
+    console.log('Found AdminPost:', !!adminPost);
     
     if (!post && !adminPost) {
       console.log('ERROR: Neither Post nor AdminPost found');
@@ -1334,87 +1327,101 @@ exports.rejectSchedule = async (req, res) => {
       });
     }
     
-    // Helper function to create activity log
-    const createActivityLog = async (type, details) => {
-      try {
-        await Activity.create({
-          type: type,
-          userId: req.user._id,
-          user: req.user.name,
-          title: details.title,
-          postId: details.postId,
-          details: details
-        });
-        console.log(`Activity logged: ${type}`);
-      } catch (activityError) {
-        console.error('Activity logging error:', activityError.message);
-      }
-    };
+    // CRITICAL: Track what we're processing
+    let processedPost = null;
     
-    // Update Post if exists
+    // Process Post if exists
     if (post) {
       console.log('Processing Post rejection for:', post.title);
       
+      // CRITICAL FIX: Always update these fields for Post
       post.scheduleApproved = false;
       post.status = 'draft';
       post.isScheduled = false;
       post.rejectionReason = rejectionReason || 'Schedule rejected by superadmin';
-      await post.save();
-      console.log('Post rejected and saved as draft');
+      post.updatedAt = new Date();
       
-      await createActivityLog('update', { 
-        type: 'schedule_rejected',
-        reason: rejectionReason,
-        rejectedBy: req.user.name,
-        source: 'Post',
-        originalStatus: 'scheduled_pending',
-        newStatus: 'draft',
-        publishDateTime: post.publishDateTime
+      // Also remove schedule approval fields
+      post.scheduleApprovedBy = null;
+      post.scheduleApprovedAt = null;
+      
+      await post.save();
+      processedPost = post;
+      console.log('Post rejected and saved as draft. New status:', {
+        status: post.status,
+        isScheduled: post.isScheduled,
+        scheduleApproved: post.scheduleApproved,
+        rejectionReason: post.rejectionReason
       });
     }
     
-    // CRITICAL FIX: Update AdminPost properly
+    // Process AdminPost if exists
     if (adminPost) {
-      console.log('Updating AdminPost rejection for:', adminPost.title);
+      console.log('Processing AdminPost rejection for:', adminPost.title);
       
-      // Properly update all relevant fields
-      adminPost.approvalStatus = 'rejected';  // This was probably still 'scheduled_pending'
-      adminPost.rejectionReason = rejectionReason || 'Schedule rejected by superadmin';
-      adminPost.status = 'rejected';
+      // CRITICAL FIX: Properly update ALL relevant fields for AdminPost
+      adminPost.approvalStatus = 'rejected';
       adminPost.scheduleApproved = false;
-      adminPost.isScheduledPost = false;  // Also mark as not scheduled
+      adminPost.isScheduledPost = false;
+      adminPost.rejectionReason = rejectionReason || 'Schedule rejected by superadmin';
+      adminPost.updatedAt = new Date();
       
-      // Remove any pending schedule flags
-      if (adminPost.approvalStatus === 'scheduled_pending') {
-        adminPost.approvalStatus = 'rejected';
-      }
+      // Remove schedule approval fields
+      adminPost.scheduleApprovedBy = null;
+      adminPost.scheduleApprovedAt = null;
       
       await adminPost.save();
-      console.log('AdminPost updated with rejection. New status:', {
+      processedPost = adminPost;
+      console.log('AdminPost rejected. New status:', {
         approvalStatus: adminPost.approvalStatus,
         scheduleApproved: adminPost.scheduleApproved,
-        rejectionReason: adminPost.rejectionReason,
-        isScheduledPost: adminPost.isScheduledPost
+        isScheduledPost: adminPost.isScheduledPost,
+        rejectionReason: adminPost.rejectionReason
       });
       
-      await createActivityLog('update', { 
-        type: 'schedule_rejected',
-        reason: rejectionReason,
-        rejectedBy: req.user.name,
-        source: 'AdminPost',
-        originalStatus: 'scheduled_pending',
-        newStatus: 'rejected',
-        publishDateTime: adminPost.publishDateTime,
-        adminPostId: adminPost._id
+      // Also update linked Post if it exists
+      if (adminPost.postId) {
+        await Post.findByIdAndUpdate(adminPost.postId, {
+          scheduleApproved: false,
+          status: 'draft',
+          isScheduled: false,
+          rejectionReason: rejectionReason || 'Schedule rejected by superadmin',
+          updatedAt: new Date()
+        });
+        console.log('Updated linked Post:', adminPost.postId);
+      }
+    }
+    
+    // CRITICAL FIX: Create proper activity log
+    try {
+      await Activity.create({
+        type: 'update',
+        userId: req.user._id,
+        user: req.user.name,
+        title: processedPost?.title || 'Unknown',
+        postId: processedPost?._id || postId,
+        adminPostId: adminPost?._id || null,
+        details: {
+          type: 'schedule_rejected',
+          reason: rejectionReason,
+          rejectedBy: req.user.name,
+          source: post ? 'Post' : 'AdminPost',
+          originalStatus: 'scheduled_pending',
+          newStatus: 'draft',
+          publishDateTime: processedPost?.publishDateTime
+        }
       });
+      console.log('Activity logged: schedule_rejected');
+    } catch (activityError) {
+      console.error('Activity logging error:', activityError.message);
     }
     
     console.log('=== REJECT SCHEDULE COMPLETED ===');
     
     res.status(200).json({
       success: true,
-      message: 'Scheduled post rejected',
-      data: post || adminPost
+      message: 'Scheduled post rejected successfully',
+      data: processedPost || { _id: postId, status: 'rejected' }
     });
     
   } catch (error) {
@@ -1426,7 +1433,6 @@ exports.rejectSchedule = async (req, res) => {
     });
   }
 };
-
 // @desc    Cancel scheduled post (Admin can cancel their own, Superadmin can cancel any)
 // @route   PUT /api/posts/:id/cancel-schedule
 // @access  Private
@@ -1506,45 +1512,142 @@ exports.cancelSchedule = async (req, res) => {
   }
 };
 
-// @desc    Get scheduled posts
-// @route   GET /api/posts/scheduled
-// @access  Private
+// In the getScheduledPosts function, use aggregation to avoid the cast error
 exports.getScheduledPosts = async (req, res) => {
   try {
-    const query = { 
+    console.log('=== GET SCHEDULED POSTS ===');
+    console.log('User role:', req.user?.role);
+    console.log('User ID:', req.user?._id);
+    
+    const matchStage = { 
       isScheduled: true,
       scheduleApproved: true,
       status: 'scheduled'
     };
     
-    // Filter by author if admin
+    // Filter by author if admin (not superadmin)
     if (req.user.role === 'admin') {
-      query.authorId = req.user._id;
+      matchStage.authorId = new mongoose.Types.ObjectId(req.user._id);
     }
-    // Superadmin can see all scheduled posts
     
-    const posts = await Post.find(query)
-      .sort({ publishDateTime: 1 })
-      .populate('authorId', 'name email');
+    console.log('Match stage for scheduled posts:', JSON.stringify(matchStage, null, 2));
+    
+    // Use aggregation to handle category gracefully
+    const posts = await Post.aggregate([
+      { $match: matchStage },
+      { $sort: { publishDateTime: 1 } },
+      {
+        $lookup: {
+          from: 'categories',
+          let: { categoryId: '$category' },
+          pipeline: [
+            {
+              $match: {
+                $expr: {
+                  $or: [
+                    { $eq: ['$_id', '$$categoryId'] },
+                    { $and: [
+                      { $eq: [{ $type: '$$categoryId' }, 'string'] },
+                      { $eq: ['$name', '$$categoryId'] }
+                    ]}
+                  ]
+                }
+              }
+            }
+          ],
+          as: 'categoryDetails'
+        }
+      },
+      {
+        $lookup: {
+          from: 'admins',
+          localField: 'authorId',
+          foreignField: '_id',
+          as: 'authorDetails'
+        }
+      },
+      {
+        $addFields: {
+          category: { $arrayElemAt: ['$categoryDetails', 0] },
+          authorId: { $arrayElemAt: ['$authorDetails', 0] },
+          categoryName: {
+            $cond: {
+              if: { $eq: [{ $type: '$category' }, 'string'] },
+              then: '$category',
+              else: { $arrayElemAt: ['$categoryDetails.name', 0] }
+            }
+          }
+        }
+      },
+      {
+        $project: {
+          title: 1,
+          shortTitle: 1,
+          body: 1,
+          category: 1,
+          categoryName: 1,
+          tags: 1,
+          region: 1,
+          author: 1,
+          authorId: { 
+            _id: '$authorId._id',
+            name: '$authorId.name',
+            email: '$authorId.email'
+          },
+          publishDateTime: 1,
+          isSponsored: 1,
+          metaTitle: 1,
+          metaDescription: 1,
+          imageUrl: 1,
+          status: 1,
+          isScheduled: 1,
+          scheduleApproved: 1,
+          rejectionReason: 1,
+          createdAt: 1,
+          updatedAt: 1,
+          source: { $literal: 'Post' }
+        }
+      }
+    ]);
+    
+    console.log(`Found ${posts.length} scheduled posts`);
+    
+    // Format category names
+    const formattedPosts = posts.map(post => {
+      const categoryName = post.categoryName || 
+        (post.category?.name) || 
+        (typeof post.category === 'string' ? post.category : 'Uncategorized');
+      
+      return {
+        ...post,
+        categoryName,
+        authorName: post.authorId?.name || post.author || 'Unknown'
+      };
+    });
     
     res.status(200).json({
       success: true,
-      count: posts.length,
-      data: posts
+      count: formattedPosts.length,
+      data: formattedPosts,
+      message: `Found ${formattedPosts.length} scheduled posts`
     });
     
   } catch (error) {
     console.error('Get scheduled posts error:', error);
+    console.error('Error stack:', error.stack);
+    
     res.status(500).json({
       success: false,
-      message: 'Server error'
+      message: 'Failed to fetch scheduled posts',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
     });
   }
 };
 
-// In postController.js - Update the getPendingScheduleApprovals function
+// In the getPendingScheduleApprovals function, use similar aggregation
 exports.getPendingScheduleApprovals = async (req, res) => {
-  console.log('\n=== GET PENDING SCHEDULE APPROVALS STARTED ===');
+  console.log('\n=== GET PENDING SCHEDULE APPROVALS ===');
+  console.log('User:', req.user?.name, 'Role:', req.user?.role);
   
   try {
     // 1. Check authentication
@@ -1556,150 +1659,461 @@ exports.getPendingScheduleApprovals = async (req, res) => {
       });
     }
     
-    // 2. Check authorization
+    // 2. Check authorization - Allow superadmin only
     if (req.user.role !== 'superadmin') {
-      console.log('ERROR: Unauthorized access attempt by', req.user.role);
+      console.log('ERROR: Unauthorized access attempt by role:', req.user.role);
       return res.status(403).json({
         success: false,
         message: 'Only superadmin can view pending schedule approvals'
       });
     }
     
-    // 3. Unified query to get ALL pending schedule approvals
-    const pendingPosts = [];
+    console.log('User authorized as superadmin');
     
-    // Query 1: Get pending schedule approvals from Post collection
-    const postQuery = {
-      isScheduled: true,
-      scheduleApproved: false,
-      $or: [
-        { status: 'pending_approval' },
-        { status: 'draft' }
-      ]
-    };
-    
-    const postsFromPostCollection = await Post.find(postQuery)
-      .sort({ createdAt: -1 })
-      .populate('authorId', 'name email')
-      .lean();
+    // 3. Get pending approvals from Post collection using aggregation
+    const postsFromPostCollection = await Post.aggregate([
+      {
+        $match: {
+          isScheduled: true,
+          scheduleApproved: false,
+          status: { $in: ['pending_approval', 'draft'] },
+          publishDateTime: { $ne: null }
+        }
+      },
+      { $sort: { createdAt: -1 } },
+      {
+        $lookup: {
+          from: 'categories',
+          let: { categoryId: '$category' },
+          pipeline: [
+            {
+              $match: {
+                $expr: {
+                  $or: [
+                    { $eq: ['$_id', '$$categoryId'] },
+                    { $and: [
+                      { $eq: [{ $type: '$$categoryId' }, 'string'] },
+                      { $eq: ['$name', '$$categoryId'] }
+                    ]}
+                  ]
+                }
+              }
+            }
+          ],
+          as: 'categoryDetails'
+        }
+      },
+      {
+        $lookup: {
+          from: 'admins',
+          localField: 'authorId',
+          foreignField: '_id',
+          as: 'authorDetails'
+        }
+      },
+      {
+        $addFields: {
+          category: { $arrayElemAt: ['$categoryDetails', 0] },
+          authorId: { $arrayElemAt: ['$authorDetails', 0] },
+          categoryName: {
+            $cond: {
+              if: { $eq: [{ $type: '$category' }, 'string'] },
+              then: '$category',
+              else: { $arrayElemAt: ['$categoryDetails.name', 0] }
+            }
+          }
+        }
+      },
+      {
+        $project: {
+          _id: 1,
+          title: 1,
+          shortTitle: 1,
+          body: 1,
+          category: 1,
+          categoryName: 1,
+          tags: 1,
+          region: 1,
+          author: 1,
+          authorId: { 
+            _id: '$authorId._id',
+            name: '$authorId.name',
+            email: '$authorId.email'
+          },
+          publishDateTime: 1,
+          isSponsored: 1,
+          metaTitle: 1,
+          metaDescription: 1,
+          imageUrl: 1,
+          status: 1,
+          isScheduled: 1,
+          scheduleApproved: 1,
+          rejectionReason: 1,
+          createdAt: 1,
+          updatedAt: 1,
+          source: { $literal: 'Post' },
+          type: { $literal: 'scheduled_pending' }
+        }
+      }
+    ]);
     
     console.log(`Found ${postsFromPostCollection.length} posts from Post collection`);
     
-    // Transform Post collection results
-    postsFromPostCollection.forEach(post => {
-      pendingPosts.push({
-        ...post,
-        source: 'Post',
-        approvalId: post._id,
-        isFromPost: true,
-        // Ensure consistent approvalStatus
-        approvalStatus: 'scheduled_pending'
-      });
-    });
+    // 4. Get pending approvals from AdminPost collection using aggregation
+    const postsFromAdminPostCollection = await AdminPost.aggregate([
+      {
+        $match: {
+          isScheduledPost: true,
+          scheduleApproved: false,
+          approvalStatus: { $in: ['scheduled_pending', 'pending_review'] },
+          $or: [
+            { postId: { $exists: false } },
+            { postId: null }
+          ]
+        }
+      },
+      { $sort: { createdAt: -1 } },
+      {
+        $lookup: {
+          from: 'categories',
+          let: { categoryId: '$category' },
+          pipeline: [
+            {
+              $match: {
+                $expr: {
+                  $or: [
+                    { $eq: ['$_id', '$$categoryId'] },
+                    { $and: [
+                      { $eq: [{ $type: '$$categoryId' }, 'string'] },
+                      { $eq: ['$name', '$$categoryId'] }
+                    ]}
+                  ]
+                }
+              }
+            }
+          ],
+          as: 'categoryDetails'
+        }
+      },
+      {
+        $lookup: {
+          from: 'admins',
+          localField: 'authorId',
+          foreignField: '_id',
+          as: 'authorDetails'
+        }
+      },
+      {
+        $addFields: {
+          category: { $arrayElemAt: ['$categoryDetails', 0] },
+          authorId: { $arrayElemAt: ['$authorDetails', 0] },
+          categoryName: {
+            $cond: {
+              if: { $eq: [{ $type: '$category' }, 'string'] },
+              then: '$category',
+              else: { $arrayElemAt: ['$categoryDetails.name', 0] }
+            }
+          }
+        }
+      },
+      {
+        $project: {
+          _id: 1,
+          title: 1,
+          shortTitle: 1,
+          body: 1,
+          category: 1,
+          categoryName: 1,
+          tags: 1,
+          region: 1,
+          author: 1,
+          authorId: { 
+            _id: '$authorId._id',
+            name: '$authorId.name',
+            email: '$authorId.email'
+          },
+          publishDateTime: 1,
+          isSponsored: 1,
+          metaTitle: 1,
+          metaDescription: 1,
+          imageUrl: 1,
+          status: { $literal: 'pending_approval' },
+          isScheduled: { $literal: true },
+          scheduleApproved: 1,
+          rejectionReason: 1,
+          approvalStatus: 1,
+          createdAt: 1,
+          updatedAt: 1,
+          source: { $literal: 'AdminPost' },
+          type: { $literal: 'scheduled_pending' },
+          adminPostId: '$_id'
+        }
+      }
+    ]);
     
-    // Query 2: Get pending schedule approvals from AdminPost collection
-    // In the query section of getPendingScheduleApprovals
-// Query 2: Get pending schedule approvals from AdminPost collection
-const adminPostQuery = {
-  $or: [
-    { 
-      isScheduledPost: true,
-      scheduleApproved: false,
-      // EXCLUDE REJECTED POSTS
-      approvalStatus: { $ne: 'rejected' }
-    }
-  ],
-  // ALSO EXCLUDE BASED ON REJECTION REASON
-  rejectionReason: { $in: [null, ''] }  // Only posts without rejection reason
-};
-
-const postsFromAdminPostCollection = await AdminPost.find(adminPostQuery)
-  .sort({ createdAt: -1 })
-  .populate('authorId', 'name email')
-  .populate('postId', 'title status')
-  .lean();
     console.log(`Found ${postsFromAdminPostCollection.length} posts from AdminPost collection`);
     
-    // Transform AdminPost collection results
-    postsFromAdminPostCollection.forEach(adminPost => {
-      // Skip if already processed as a Post
-      if (adminPost.postId) {
-        const alreadyExists = postsFromPostCollection.some(post => 
-          post._id.toString() === adminPost.postId._id.toString()
-        );
-        if (alreadyExists) return;
-      }
-      
-      const postData = {
-        _id: adminPost.postId?._id || adminPost._id,
-        title: adminPost.title,
-        shortTitle: adminPost.shortTitle,
-        body: adminPost.body,
-        category: adminPost.category,
-        tags: adminPost.tags,
-        region: adminPost.region,
-        author: adminPost.author,
-        authorId: adminPost.authorId,
-        publishDateTime: adminPost.publishDateTime,
-        isSponsored: adminPost.isSponsored,
-        metaTitle: adminPost.metaTitle,
-        metaDescription: adminPost.metaDescription,
-        imageUrl: adminPost.imageUrl,
-        status: 'pending_approval',
-        isScheduled: true,
-        scheduleApproved: false,
-        createdAt: adminPost.createdAt,
-        updatedAt: adminPost.updatedAt,
-        rejectionReason: adminPost.rejectionReason,
-        approvalStatus: adminPost.approvalStatus || 'scheduled_pending',
-        source: 'AdminPost',
-        approvalId: adminPost._id,
-        adminPostId: adminPost._id,
-        isFromAdminPost: true
-      };
-      
-      pendingPosts.push(postData);
-    });
+    // 5. Combine results
+    const allPendingPosts = [
+      ...postsFromPostCollection,
+      ...postsFromAdminPostCollection
+    ].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
     
-    // Sort all posts by creation date
-    pendingPosts.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+    console.log(`Total pending schedule approvals: ${allPendingPosts.length}`);
     
-    console.log(`Total pending schedule approvals: ${pendingPosts.length}`);
-    
-    // Log sample for debugging
-    if (pendingPosts.length > 0) {
-      console.log('\nSample pending posts:');
-      pendingPosts.slice(0, 3).forEach((post, index) => {
-        console.log(`${index + 1}. ID: ${post._id}`);
-        console.log(`   Title: ${post.title}`);
-        console.log(`   Source: ${post.source}`);
-        console.log(`   Approval Status: ${post.approvalStatus}`);
-        console.log(`   Schedule Approved: ${post.scheduleApproved}`);
-        console.log('---');
-      });
-    }
-    
+    // 6. Send response
     res.status(200).json({
       success: true,
-      count: pendingPosts.length,
-      data: pendingPosts,
-      debug: process.env.NODE_ENV === 'development' ? {
-        postCollectionCount: postsFromPostCollection.length,
-        adminPostCollectionCount: postsFromAdminPostCollection.length,
-        totalUnique: pendingPosts.length
-      } : undefined
+      count: allPendingPosts.length,
+      data: allPendingPosts,
+      message: `Found ${allPendingPosts.length} pending schedule approvals`,
+      timestamp: new Date().toISOString()
     });
     
+    console.log('=== GET PENDING SCHEDULE APPROVALS COMPLETED ===');
+    
   } catch (error) {
-    console.error('\n=== CRITICAL ERROR IN getPendingScheduleApprovals ===');
+    console.error('\n=== ERROR IN getPendingScheduleApprovals ===');
     console.error('Error:', error.message);
     console.error('Error Stack:', error.stack);
     
     res.status(500).json({
       success: false,
       message: 'Failed to fetch pending schedule approvals',
-      error: error.message,
-      errorType: error.name
+      error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error',
+      timestamp: new Date().toISOString()
+    });
+  }
+};
+
+// @desc    Get pending schedule approvals
+// @route   GET /api/posts/pending-schedule
+// @access  Private (Superadmin only)
+exports.getPendingScheduleApprovals = async (req, res) => {
+  console.log('\n=== GET PENDING SCHEDULE APPROVALS ===');
+  console.log('User:', req.user?.name, 'Role:', req.user?.role);
+  
+  try {
+    // 1. Check authentication
+    if (!req.user || !req.user._id) {
+      console.log('ERROR: No authenticated user found');
+      return res.status(401).json({
+        success: false,
+        message: 'Authentication required'
+      });
+    }
+    
+    // 2. Check authorization - Allow superadmin only
+    if (req.user.role !== 'superadmin') {
+      console.log('ERROR: Unauthorized access attempt by role:', req.user.role);
+      return res.status(403).json({
+        success: false,
+        message: 'Only superadmin can view pending schedule approvals'
+      });
+    }
+    
+    console.log('User authorized as superadmin');
+    
+    // 3. Get pending approvals from Post collection with custom handling for string categories
+    const postQuery = {
+      isScheduled: true,
+      scheduleApproved: false,
+      status: { $in: ['pending_approval', 'draft'] },
+      publishDateTime: { $ne: null },
+      rejectionReason: { $exists: false }
+    };
+    
+    console.log('Querying Post collection:', JSON.stringify(postQuery, null, 2));
+    
+    // First get posts without populate to avoid cast error
+    const postsFromPostCollection = await Post.find(postQuery)
+      .sort({ createdAt: -1 })
+      .populate('authorId', 'name email')
+      .lean()
+      .exec();
+    
+    console.log(`Found ${postsFromPostCollection.length} posts from Post collection`);
+    
+    // 4. Get pending approvals from AdminPost collection
+    const adminPostQuery = {
+  isScheduledPost: true,
+  scheduleApproved: false,
+  approvalStatus: { $in: ['scheduled_pending', 'pending_review'] },
+  $or: [
+    { postId: { $exists: false } },
+    { postId: null }
+  ],
+  // Exclude rejected posts but include pending ones
+  $or: [
+    // Option 1: approvalStatus is not 'rejected' AND rejectionReason is not set
+    {
+      approvalStatus: { $ne: 'rejected' },
+      $or: [
+        { rejectionReason: null },
+        { rejectionReason: { $exists: false } }
+      ]
+    },
+    // Option 2: approvalStatus doesn't exist (old records)
+    { approvalStatus: { $exists: false } }
+  ]
+};
+    
+    console.log('Querying AdminPost collection:', JSON.stringify(adminPostQuery, null, 2));
+    
+    const postsFromAdminPostCollection = await AdminPost.find(adminPostQuery)
+      .sort({ createdAt: -1 })
+      .lean()
+      .exec();
+    
+    console.log(`Found ${postsFromAdminPostCollection.length} posts from AdminPost collection`);
+    
+    // 5. Helper function to safely get category name
+    const getCategoryName = async (category) => {
+      if (!category) return 'Uncategorized';
+      
+      if (typeof category === 'object' && category.name) {
+        return category.name;
+      } else if (typeof category === 'string') {
+        // Check if it's a valid ObjectId
+        if (mongoose.Types.ObjectId.isValid(category)) {
+          try {
+            // Try to find the category by ID
+            const Category = require('../models/Category');
+            const cat = await Category.findById(category).lean();
+            return cat ? cat.name : `Category ID: ${category.substring(0, 8)}...`;
+          } catch (error) {
+            console.error('Error fetching category:', error.message);
+            return `Category ID: ${category.substring(0, 8)}...`;
+          }
+        } else {
+          // Treat as category name string (like "Indian")
+          return category;
+        }
+      }
+      
+      return 'Uncategorized';
+    };
+    
+    // Helper function to get author info
+    const getAuthorInfo = async (authorId) => {
+      if (!authorId) return { name: 'Unknown', email: '' };
+      
+      try {
+        const Admin = require('../models/Admin');
+        const admin = await Admin.findById(authorId).select('name email').lean();
+        return admin || { name: 'Unknown', email: '' };
+      } catch (error) {
+        console.error('Error fetching author:', error.message);
+        return { name: 'Unknown', email: '' };
+      }
+    };
+    
+    // 6. Process Post collection results
+    const formattedPosts = [];
+    
+    for (const post of postsFromPostCollection) {
+      const categoryName = await getCategoryName(post.category);
+      const authorInfo = await getAuthorInfo(post.authorId);
+      
+      const formattedPost = {
+        _id: post._id,
+        title: post.title,
+        shortTitle: post.shortTitle || post.title.substring(0, 100),
+        body: post.body,
+        category: post.category,
+        categoryName,
+        tags: post.tags || [],
+        region: post.region || 'India',
+        author: post.author || authorInfo.name,
+        authorId: {
+          _id: post.authorId,
+          name: authorInfo.name,
+          email: authorInfo.email
+        },
+        publishDateTime: post.publishDateTime,
+        isSponsored: post.isSponsored || false,
+        metaTitle: post.metaTitle,
+        metaDescription: post.metaDescription,
+        imageUrl: post.imageUrl,
+        status: post.status,
+        isScheduled: post.isScheduled,
+        scheduleApproved: post.scheduleApproved,
+        rejectionReason: post.rejectionReason,
+        createdAt: post.createdAt,
+        updatedAt: post.updatedAt,
+        source: 'Post',
+        type: 'scheduled_pending'
+      };
+      
+      formattedPosts.push(formattedPost);
+    }
+    
+    // 7. Process AdminPost collection results
+    for (const adminPost of postsFromAdminPostCollection) {
+      const categoryName = await getCategoryName(adminPost.category);
+      const authorInfo = await getAuthorInfo(adminPost.authorId);
+      
+      const formattedPost = {
+        _id: adminPost._id,
+        title: adminPost.title,
+        shortTitle: adminPost.shortTitle || adminPost.title.substring(0, 100),
+        body: adminPost.body,
+        category: adminPost.category,
+        categoryName,
+        tags: adminPost.tags || [],
+        region: adminPost.region || 'India',
+        author: adminPost.author || authorInfo.name,
+        authorId: {
+          _id: adminPost.authorId,
+          name: authorInfo.name,
+          email: authorInfo.email
+        },
+        publishDateTime: adminPost.publishDateTime,
+        isSponsored: adminPost.isSponsored || false,
+        metaTitle: adminPost.metaTitle,
+        metaDescription: adminPost.metaDescription,
+        imageUrl: adminPost.imageUrl,
+        status: 'pending_approval',
+        isScheduled: adminPost.isScheduledPost,
+        scheduleApproved: adminPost.scheduleApproved,
+        rejectionReason: adminPost.rejectionReason,
+        approvalStatus: adminPost.approvalStatus,
+        createdAt: adminPost.createdAt,
+        updatedAt: adminPost.updatedAt,
+        source: 'AdminPost',
+        type: 'scheduled_pending',
+        adminPostId: adminPost._id
+      };
+      
+      formattedPosts.push(formattedPost);
+    }
+    
+    // 8. Sort by creation date (newest first)
+    formattedPosts.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+    
+    console.log(`Total pending schedule approvals: ${formattedPosts.length}`);
+    
+    // 9. Send response
+    res.status(200).json({
+      success: true,
+      count: formattedPosts.length,
+      data: formattedPosts,
+      message: `Found ${formattedPosts.length} pending schedule approvals`,
+      timestamp: new Date().toISOString()
+    });
+    
+    console.log('=== GET PENDING SCHEDULE APPROVALS COMPLETED ===');
+    
+  } catch (error) {
+    console.error('\n=== ERROR IN getPendingScheduleApprovals ===');
+    console.error('Error:', error.message);
+    console.error('Error Stack:', error.stack);
+    
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch pending schedule approvals',
+      error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error',
+      timestamp: new Date().toISOString()
     });
   }
 };

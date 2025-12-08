@@ -12,7 +12,8 @@ const ActivitySchema = new mongoose.Schema({
       'publish',
       'unpublish',
       'archive',
-      'upload', // ADDED: For bulk upload operations
+      'upload',
+      'approval', // ADDED: For bulk upload operations
       
       // Approval system
       'approval_request',
@@ -34,6 +35,7 @@ const ActivitySchema = new mongoose.Schema({
       'schedule_rejected',
       'schedule_cancelled',
       'schedule_updated',
+            'schedule_approval',
       
       // Draft related
       'draft_created',

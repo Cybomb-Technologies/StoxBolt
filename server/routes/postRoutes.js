@@ -21,47 +21,58 @@ const { protect, authorize } = require('../middleware/auth');
 const { checkCRUDAccess } = require('../middleware/curdAccess');
 const ensureCRUDAccess = require('../middleware/crudCheck');
 
-// Public routes - no authentication required
-router.get('/', getPosts); // Allow public access to get posts
-router.get('/:id', getPost); // Allow public access to get single post
+// ========== PUBLIC ROUTES ==========
+// GET /api/posts - Public access to get posts
+router.get('/', getPosts);
 
-// Protected routes
-router.use(protect); // Apply protection to all routes below
+// GET /api/posts/:id - Public access to get single post
+router.get('/:id', getPost);
+
+// ========== PROTECTED ROUTES ==========
+// All routes below require authentication
+router.use(protect);
+
+// ========== GET ROUTES FOR AUTHENTICATED USERS ==========
+// IMPORTANT: Define specific routes BEFORE parameterized routes
+router.get('/scheduled', getScheduledPosts);
+router.get('/pending-schedule', authorize('superadmin'), getPendingScheduleApprovals);
+
+// ========== MIDDLEWARE FOR MODIFICATION ROUTES ==========
+// Apply CRUD access check for all modification routes
 router.use(checkCRUDAccess);
 router.use(ensureCRUDAccess);
 
-// Get pending schedule approvals (superadmin only)
-router.get('/pending-schedule', authorize('superadmin'), getPendingScheduleApprovals);
-
-// Get scheduled posts
-router.get('/scheduled', getScheduledPosts);
-
-// Create new post (now accessible to admin with CRUD access)
+// ========== CREATE ROUTES ==========
+// POST /api/posts - Create new post
 router.post('/', createPost);
 
-// Create draft (admin and superadmin)
+// POST /api/posts/draft - Create draft
 router.post('/draft', authorize('admin', 'superadmin'), createDraft);
 
-// Update post (now accessible to admin with CRUD access)
+// ========== UPDATE ROUTES ==========
+// PUT /api/posts/:id - Update post
 router.put('/:id', updatePost);
 
-// Delete post (now accessible to admin with CRUD access)
-router.delete('/:id', deletePost);
-
-// Publish post (now accessible to admin with CRUD access)
+// PUT /api/posts/:id/publish - Publish post
 router.put('/:id/publish', publishPost);
 
-// Submit draft for approval (admin only - for those without CRUD access)
+// PUT /api/posts/:id/submit-for-approval - Submit for approval
 router.put('/:id/submit-for-approval', authorize('admin'), submitForApproval);
 
-// Request update for published post (admin only - for those without CRUD access)
+// PUT /api/posts/:id/request-update - Request update
 router.put('/:id/request-update', authorize('admin'), requestUpdate);
 
-// Schedule approval routes (superadmin only)
+// PUT /api/posts/:id/approve-schedule - Approve schedule
 router.put('/:id/approve-schedule', authorize('superadmin'), approveSchedule);
+
+// PUT /api/posts/:id/reject-schedule - Reject schedule
 router.put('/:id/reject-schedule', authorize('superadmin'), rejectSchedule);
 
-// Cancel scheduled post
+// PUT /api/posts/:id/cancel-schedule - Cancel schedule
 router.put('/:id/cancel-schedule', cancelSchedule);
+
+// ========== DELETE ROUTES ==========
+// DELETE /api/posts/:id - Delete post
+router.delete('/:id', deletePost);
 
 module.exports = router;

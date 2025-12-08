@@ -31,6 +31,7 @@ const AboutPage = React.lazy(() => import("@/pages/AboutPage"));
 const FloatingIndices = React.lazy(() =>
   import("@/components/FloatingIndices")
 );
+const Profile = React.lazy(() => import("@/pages/profile"));
 
 // Admin Components
 const PostList = React.lazy(() => import("@/components/admin/PostList"));
@@ -227,6 +228,15 @@ function App() {
                 </MainLayout>
               }
             />
+            <Route
+              path="/profile"
+              element={
+                <MainLayout>
+                  <Profile />
+                </MainLayout>
+              }
+            />
+          
 
             {/* Admin Routes - All nested under AdminDashboard layout */}
             <Route
