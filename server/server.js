@@ -42,7 +42,7 @@ const authRoutes = require('./routes/authRoutes');
 const postRoutes = require('./routes/postRoutes');
 const schedulerRoutes = require('./routes/schedulerRoutes');
 const activityRoutes = require('./routes/activityRoutes');
-const userRoutes = require('./routes/userRoutes');
+const adminRoutes = require('./routes/adminRoutes');
 const uploadRoutes = require('./routes/uploadRoutes');
 const bulkUploadRoutes = require('./routes/bulkUploadRoutes');
 const approvalRoutes = require('./routes/approvalRoutes');
@@ -53,16 +53,17 @@ const userAuthRoutes = require('./routes/User-routes/User-routes');
 
 
 // Routes
-app.use('/api/auth', authRoutes);
-app.use('/api/posts', postRoutes);
+app.use('/api/auth', authRoutes); //Auth Routes(Admin)
+app.use('/api/posts', postRoutes); 
 app.use('/api/scheduler', schedulerRoutes);
 app.use('/api/activities', activityRoutes);
-app.use('/api/users', userRoutes);
+app.use('/api/users', adminRoutes); //Admin User Routes
 app.use('/api/upload', uploadRoutes);
 app.use('/api/bulk-upload', bulkUploadRoutes);
 app.use('/api/approval', approvalRoutes);
 app.use('/api/categories', categoryRoutes);
-app.use('/api/user-auth', userAuthRoutes);
+
+app.use('/api/user-auth', userAuthRoutes); //User Routes
 
 // Enhanced health check
 app.get('/health', (req, res) => {

@@ -93,7 +93,7 @@ const ChangePasswordForm = ({ email, onSuccess }) => {
 
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`${API_URL}/api/user-auth/change-password`, {
+      const response = await fetch(`${API_URL}/api/user-auth/forgot-password/reset`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
