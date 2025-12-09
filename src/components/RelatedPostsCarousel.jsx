@@ -74,7 +74,7 @@ const RelatedPostsCarousel = ({ category, currentPostId }) => {
       params.append('status', 'published');
       params.append('sort', '-createdAt');
 
-      const response = await axios.get(`${baseURL}/api/posts?${params.toString()}`);
+      const response = await axios.get(`${baseURL}/api/public-posts?${params.toString()}`);
       
       if (response.data.success) {
         const postsData = response.data.data || [];

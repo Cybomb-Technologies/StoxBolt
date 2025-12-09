@@ -197,7 +197,7 @@ const PostScheduler = () => {
       const adminToken = localStorage.getItem('adminToken');
       console.log('Publishing post now:', postId);
       
-      const response = await fetch(`${baseURL}/api/posts/${postId}/publish`, {
+      const response = await fetch(`${baseURL}/api/posts/admin/${postId}/publish`, {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${adminToken}`,
