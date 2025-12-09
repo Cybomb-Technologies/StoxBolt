@@ -325,9 +325,9 @@ const PostDetailPage = () => {
             </div>
           </motion.div>
 
-          <div className="mt-8">
+          {/* <div className="mt-8">
             <IndexSnapshot />
-          </div>
+          </div> */}
 
           {post.categoryId && (
             <div className="mt-8">
