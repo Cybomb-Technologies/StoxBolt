@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Bookmark, ExternalLink, Trash2, Calendar, Eye, Clock, User, Tag, AlertCircle } from 'lucide-react';
+import { Bookmark, ExternalLink, Trash2, Calendar, Eye, Clock, User, Tag, AlertCircle, ChevronRight, Sparkles } from 'lucide-react';
 import axios from 'axios';
+import { motion, AnimatePresence } from 'framer-motion';
 
 const baseURL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
@@ -83,9 +84,10 @@ const SavedPosts = () => {
         headers: { Authorization: `Bearer ${token}` }
       });
 
-      // Update local state
+      // Update local state with animation
       setPosts(prevPosts => prevPosts.filter(post => post._id !== postId));
       
+      // Show success message
       alert('Post removed from saved items');
     } catch (error) {
       console.error('Error removing saved post:', error);
@@ -127,33 +129,65 @@ const SavedPosts = () => {
     navigate(`/post/${slug}`, "_blank");
   };
 
+  const containerVariants = {
+    hidden: { opacity: 0 },
+    visible: {
+      opacity: 1,
+      transition: {
+        staggerChildren: 0.1,
+        delayChildren: 0.2
+      }
+    }
+  };
+
+  const itemVariants = {
+    hidden: { y: 20, opacity: 0 },
+    visible: {
+      y: 0,
+      opacity: 1,
+      transition: {
+        type: "spring",
+        stiffness: 100,
+        damping: 12
+      }
+    },
+    exit: {
+      y: -20,
+      opacity: 0,
+      transition: {
+        duration: 0.2,
+        ease: "easeIn"
+      }
+    }
+  };
+
   const LoadingSkeleton = () => (
     <div className="space-y-6">
-      <div className="flex justify-between items-center mb-6">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
         <div>
-          <div className="h-8 w-48 mb-2 bg-gray-200 rounded animate-pulse" />
-          <div className="h-4 w-64 bg-gray-200 rounded animate-pulse" />
+          <div className="h-8 w-48 mb-2 bg-gradient-to-r from-gray-200 to-gray-300 rounded animate-pulse" />
+          <div className="h-4 w-64 bg-gradient-to-r from-gray-200 to-gray-300 rounded animate-pulse" />
         </div>
-        <div className="h-10 w-24 bg-gray-200 rounded animate-pulse" />
+        <div className="h-10 w-24 bg-gradient-to-r from-gray-200 to-gray-300 rounded animate-pulse" />
       </div>
       {[1, 2, 3].map((i) => (
-        <div key={i} className="border rounded-lg overflow-hidden bg-white shadow-sm">
+        <div key={i} className="border rounded-lg overflow-hidden bg-white shadow-sm animate-pulse">
           <div className="p-0">
             <div className="flex flex-col md:flex-row">
-              <div className="h-48 md:h-auto md:w-1/3 lg:w-1/4 bg-gray-200 animate-pulse" />
-              <div className="flex-1 p-6">
-                <div className="h-6 w-full mb-4 bg-gray-200 rounded animate-pulse" />
-                <div className="h-4 w-3/4 mb-3 bg-gray-200 rounded animate-pulse" />
-                <div className="flex items-center gap-4 mb-3">
-                  <div className="h-4 w-20 bg-gray-200 rounded animate-pulse" />
-                  <div className="h-4 w-24 bg-gray-200 rounded animate-pulse" />
-                  <div className="h-4 w-16 bg-gray-200 rounded animate-pulse" />
+              <div className="h-48 md:h-auto md:w-1/3 lg:w-1/4 bg-gradient-to-r from-gray-200 to-gray-300" />
+              <div className="flex-1 p-4 sm:p-6">
+                <div className="h-6 w-full mb-4 bg-gradient-to-r from-gray-200 to-gray-300 rounded" />
+                <div className="h-4 w-3/4 mb-3 bg-gradient-to-r from-gray-200 to-gray-300 rounded" />
+                <div className="flex flex-wrap items-center gap-3 mb-3">
+                  <div className="h-4 w-20 bg-gradient-to-r from-gray-200 to-gray-300 rounded" />
+                  <div className="h-4 w-24 bg-gradient-to-r from-gray-200 to-gray-300 rounded" />
+                  <div className="h-4 w-16 bg-gradient-to-r from-gray-200 to-gray-300 rounded" />
                 </div>
-                <div className="h-4 w-full mb-4 bg-gray-200 rounded animate-pulse" />
-                <div className="h-4 w-2/3 mb-4 bg-gray-200 rounded animate-pulse" />
-                <div className="flex justify-between">
-                  <div className="h-6 w-32 bg-gray-200 rounded animate-pulse" />
-                  <div className="h-6 w-20 bg-gray-200 rounded animate-pulse" />
+                <div className="h-4 w-full mb-4 bg-gradient-to-r from-gray-200 to-gray-300 rounded" />
+                <div className="h-4 w-2/3 mb-4 bg-gradient-to-r from-gray-200 to-gray-300 rounded" />
+                <div className="flex flex-wrap justify-between gap-3">
+                  <div className="h-6 w-32 bg-gradient-to-r from-gray-200 to-gray-300 rounded" />
+                  <div className="h-6 w-20 bg-gradient-to-r from-gray-200 to-gray-300 rounded" />
                 </div>
               </div>
             </div>
@@ -169,56 +203,80 @@ const SavedPosts = () => {
 
   if (error) {
     return (
-      <div className="text-center py-12">
-        <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-red-50 mb-4">
-          <AlertCircle className="h-8 w-8 text-red-500" />
+      <motion.div 
+        className="text-center py-8 sm:py-12 md:py-16"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 0.3 }}
+      >
+        <div className="inline-flex items-center justify-center w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-gradient-to-r from-red-50 to-pink-50 mb-4 sm:mb-6">
+          <AlertCircle className="h-8 w-8 sm:h-10 sm:w-10 text-red-500" />
         </div>
-        <h3 className="text-xl font-bold text-gray-900 mb-2">Error Loading Saved Posts</h3>
-        <p className="text-gray-600 mb-6 max-w-md mx-auto">{error}</p>
-        <button
+        <h3 className="text-xl sm:text-2xl md:text-3xl font-bold text-gray-900 mb-2 sm:mb-3">Error Loading Saved Posts</h3>
+        <p className="text-gray-600 mb-6 sm:mb-8 max-w-md mx-auto text-sm sm:text-base md:text-lg">{error}</p>
+        <motion.button
           onClick={fetchSavedPosts}
-          className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+          className="px-6 py-3 border border-gray-300 rounded-lg hover:bg-gray-50 transition-all duration-300 transform hover:-translate-y-0.5"
+          whileHover={{ scale: 1.05 }}
+          whileTap={{ scale: 0.95 }}
         >
           Try Again
-        </button>
-      </div>
+        </motion.button>
+      </motion.div>
     );
   }
 
   if (posts.length === 0) {
     return (
-      <div className="text-center py-12">
-        <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-gradient-to-br from-yellow-50 to-orange-50 mb-4">
-          <Bookmark className="h-8 w-8 text-orange-500" />
+      <motion.div 
+        className="text-center py-8 sm:py-12 md:py-16"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 0.3 }}
+      >
+        <div className="inline-flex items-center justify-center w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-gradient-to-br from-yellow-50 to-orange-50 mb-4 sm:mb-6">
+          <Bookmark className="h-8 w-8 sm:h-10 sm:w-10 text-orange-500" />
         </div>
-        <h3 className="text-xl font-bold text-gray-900 mb-2">No Saved Posts Yet</h3>
-        <p className="text-gray-600 mb-6 max-w-md mx-auto">
+        <h3 className="text-xl sm:text-2xl md:text-3xl font-bold text-gray-900 mb-2 sm:mb-3">No Saved Posts Yet</h3>
+        <p className="text-gray-600 mb-6 sm:mb-8 max-w-md mx-auto text-sm sm:text-base md:text-lg">
           Save posts you want to read later by clicking the bookmark icon on any article
         </p>
-        <Link
-          to="/"
-          className="inline-flex items-center px-6 py-3 bg-gradient-to-r from-orange-500 to-red-600 text-white rounded-lg hover:opacity-90 transition-opacity"
+        <motion.div
+          whileHover={{ scale: 1.05 }}
+          whileTap={{ scale: 0.95 }}
         >
-          <Eye className="mr-2 h-4 w-4" />
-          Browse Articles
-        </Link>
-      </div>
+          <Link
+            to="/"
+            className="inline-flex items-center px-6 py-3 bg-gradient-to-r from-orange-500 to-red-600 text-white rounded-lg hover:opacity-90 transition-all duration-300 shadow-lg hover:shadow-xl"
+          >
+            <Eye className="mr-2 h-4 w-4 sm:h-5 sm:w-5" />
+            Browse Articles
+            <ChevronRight className="ml-2 h-4 w-4 sm:h-5 sm:w-5" />
+          </Link>
+        </motion.div>
+      </motion.div>
     );
   }
 
   return (
-    <div>
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
+    <motion.div
+      variants={containerVariants}
+      initial="hidden"
+      animate="visible"
+    >
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6 sm:mb-8">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Saved Posts</h1>
-          <p className="text-gray-600 mt-1">
+          <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-gray-900 mb-1">Saved Posts</h1>
+          <p className="text-gray-600 text-sm sm:text-base md:text-lg">
             {posts.length} {posts.length === 1 ? 'post' : 'posts'} saved for later
           </p>
         </div>
-        <button
+        <motion.button
           onClick={handleRemoveAll}
           disabled={removingAll}
-          className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 disabled:opacity-50 w-full sm:w-auto"
+          className="px-4 sm:px-6 py-2.5 sm:py-3 bg-gradient-to-r from-red-500 to-pink-600 text-white rounded-lg hover:from-red-600 hover:to-pink-700 disabled:opacity-50 w-full sm:w-auto transition-all duration-300 transform hover:-translate-y-0.5 shadow-md hover:shadow-lg"
+          whileHover={{ scale: 1.05 }}
+          whileTap={{ scale: 0.95 }}
         >
           {removingAll ? (
             <>
@@ -231,129 +289,158 @@ const SavedPosts = () => {
               Clear All
             </>
           )}
-        </button>
+        </motion.button>
       </div>
 
-      <div className="grid gap-6">
-        {posts.map((post) => (
-          <div 
-            key={post._id} 
-            className="border rounded-lg bg-white group hover:shadow-lg transition-shadow cursor-pointer overflow-hidden"
-            onClick={() => handlePostClick(post.slug)}
-          >
-            <div className="p-0">
-              <div className="flex flex-col md:flex-row">
-                {/* Post Image */}
-                {post.image && (
-                  <div className="md:w-1/3 lg:w-1/4">
-                    <div className="relative h-48 md:h-full overflow-hidden">
-                      <img
-                        src={post.image}
-                        alt={post.title}
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                        onError={(e) => {
-                          e.target.src = 'https://via.placeholder.com/400x300?text=No+Image';
-                        }}
-                      />
-                      {post.isSponsored && (
-                        <span className="absolute top-3 left-3 bg-gradient-to-r from-yellow-400 via-orange-500 to-red-600 text-white text-xs font-bold px-3 py-1 rounded-full">
-                          Sponsored
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                )}
-
-                {/* Post Content */}
-                <div className={`flex-1 p-6 ${post.image ? 'md:w-2/3 lg:w-3/4' : ''}`}>
-                  <div className="flex justify-between items-start">
-                    <div className="flex-1 mr-4">
-                      <h3 className="text-xl font-bold text-gray-900 group-hover:text-orange-600 transition-colors line-clamp-2 mb-2">
-                        {post.title}
-                      </h3>
-                      
-                      <div className="flex items-center gap-4 text-sm text-gray-500 mb-3 flex-wrap">
-                        <div className="flex items-center">
-                          <User className="h-3 w-3 mr-1" />
-                          <span>{post.author}</span>
-                        </div>
-                        <div className="flex items-center">
-                          <Calendar className="h-3 w-3 mr-1" />
-                          <span>{formatDate(post.createdAt)}</span>
-                        </div>
-                        <div className="flex items-center">
-                          <Clock className="h-3 w-3 mr-1" />
-                          <span>{formatReadTime(post.readTime)}</span>
-                        </div>
+      <AnimatePresence>
+        <div className="grid gap-4 sm:gap-5 md:gap-6">
+          {posts.map((post, index) => (
+            <motion.div 
+              key={post._id}
+              variants={itemVariants}
+              initial="hidden"
+              animate="visible"
+              exit="exit"
+              layout
+              className="border rounded-xl bg-white group hover:shadow-xl transition-all duration-300 cursor-pointer overflow-hidden transform hover:-translate-y-1"
+              onClick={() => handlePostClick(post.slug)}
+            >
+              <div className="p-0">
+                <div className="flex flex-col md:flex-row">
+                  {/* Post Image */}
+                  {post.image && (
+                    <div className="md:w-1/3 lg:w-1/4">
+                      <div className="relative h-48 md:h-full overflow-hidden">
+                        <motion.img
+                          src={post.image}
+                          alt={post.title}
+                          className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                          onError={(e) => {
+                            e.target.src = 'https://via.placeholder.com/400x300?text=No+Image';
+                          }}
+                          whileHover={{ scale: 1.1 }}
+                          transition={{ duration: 0.3 }}
+                        />
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                        {post.isSponsored && (
+                          <span className="absolute top-3 left-3 bg-gradient-to-r from-yellow-400 via-orange-500 to-red-600 text-white text-xs font-bold px-3 py-1 rounded-full shadow-lg">
+                            Sponsored
+                          </span>
+                        )}
                       </div>
+                    </div>
+                  )}
 
-                      {post.summary && (
-                        <p className="text-gray-600 line-clamp-2 mb-4">
-                          {post.summary}
-                        </p>
-                      )}
-
-                      <div className="flex flex-wrap items-center justify-between gap-3">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          {post.category && (
-                            <span className="px-3 py-1 bg-orange-100 text-orange-700 text-xs font-medium rounded-full">
-                              {post.category}
-                            </span>
-                          )}
-                          {post.tags && post.tags.slice(0, 2).map((tag, index) => (
-                            <span
-                              key={index}
-                              className="flex items-center px-3 py-1 bg-gray-100 text-gray-700 text-xs rounded-full"
-                            >
-                              <Tag className="h-3 w-3 mr-1" />
-                              {typeof tag === 'string' ? tag : JSON.stringify(tag)}
-                            </span>
-                          ))}
+                  {/* Post Content */}
+                  <div className={`flex-1 p-4 sm:p-5 md:p-6 ${post.image ? 'md:w-2/3 lg:w-3/4' : ''}`}>
+                    <div className="flex justify-between items-start">
+                      <div className="flex-1 mr-4">
+                        <h3 className="text-lg sm:text-xl md:text-2xl font-bold text-gray-900 group-hover:text-orange-600 transition-colors duration-300 line-clamp-2 mb-2">
+                          {post.title}
+                        </h3>
+                        
+                        <div className="flex flex-wrap items-center gap-3 sm:gap-4 text-sm text-gray-500 mb-3">
+                          <div className="flex items-center">
+                            <User className="h-3 w-3 sm:h-4 sm:w-4 mr-1" />
+                            <span className="text-xs sm:text-sm">{post.author}</span>
+                          </div>
+                          <div className="flex items-center">
+                            <Calendar className="h-3 w-3 sm:h-4 sm:w-4 mr-1" />
+                            <span className="text-xs sm:text-sm">{formatDate(post.createdAt)}</span>
+                          </div>
+                          <div className="flex items-center">
+                            <Clock className="h-3 w-3 sm:h-4 sm:w-4 mr-1" />
+                            <span className="text-xs sm:text-sm">{formatReadTime(post.readTime)}</span>
+                          </div>
                         </div>
 
-                        <div className="flex items-center gap-2">
-                          <button
-                            className="px-3 py-1 text-gray-500 hover:text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 text-sm"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handlePostClick(post.slug);
-                            }}
-                          >
-                            <ExternalLink className="inline h-4 w-4 mr-1" />
-                            Read
-                          </button>
-                          <button
-                            onClick={(e) => handleRemoveSaved(post._id, e)}
-                            disabled={deletingId === post._id}
-                            className="px-3 py-1 text-red-500 hover:text-red-700 hover:bg-red-50 border border-red-200 rounded-lg disabled:opacity-50 text-sm"
-                          >
-                            {deletingId === post._id ? (
-                              <div className="h-4 w-4 border-2 border-red-500 border-t-transparent rounded-full animate-spin inline-block"></div>
-                            ) : (
-                              <>
-                                <Trash2 className="inline h-4 w-4 mr-1" />
-                                Remove
-                              </>
+                        {post.summary && (
+                          <p className="text-gray-600 line-clamp-2 mb-4 text-sm sm:text-base md:text-lg">
+                            {post.summary}
+                          </p>
+                        )}
+
+                        <div className="flex flex-wrap items-center justify-between gap-3">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            {post.category && (
+                              <span className="px-3 py-1 bg-gradient-to-r from-orange-100 to-red-100 text-orange-700 text-xs font-medium rounded-full">
+                                {post.category}
+                              </span>
                             )}
-                          </button>
+                            {post.tags && post.tags.slice(0, 2).map((tag, index) => (
+                              <span
+                                key={index}
+                                className="flex items-center px-3 py-1 bg-gradient-to-r from-gray-100 to-gray-200 text-gray-700 text-xs rounded-full"
+                              >
+                                <Tag className="h-3 w-3 mr-1" />
+                                {typeof tag === 'string' ? tag : JSON.stringify(tag)}
+                              </span>
+                            ))}
+                          </div>
+
+                          <div className="flex items-center gap-2">
+                            <motion.button
+                              className="px-3 sm:px-4 py-1.5 sm:py-2 text-gray-600 hover:text-white bg-gray-50 hover:bg-gradient-to-r hover:from-orange-500 hover:to-red-600 border border-gray-300 hover:border-transparent rounded-lg transition-all duration-300 text-xs sm:text-sm"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handlePostClick(post.slug);
+                              }}
+                              whileHover={{ scale: 1.05 }}
+                              whileTap={{ scale: 0.95 }}
+                            >
+                              <ExternalLink className="inline h-3 w-3 sm:h-4 sm:w-4 mr-1" />
+                              Read
+                            </motion.button>
+                            <motion.button
+                              onClick={(e) => handleRemoveSaved(post._id, e)}
+                              disabled={deletingId === post._id}
+                              className="px-3 sm:px-4 py-1.5 sm:py-2 text-red-500 hover:text-white hover:bg-gradient-to-r hover:from-red-500 hover:to-pink-600 border border-red-200 hover:border-transparent rounded-lg disabled:opacity-50 transition-all duration-300 text-xs sm:text-sm"
+                              whileHover={{ scale: 1.05 }}
+                              whileTap={{ scale: 0.95 }}
+                            >
+                              {deletingId === post._id ? (
+                                <div className="h-3 w-3 sm:h-4 sm:w-4 border-2 border-red-500 border-t-transparent rounded-full animate-spin inline-block"></div>
+                              ) : (
+                                <>
+                                  <Trash2 className="inline h-3 w-3 sm:h-4 sm:w-4 mr-1" />
+                                  Remove
+                                </>
+                              )}
+                            </motion.button>
+                          </div>
                         </div>
                       </div>
                     </div>
                   </div>
                 </div>
               </div>
-            </div>
-          </div>
-        ))}
-      </div>
-
-      <div className="mt-8 pt-6 border-t border-gray-200">
-        <div className="flex items-center justify-center text-gray-500">
-          <Bookmark className="mr-2 h-4 w-4" />
-          <span>You have {posts.length} saved {posts.length === 1 ? 'post' : 'posts'}</span>
+            </motion.div>
+          ))}
         </div>
-      </div>
-    </div>
+      </AnimatePresence>
+
+      <motion.div 
+        className="mt-6 sm:mt-8 pt-4 sm:pt-6 border-t border-gray-200"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ delay: 0.5 }}
+      >
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
+          <div className="flex items-center text-gray-500 text-sm sm:text-base">
+            <Bookmark className="mr-2 h-4 w-4 text-orange-500" />
+            <span>You have {posts.length} saved {posts.length === 1 ? 'post' : 'posts'}</span>
+          </div>
+          <motion.button
+            onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+            className="px-4 py-2 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors duration-300"
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+          >
+            Back to top ↑
+          </motion.button>
+        </div>
+      </motion.div>
+    </motion.div>
   );
 };
 
