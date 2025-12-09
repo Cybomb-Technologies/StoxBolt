@@ -28,9 +28,7 @@ const TermsPage = React.lazy(() => import("@/pages/TermsPage"));
 const PrivacyPage = React.lazy(() => import("@/pages/PrivacyPage"));
 const RefundPolicyPage = React.lazy(() => import("@/pages/RefundPolicyPage"));
 const AboutPage = React.lazy(() => import("@/pages/AboutPage"));
-const FloatingIndices = React.lazy(() =>
-  import("@/components/FloatingIndices")
-);
+// const FloatingIndices = React.lazy(() =>import("@/components/FloatingIndices"));
 const Profile = React.lazy(() => import("@/pages/profile"));
 
 // Admin Components
@@ -87,7 +85,7 @@ const MainLayout = ({ children }) => {
       <ToastContainer />
       <React.Suspense fallback={<LoadingFallback />}>
         <Header />
-        <FloatingIndices />
+        {/* <FloatingIndices /> */}
         <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50">
           <main className="flex-grow">{children}</main>
         </div>
