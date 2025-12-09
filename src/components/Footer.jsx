@@ -1,10 +1,58 @@
-
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Zap, Facebook, Twitter, Linkedin, Instagram, Youtube, Mail, MapPin, Phone } from 'lucide-react';
+import axios from 'axios';
+
+const baseURL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
 const Footer = () => {
   const currentYear = new Date().getFullYear();
+  const [categories, setCategories] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  /* ✅ FETCH CATEGORIES FROM BACKEND - Same as Header */
+  useEffect(() => {
+    const fetchCategories = async () => {
+      try {
+        setLoading(true);
+        const response = await axios.get(`${baseURL}/api/categories`);
+        
+        if (response.data.success) {
+          const categoriesData = response.data.data;
+          
+          // Transform backend data to match frontend structure
+          const formattedCategories = categoriesData.map(category => ({
+            id: category._id,
+            name: category.name,
+            slug: category.slug || category.name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, ''),
+            path: `/category/${category.slug || category.name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '')}`
+          }));
+          
+          // Take only first 3 categories for the footer
+          setCategories(formattedCategories.slice(0, 3));
+        } else {
+          // If API fails, use fallback categories (first 3)
+          setFallbackCategories();
+        }
+      } catch (error) {
+        console.error('Failed to fetch categories for footer:', error);
+        // Fallback to default categories if API fails
+        setFallbackCategories();
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    const setFallbackCategories = () => {
+      setCategories([
+        { id: '1', name: 'Indian Markets', path: '/category/indian', slug: 'indian' },
+        { id: '2', name: 'US Markets', path: '/category/us', slug: 'us' },
+        { id: '3', name: 'Crypto News', path: '/category/crypto', slug: 'crypto' }
+      ]);
+    };
+
+    fetchCategories();
+  }, []);
 
   return (
     <footer className="bg-gray-900 text-gray-300 border-t border-gray-800">
@@ -39,26 +87,35 @@ const Footer = () => {
             </div>
           </div>
 
-          {/* Quick Links */}
+          {/* Quick Links - Now with dynamic categories */}
           <div>
             <h3 className="text-white font-bold text-lg mb-4">Quick Links</h3>
-            <ul className="space-y-2 text-sm">
-              <li>
-                <Link to="/" className="hover:text-orange-500 transition-colors duration-200">Home</Link>
-              </li>
-              <li>
-                <Link to="/category/indian" className="hover:text-orange-500 transition-colors duration-200">Indian Markets</Link>
-              </li>
-              <li>
-                <Link to="/category/us" className="hover:text-orange-500 transition-colors duration-200">US Markets</Link>
-              </li>
-              <li>
-                <Link to="/category/crypto" className="hover:text-orange-500 transition-colors duration-200">Crypto News</Link>
-              </li>
-              <li>
-                <Link to="/about" className="hover:text-orange-500 transition-colors duration-200">About Us</Link>
-              </li>
-            </ul>
+            {loading ? (
+              <ul className="space-y-2 text-sm">
+                {Array.from({ length: 5 }).map((_, index) => (
+                  <li key={index}>
+                    <div className="h-4 bg-gray-800 rounded animate-pulse w-3/4"></div>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <ul className="space-y-2 text-sm">
+                <li>
+                  <Link to="/" className="hover:text-orange-500 transition-colors duration-200">Home</Link>
+                </li>
+                {/* Dynamic categories from backend */}
+                {categories.map((category) => (
+                  <li key={category.id}>
+                    <Link to={category.path} className="hover:text-orange-500 transition-colors duration-200">
+                      {category.name}
+                    </Link>
+                  </li>
+                ))}
+                <li>
+                  <Link to="/about" className="hover:text-orange-500 transition-colors duration-200">About Us</Link>
+                </li>
+              </ul>
+            )}
           </div>
 
           {/* Legal */}

@@ -14,62 +14,88 @@ const PostCard = ({ post, index }) => {
   const { toast } = useToast();
 
   useEffect(() => {
-    if (post?.id) {
+    if (post?.id || post?._id) {
       checkBookmarkStatus();
     }
-  }, [post?.id]);
+  }, [post?.id, post?._id]);
 
   const checkBookmarkStatus = async () => {
     try {
       const token = localStorage.getItem('token');
-      if (token && post?.id) {
-        const response = await axios.get(`${baseURL}/api/bookmarks/${post.id}`, {
-          headers: {
-            Authorization: `Bearer ${token}`
+      const postId = post?.id || post?._id;
+      
+      if (token && postId) {
+        const response = await axios.get(
+          `${baseURL}/api/user-auth/bookmarks/${postId}/status`, 
+          {
+            headers: {
+              Authorization: `Bearer ${token}`
+            }
           }
-        });
-        setIsBookmarked(response.data.isBookmarked);
+        );
+        
+        // Handle different response formats
+        if (response.data.success !== undefined) {
+          setIsBookmarked(response.data.data?.isBookmarked || response.data.isBookmarked || false);
+        } else {
+          setIsBookmarked(response.data?.isBookmarked || false);
+        }
       }
     } catch (error) {
       console.error('Error checking bookmark status:', error);
+      // Don't show error toast for failed bookmark status check
     }
   };
 
   const handleShare = async (e) => {
     e.preventDefault();
+    e.stopPropagation();
+    
     try {
       if (navigator.share) {
         await navigator.share({
           title: post?.title || '',
           text: post?.summary || (post?.body ? post.body.substring(0, 100) : ''),
-          url: `${window.location.origin}/post/${post?.id || ''}`
+          url: `${window.location.origin}/post/${post?.id || post?._id || ''}`
         });
       } else {
-        await navigator.clipboard.writeText(`${window.location.origin}/post/${post?.id || ''}`);
+        await navigator.clipboard.writeText(`${window.location.origin}/post/${post?.id || post?._id || ''}`);
         toast({
           title: 'Link Copied!',
           description: 'Post link copied to clipboard'
         });
       }
       
-      if (post?.id) {
-        await axios.post(`${baseURL}/api/posts/${post.id}/share`, {}, {
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem('token')}`
-          }
-        });
+      const postId = post?.id || post?._id;
+      if (postId) {
+        try {
+          await axios.post(`${baseURL}/api/posts/${postId}/share`, {}, {
+            headers: {
+              Authorization: `Bearer ${localStorage.getItem('token')}`
+            }
+          });
+        } catch (shareError) {
+          console.log('Share tracking failed (not critical):', shareError);
+        }
       }
     } catch (error) {
-      console.error('Error sharing post:', error);
+      // Ignore "AbortError" from user cancelling share
+      if (error.name !== 'AbortError') {
+        console.error('Error sharing post:', error);
+      }
     }
   };
 
   const handleBookmark = async (e) => {
     e.preventDefault();
+    e.stopPropagation();
+    
     setBookmarkLoading(true);
     
     try {
       const token = localStorage.getItem('token');
+      const postId = post?.id || post?._id;
+      
       if (!token) {
         toast({
           title: 'Login Required',
@@ -79,7 +105,7 @@ const PostCard = ({ post, index }) => {
         return;
       }
 
-      if (!post?.id) {
+      if (!postId) {
         toast({
           title: 'Error',
           description: 'Invalid post data',
@@ -89,25 +115,30 @@ const PostCard = ({ post, index }) => {
       }
 
       if (isBookmarked) {
-        await axios.delete(`${baseURL}/api/bookmarks/${post.id}`, {
+        // Remove bookmark
+        await axios.delete(`${baseURL}/api/user-auth/bookmarks/${postId}`, {
           headers: {
             Authorization: `Bearer ${token}`
           }
         });
+        
         setIsBookmarked(false);
         toast({
           title: 'Removed from bookmarks',
           description: 'Post removed from your saved items'
         });
       } else {
-        await axios.post(`${baseURL}/api/bookmarks`, 
-          { postId: post.id },
+        // Add bookmark using POST to toggle endpoint
+        await axios.post(
+          `${baseURL}/api/user-auth/posts/${postId}/bookmark`, 
+          {}, // Empty body
           {
             headers: {
               Authorization: `Bearer ${token}`
             }
           }
         );
+        
         setIsBookmarked(true);
         toast({
           title: 'Added to bookmarks',
@@ -116,9 +147,14 @@ const PostCard = ({ post, index }) => {
       }
     } catch (error) {
       console.error('Error updating bookmark:', error);
+      
+      const errorMessage = error.response?.data?.message || 
+                         error.message || 
+                         'Failed to update bookmark';
+      
       toast({
         title: 'Error',
-        description: 'Failed to update bookmark',
+        description: errorMessage,
         variant: 'destructive'
       });
     } finally {
@@ -175,12 +211,12 @@ const PostCard = ({ post, index }) => {
 
   const postId = post.id || post._id;
   const postTitle = post.title || 'Untitled Post';
-  const postBody = post.body || '';
-  const postSummary = post.summary || '';
-  const postImage = getImageUrl(post); // Use the helper function
-  const postCategory = post.category || '';
+  const postBody = post.body || post.content || '';
+  const postSummary = post.summary || post.excerpt || '';
+  const postImage = getImageUrl(post);
+  const postCategory = post.category?.name || post.category || '';
   const isSponsored = post.isSponsored || false;
-  const publishedAt = post.publishedAt || post.createdAt;
+  const publishedAt = post.publishedAt || post.createdAt || post.updatedAt;
 
   return (
     <motion.div
@@ -199,9 +235,15 @@ const PostCard = ({ post, index }) => {
                 className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
                 onError={(e) => {
                   e.target.style.display = 'none';
+                  e.target.parentElement.classList.add('bg-gray-100');
                 }}
+                loading="lazy"
               />
-            ) : null}
+            ) : (
+              <div className="w-full h-full bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center">
+                <span className="text-gray-400 text-sm">No image</span>
+              </div>
+            )}
             
             {isSponsored && (
               <div className="absolute top-3 left-3 bg-yellow-500 text-white px-3 py-1 rounded-full text-xs font-bold flex items-center space-x-1">
@@ -225,8 +267,9 @@ const PostCard = ({ post, index }) => {
               
               <p className="text-gray-600 text-sm mb-4 line-clamp-3 h-16 overflow-hidden">
                 {postSummary || 
-                 (postBody ? postBody.substring(0, 150) : '') || 
+                 (postBody ? postBody.replace(/<[^>]*>/g, '').substring(0, 150) : '') || 
                  'No description available'}
+                {!postSummary && postBody && postBody.replace(/<[^>]*>/g, '').length > 150 && '...'}
               </p>
             </div>
 
@@ -241,8 +284,9 @@ const PostCard = ({ post, index }) => {
                   variant="ghost"
                   size="icon"
                   onClick={handleShare}
-                  className="hover:bg-orange-50 hover:text-orange-600"
+                  className="hover:bg-orange-50 hover:text-orange-600 rounded-full"
                   disabled={!postId}
+                  title="Share post"
                 >
                   <Share2 className="h-4 w-4" />
                 </Button>
@@ -251,9 +295,10 @@ const PostCard = ({ post, index }) => {
                   size="icon"
                   onClick={handleBookmark}
                   disabled={bookmarkLoading || !postId}
-                  className={`hover:bg-orange-50 ${isBookmarked ? 'text-orange-600' : 'hover:text-orange-600'}`}
+                  className={`hover:bg-orange-50 rounded-full ${isBookmarked ? 'text-orange-600' : 'hover:text-orange-600'}`}
+                  title={isBookmarked ? "Remove bookmark" : "Bookmark post"}
                 >
-                  <Bookmark className={`h-4 w-4 ${isBookmarked ? 'fill-current' : ''}`} />
+                  <Bookmark className={`h-4 w-4 transition-all ${isBookmarked ? 'fill-current' : ''}`} />
                 </Button>
               </div>
             </div>
