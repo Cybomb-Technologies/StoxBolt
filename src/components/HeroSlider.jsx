@@ -28,7 +28,7 @@ const HeroSlider = () => {
 
   const fetchFeaturedPosts = async () => {
     try {
-      const response = await axios.get(`${baseURL}/api/posts?limit=5&status=published&sort=-createdAt`);
+      const response = await axios.get(`${baseURL}/api/public-posts?limit=5&status=published&sort=-createdAt`);
       if (response.data.success) {
         const posts = response.data.data.map(post => ({
           id: post._id,

@@ -175,7 +175,7 @@ const CategoryPage = () => {
       // Try multiple API endpoint formats
       try {
         // Format 1: Filter by category ID
-        response = await axios.get(`${baseURL}/api/posts`, {
+        response = await axios.get(`${baseURL}/api/public-posts`, {
           params: {
             page: pageNum,
             limit: 12,
@@ -236,7 +236,7 @@ const CategoryPage = () => {
       // Fallback: Try to fetch all posts and filter client-side
       if (pageNum === 1) {
         try {
-          const allPostsResponse = await axios.get(`${baseURL}/api/posts`, {
+          const allPostsResponse = await axios.get(`${baseURL}/api/public-posts`, {
             params: {
               status: 'published',
               sort: '-createdAt'

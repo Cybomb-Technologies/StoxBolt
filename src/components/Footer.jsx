@@ -60,14 +60,33 @@ const Footer = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 mb-8">
           {/* Company Info */}
           <div>
-            <Link to="/" className="flex items-center space-x-2 group mb-4">
-              <div className="w-8 h-8 bg-gradient-to-br from-yellow-400 via-orange-500 to-red-600 rounded-lg flex items-center justify-center transform group-hover:scale-105 transition-transform duration-200 shadow-lg">
-                <Zap className="text-white h-5 w-5 fill-current" />
-              </div>
-              <span className="text-xl font-extrabold text-white tracking-tight">
-                Stox<span className="text-orange-500">Bolt</span>
-              </span>
-            </Link>
+            {/* LOGO - Using image with fallback */}
+          <Link to="/" className="flex items-center space-x-2 min-w-[150px]">
+            <div className="flex items-center mb-2 h-10">
+              <img 
+                src="/images/logo.png" 
+                alt="StoxBolt Logo"
+                className="h-10 w-auto rounded object-contain"
+                onError={(e) => {
+                  // Fallback if logo image doesn't exist
+                  e.target.style.display = 'none';
+                  const fallbackDiv = document.createElement('div');
+                  fallbackDiv.className = 'flex items-center space-x-2';
+                  fallbackDiv.innerHTML = `
+                    <div class="w-10 h-10 bg-gradient-to-br from-yellow-400 via-orange-500 to-red-600 rounded-lg flex items-center justify-center">
+                      <svg class="text-white h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+                      </svg>
+                    </div>
+                    <span class="text-2xl font-extrabold">
+                      Stox<span class="text-orange-600">Bolt</span>
+                    </span>
+                  `;
+                  e.target.parentNode.replaceChild(fallbackDiv, e.target.parentNode.firstChild);
+                }}
+              />
+            </div>
+          </Link>
             <p className="text-sm text-gray-400 mb-6 leading-relaxed">
               Your trusted source for real-time financial news, market analysis, and investment insights. Empowering investors with speed and accuracy.
             </p>

@@ -72,7 +72,7 @@ const PostDetailPage = () => {
   const fetchPost = async () => {
     setLoading(true);
     try {
-      const response = await axios.get(`${baseURL}/api/posts/${id}`);
+      const response = await axios.get(`${baseURL}/api/public-posts/${id}`);
       
       if (response.data.success) {
         const safePostData = getSafePostData(response.data.data);

@@ -47,7 +47,7 @@ const uploadRoutes = require('./routes/uploadRoutes');
 const bulkUploadRoutes = require('./routes/bulkUploadRoutes');
 const approvalRoutes = require('./routes/approvalRoutes');
 const categoryRoutes = require('./routes/categoryRoutes');
-
+const publicPostRoutes = require('./routes/publicPostRoutes');
 // Try different paths for userAuthRoutes
 const userAuthRoutes = require('./routes/User-routes/User-routes');
 
@@ -64,7 +64,7 @@ app.use('/api/approval', approvalRoutes);
 app.use('/api/categories', categoryRoutes);
 
 app.use('/api/user-auth', userAuthRoutes); //User Routes
-
+app.use('/api/public-posts', publicPostRoutes); 
 // Enhanced health check
 app.get('/health', (req, res) => {
   const dbStatus = mongoose.connection.readyState;

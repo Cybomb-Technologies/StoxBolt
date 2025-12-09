@@ -69,7 +69,7 @@ const PostCard = ({ post, index }) => {
       const postId = post?.id || post?._id;
       if (postId) {
         try {
-          await axios.post(`${baseURL}/api/posts/${postId}/share`, {}, {
+          await axios.post(`${baseURL}/api/public-posts/${postId}/share`, {}, {
             headers: {
               Authorization: `Bearer ${localStorage.getItem('token')}`
             }
@@ -176,22 +176,9 @@ const PostCard = ({ post, index }) => {
     return `${Math.floor(diffInHours / 24)}d ago`;
   };
 
-  const getCategoryColor = (category) => {
-    if (!category) return 'bg-gray-500';
-    
-    const colors = {
-      'Indian': 'bg-orange-500',
-      'US': 'bg-blue-500',
-      'Global': 'bg-purple-500',
-      'Commodities': 'bg-yellow-500',
-      'Forex': 'bg-green-500',
-      'Crypto': 'bg-indigo-500',
-      'IPOs': 'bg-pink-500',
-      'Technology': 'bg-teal-500',
-      'Business': 'bg-red-500',
-      'Politics': 'bg-gray-600'
-    };
-    return colors[category] || 'bg-gray-500';
+  // Updated to always return orange color
+  const getCategoryColor = () => {
+    return 'bg-orange-500';
   };
 
   const getImageUrl = (postData) => {
@@ -214,9 +201,20 @@ const PostCard = ({ post, index }) => {
   const postBody = post.body || post.content || '';
   const postSummary = post.summary || post.excerpt || '';
   const postImage = getImageUrl(post);
-  const postCategory = post.category?.name || post.category || '';
   const isSponsored = post.isSponsored || false;
   const publishedAt = post.publishedAt || post.createdAt || post.updatedAt;
+  
+  // Extract category name - simplified
+  let postCategory = '';
+  if (post.category) {
+    if (typeof post.category === 'string') {
+      postCategory = post.category;
+    } else if (post.category.name) {
+      postCategory = post.category.name;
+    } else if (post.category.title) {
+      postCategory = post.category.title;
+    }
+  }
 
   return (
     <motion.div
@@ -253,7 +251,7 @@ const PostCard = ({ post, index }) => {
             )}
             
             {postCategory && (
-              <div className={`absolute top-3 right-3 ${getCategoryColor(postCategory)} text-white px-3 py-1 rounded-full text-xs font-semibold`}>
+              <div className={`absolute top-3 right-3 ${getCategoryColor()} text-white px-3 py-1 rounded-full text-xs font-semibold`}>
                 {postCategory}
               </div>
             )}
@@ -273,7 +271,7 @@ const PostCard = ({ post, index }) => {
               </p>
             </div>
 
-            <div className="flex items-center justify-between pt-4 border-t border-gray-100 mt-auto flex-shrink-0">
+            <div className="flex items-center justify-between pt-2 border-t border-gray-100 mt-auto flex-shrink-0">
               <div className="flex items-center space-x-2 text-sm text-gray-500">
                 <Clock className="h-4 w-4" />
                 <span>{getTimeAgo(publishedAt)}</span>

@@ -102,7 +102,7 @@ const HomePage = () => {
   const fetchPosts = async (pageNum = 1) => {
     setLoading(true);
     try {
-      const response = await axios.get(`${baseURL}/api/posts`, {
+      const response = await axios.get(`${baseURL}/api/public-posts`, {
         params: {
           page: pageNum,
           limit: 12,
