@@ -14,12 +14,14 @@ const {
   rejectSchedule,
   cancelSchedule,
   getPendingScheduleApprovals,
-  requestUpdate
+  requestUpdate,
+  getPost
 } = require('../controllers/postController');
 const { protect, authorize } = require('../middleware/auth');
 const { checkCRUDAccess } = require('../middleware/curdAccess');
 const ensureCRUDAccess = require('../middleware/crudCheck');
 router.get('/', getPosts);
+
 // All routes require authentication
 router.use(protect);
 
@@ -46,5 +48,5 @@ router.put('/:id/cancel-schedule', cancelSchedule);
 
 // ========== DELETE ROUTES ==========
 router.delete('/:id', deletePost);
-
+router.get('/:id', getPost);
 module.exports = router;
