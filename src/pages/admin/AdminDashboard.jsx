@@ -209,6 +209,13 @@ const AdminDashboard = () => {
         description: user?.role === 'admin' ? 'Create post (needs approval)' : 'Create new post'
       },
       {
+        title: 'Categories',
+        path: '/admin/categories',
+        icon: <PlusCircle className="h-5 w-5" />,
+        roles: ['admin', 'superadmin'],
+        description: 'Manage categories'
+      },
+      {
         title: 'My Submissions',
         path: '/admin/my-approvals',
         icon: <Send className="h-5 w-5" />,

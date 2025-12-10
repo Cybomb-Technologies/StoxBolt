@@ -17,6 +17,11 @@ const CategorySchema = new mongoose.Schema({
     type: Boolean,
     default: true
   },
+  createdBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Admin',  // Changed from 'User' to 'Admin'
+    required: true
+  },
   createdAt: {
     type: Date,
     default: Date.now

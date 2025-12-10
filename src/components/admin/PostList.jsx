@@ -34,48 +34,34 @@ const PostList = () => {
   const { toast } = useToast();
   const { user, hasCRUDAccess } = useAuth();
 
-  // Fetch categories from backend
-  const fetchCategories = async () => {
-    try {
-      const adminadminToken = localStorage.getItem('adminadminToken');
-      
-      if (!adminadminToken) {
-        console.warn('No adminadminToken found for fetching categories');
-        return;
-      }
+ const fetchCategories = async () => {
+  try {
+    const adminToken = localStorage.getItem('adminToken');
+    
+    if (!adminToken) {
+      console.warn('No adminToken found for fetching categories');
+      return;
+    }
 
-      const response = await fetch(`${baseURL}/api/categories`, {
-        headers: {
-          'Authorization': `Bearer ${adminadminToken}`
-        }
-      });
-
-      const data = await response.json();
-      
-      if (response.ok && data.success) {
-        // Transform the categories data for the dropdown
-        const formattedCategories = data.data.map(category => ({
-          id: category._id,
-          name: category.name,
-          slug: category.slug
-        }));
-        setCategories(formattedCategories);
-      } else {
-        console.error('Failed to fetch categories:', data.message);
-        // Fallback to default categories if API fails
-        setCategories([
-          { id: 'indian', name: 'Indian' },
-          { id: 'us', name: 'US' },
-          { id: 'global', name: 'Global' },
-          { id: 'commodities', name: 'Commodities' },
-          { id: 'forex', name: 'Forex' },
-          { id: 'crypto', name: 'Crypto' },
-          { id: 'ipos', name: 'IPOs' }
-        ]);
+    const response = await fetch(`${baseURL}/api/categories/dropdown`, {
+      headers: {
+        'Authorization': `Bearer ${adminToken}`
       }
-    } catch (error) {
-      console.error('Error fetching categories:', error);
-      // Fallback to default categories on error
+    });
+
+    const data = await response.json();
+    
+    if (response.ok && data.success) {
+      // Transform the categories data for the dropdown
+      const formattedCategories = data.data.map(category => ({
+        id: category._id,
+        name: category.name,
+        slug: category.name.toLowerCase().replace(/\s+/g, '-')
+      }));
+      setCategories(formattedCategories);
+    } else {
+      console.error('Failed to fetch categories:', data.message);
+      // Fallback to default categories if API fails
       setCategories([
         { id: 'indian', name: 'Indian' },
         { id: 'us', name: 'US' },
@@ -85,10 +71,23 @@ const PostList = () => {
         { id: 'crypto', name: 'Crypto' },
         { id: 'ipos', name: 'IPOs' }
       ]);
-    } finally {
-      setCategoriesLoading(false);
     }
-  };
+  } catch (error) {
+    console.error('Error fetching categories:', error);
+    // Fallback to default categories on error
+    setCategories([
+      { id: 'indian', name: 'Indian' },
+      { id: 'us', name: 'US' },
+      { id: 'global', name: 'Global' },
+      { id: 'commodities', name: 'Commodities' },
+      { id: 'forex', name: 'Forex' },
+      { id: 'crypto', name: 'Crypto' },
+      { id: 'ipos', name: 'IPOs' }
+    ]);
+  } finally {
+    setCategoriesLoading(false);
+  }
+};
 
   useEffect(() => {
     fetchCategories();

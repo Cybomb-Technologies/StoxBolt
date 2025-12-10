@@ -33,6 +33,7 @@ const Profile = React.lazy(() => import("@/pages/profile"));
 
 // Admin Components
 const PostList = React.lazy(() => import("@/components/admin/PostList"));
+const CategoryList = React.lazy(() => import("@/components/admin/CategoryList"));
 const PostEditor = React.lazy(() =>
   import("@/components/superadmin/PostEditor")
 );
@@ -279,6 +280,14 @@ function App() {
                 element={
                   <React.Suspense fallback={<LoadingFallback />}>
                     <PostList />
+                  </React.Suspense>
+                }
+              />
+              <Route
+                path="/admin/categories"
+                element={
+                  <React.Suspense fallback={<LoadingFallback />}>
+                    <CategoryList/>
                   </React.Suspense>
                 }
               />
