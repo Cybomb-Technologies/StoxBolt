@@ -283,158 +283,166 @@ const PostEditor = () => {
     }
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setLoading(true);
+const handleSubmit = async (e) => {
+  e.preventDefault();
+  setLoading(true);
 
-    try {
-      // Validate category
-      if (!formData.category) {
-        throw new Error('Please select a category');
+  try {
+    // Validate category
+    if (!formData.category) {
+      throw new Error('Please select a category');
+    }
+
+    let imageUrl = existingImageUrl;
+    
+    // Upload new image if exists
+    if (imageFile) {
+      const uploadedUrl = await uploadImage();
+      if (uploadedUrl) {
+        imageUrl = uploadedUrl;
+      } else if (!imageUrl && isEditMode) {
+        imageUrl = existingImageUrl;
       }
+    }
 
-      let imageUrl = existingImageUrl;
+    // Prepare post data
+    const postData = {
+      title: formData.title,
+      shortTitle: formData.shortTitle,
+      body: formData.body,
+      category: formData.category,
+      region: formData.region,
+      author: formData.author || user?.name || 'Admin',
+      isSponsored: formData.isSponsored,
+      metaTitle: formData.metaTitle,
+      metaDescription: formData.metaDescription,
+      imageUrl: imageUrl,
+    };
+
+    // If it's an update request
+    if (isUpdateRequest && originalPost) {
+      return await handleUpdateRequest(postData);
+    }
+
+    // Convert DATE to UTC
+    const publishDate = formData.publishDateTime ? new Date(formData.publishDateTime) : null;
+    const now = new Date();
+    
+    if (publishDate && publishDate > now) {
+      // Scheduled post
       
-      // Upload new image if exists
-      if (imageFile) {
-        const uploadedUrl = await uploadImage();
-        if (uploadedUrl) {
-          imageUrl = uploadedUrl;
-        } else if (!imageUrl && isEditMode) {
-          imageUrl = existingImageUrl;
-        }
+      // FIX #1 (UTC)
+      if (formData.publishDateTime) {
+        const utcDate = new Date(formData.publishDateTime).toISOString();
+        postData.publishDateTime = utcDate;
       }
 
-      // Prepare post data
-      const postData = {
-        title: formData.title,
-        shortTitle: formData.shortTitle,
-        body: formData.body,
-        category: formData.category,
-        region: formData.region,
-        author: formData.author || user?.name || 'Admin',
-        isSponsored: formData.isSponsored,
-        metaTitle: formData.metaTitle,
-        metaDescription: formData.metaDescription,
-        imageUrl: imageUrl,
-      };
-
-      // If it's an update request, we need to use the approval system
-      if (isUpdateRequest && originalPost) {
-        return await handleUpdateRequest(postData);
-      }
-
-      // Determine status based on user role and CRUD access
-      const publishDate = formData.publishDateTime ? new Date(formData.publishDateTime) : null;
-      const now = new Date();
+      postData.isScheduled = true;
       
-      if (publishDate && publishDate > now) {
-        // Scheduled post
-        postData.publishDateTime = formData.publishDateTime;
-        postData.isScheduled = true;
-        
-        if (user.role === 'superadmin') {
-          // Superadmin can schedule directly
+      if (user.role === 'superadmin') {
+        postData.scheduleApproved = true;
+        postData.status = 'scheduled';
+      } else if (user.role === 'admin') {
+        if (user.hasCRUDAccess) {
           postData.scheduleApproved = true;
           postData.status = 'scheduled';
-        } else if (user.role === 'admin') {
-          if (user.hasCRUDAccess) {
-            // Admin with CRUD access can schedule directly
-            postData.scheduleApproved = true;
-            postData.status = 'scheduled';
-          } else {
-            // Admin without CRUD access needs approval
-            postData.scheduleApproved = false;
-            postData.status = 'pending_approval';
-          }
-        }
-      } else {
-        // Regular post (not scheduled)
-        if (user.role === 'superadmin' || (user.role === 'admin' && user.hasCRUDAccess)) {
-          // Can publish directly
-          postData.status = 'published';
-          if (formData.publishDateTime) {
-            postData.publishDateTime = formData.publishDateTime;
-          }
         } else {
-          // Needs approval
+          postData.scheduleApproved = false;
           postData.status = 'pending_approval';
-          if (formData.publishDateTime) {
-            postData.publishDateTime = formData.publishDateTime;
-          }
         }
       }
+    } else {
+      // Instant publish
 
-      // Handle tags
-      if (formData.tags.trim()) {
-        postData.tags = formData.tags
-          .split(',')
-          .map((tag) => tag.trim())
-          .filter(Boolean);
-      }
+      if (user.role === 'superadmin' || (user.role === 'admin' && user.hasCRUDAccess)) {
+        postData.status = 'published';
 
-      const adminToken = localStorage.getItem('adminToken');
-      let url = `${baseURL}/api/posts`;
-      let method = 'POST';
-      
-      if (isEditMode && !isUpdateRequest) {
-        url = `${baseURL}/api/posts/${id}`;
-        method = 'PUT';
-      }
+        // FIX #2 (UTC)
+        if (formData.publishDateTime) {
+          const utcDate = new Date(formData.publishDateTime).toISOString();
+          postData.publishDateTime = utcDate;
+        }
 
-      const response = await fetch(url, {
-        method,
-        headers: {
-          Authorization: `Bearer ${adminToken}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(postData),
-      });
-
-      const responseData = await response.json();
-      
-      if (!response.ok) {
-        throw new Error(responseData.message || `Failed to ${isEditMode ? 'update' : 'create'} post`);
-      }
-
-      const isScheduled = postData.isScheduled || false;
-      const needsApproval = (isScheduled && user?.role === 'admin' && !user.hasCRUDAccess) || 
-                           (!isScheduled && user?.role === 'admin' && !user.hasCRUDAccess);
-      
-      toast({
-        title: isEditMode ? 'Post Updated!' : 'Post Created!',
-        description: needsApproval 
-          ? 'Post submitted for superadmin approval'
-          : isScheduled
-            ? `Post scheduled for ${new Date(postData.publishDateTime).toLocaleString()}`
-            : 'Post published successfully',
-      });
-
-      if (isEditMode) {
-        // If editing, stay on the page
-        fetchPost(); // Refresh data
       } else {
-        // If creating new, navigate to appropriate page
-        setTimeout(() => {
-          if (needsApproval) {
-            navigate('/admin/my-approvals');
-          } else {
-            navigate('/admin/posts');
-          }
-        }, 1000);
-      }
+        postData.status = 'pending_approval';
 
-    } catch (error) {
-      console.error('Submit error:', error);
-      toast({
-        title: 'Error',
-        description: error.message || 'Failed to submit post',
-        variant: 'destructive',
-      });
-    } finally {
-      setLoading(false);
+        // FIX #3 (UTC)
+        if (formData.publishDateTime) {
+          const utcDate = new Date(formData.publishDateTime).toISOString();
+          postData.publishDateTime = utcDate;
+        }
+      }
     }
-  };
+
+    // Handle tags
+    if (formData.tags.trim()) {
+      postData.tags = formData.tags
+        .split(',')
+        .map((tag) => tag.trim())
+        .filter(Boolean);
+    }
+
+    const adminToken = localStorage.getItem('adminToken');
+    let url = `${baseURL}/api/posts`;
+    let method = 'POST';
+    
+    if (isEditMode && !isUpdateRequest) {
+      url = `${baseURL}/api/posts/${id}`;
+      method = 'PUT';
+    }
+
+    const response = await fetch(url, {
+      method,
+      headers: {
+        Authorization: `Bearer ${adminToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(postData),
+    });
+
+    const responseData = await response.json();
+    
+    if (!response.ok) {
+      throw new Error(responseData.message || `Failed to ${isEditMode ? 'update' : 'create'} post`);
+    }
+
+    const isScheduled = postData.isScheduled || false;
+    const needsApproval = (isScheduled && user?.role === 'admin' && !user.hasCRUDAccess) || 
+                         (!isScheduled && user?.role === 'admin' && !user.hasCRUDAccess);
+    
+    toast({
+      title: isEditMode ? 'Post Updated!' : 'Post Created!',
+      description: needsApproval 
+        ? 'Post submitted for superadmin approval'
+        : isScheduled
+          ? `Post scheduled for ${new Date(postData.publishDateTime).toLocaleString()}`
+          : 'Post published successfully',
+    });
+
+    if (isEditMode) {
+      fetchPost(); 
+    } else {
+      setTimeout(() => {
+        if (needsApproval) {
+          navigate('/admin/my-approvals');
+        } else {
+          navigate('/admin/posts');
+        }
+      }, 1000);
+    }
+
+  } catch (error) {
+    console.error('Submit error:', error);
+    toast({
+      title: 'Error',
+      description: error.message || 'Failed to submit post',
+      variant: 'destructive',
+    });
+  } finally {
+    setLoading(false);
+  }
+};
+
 
   const handleUpdateRequest = async (postData) => {
     try {
