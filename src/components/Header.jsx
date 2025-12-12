@@ -99,7 +99,9 @@ useEffect(() => {
     const fetchCategories = async () => {
       try {
         setLoading(true);
-        const response = await axios.get(`${baseURL}/api/categories`);
+        const response = await axios.get(`${baseURL}/api/categories`, {
+          params: { limit: 50 }
+        });
         
         if (response.data.success) {
           const categoriesData = response.data.data;

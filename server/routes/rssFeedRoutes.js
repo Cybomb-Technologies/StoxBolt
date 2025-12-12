@@ -172,6 +172,110 @@ router.get('/history', protect, authorize('admin', 'superadmin'), async (req, re
 // @route   DELETE /api/rss/clear-history
 // @desc    Clear RSS imported posts
 // @access  Superadmin only
+// @route   GET /api/rss/configs
+// @desc    Get all RSS feed configurations
+// @access  Admin
+router.get('/configs', protect, authorize('admin', 'superadmin'), async (req, res) => {
+  try {
+    const RSSFeedConfig = require('../models/RSSFeedConfig');
+    const configs = await RSSFeedConfig.find().sort({ createdAt: -1 });
+    res.json({ success: true, data: configs });
+  } catch (error) {
+    console.error('Error fetching RSS configs:', error);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+});
+
+// @route   POST /api/rss/configs
+// @desc    Create new RSS feed configuration
+// @access  Admin
+router.post('/configs', protect, authorize('admin', 'superadmin'), async (req, res) => {
+  try {
+    const { name, url, brandName, isActive } = req.body;
+    const RSSFeedConfig = require('../models/RSSFeedConfig');
+
+    const config = new RSSFeedConfig({
+      name,
+      url,
+      brandName,
+      isActive,
+      createdBy: req.user._id
+    });
+
+    await config.save();
+    res.json({ success: true, data: config });
+  } catch (error) {
+    console.error('Error creating RSS config:', error);
+    if (error.code === 11000) {
+      return res.status(400).json({ success: false, message: 'This RSS feed URL already exists' });
+    }
+    res.status(500).json({ success: false, message: error.message || 'Server error' });
+  }
+});
+
+// @route   PUT /api/rss/configs/:id
+// @desc    Update RSS feed configuration
+// @access  Admin
+router.put('/configs/:id', protect, authorize('admin', 'superadmin'), async (req, res) => {
+  try {
+    const { name, url, brandName, isActive } = req.body;
+    const RSSFeedConfig = require('../models/RSSFeedConfig');
+
+    const config = await RSSFeedConfig.findById(req.params.id);
+    if (!config) {
+      return res.status(404).json({ success: false, message: 'Config not found' });
+    }
+
+    if (name) config.name = name;
+    if (url) config.url = url;
+    if (brandName) config.brandName = brandName;
+    if (typeof isActive !== 'undefined') config.isActive = isActive;
+
+    await config.save();
+    res.json({ success: true, data: config });
+  } catch (error) {
+    console.error('Error updating RSS config:', error);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+});
+
+// @route   DELETE /api/rss/configs/:id
+// @desc    Delete RSS feed configuration
+// @access  Admin
+router.delete('/configs/:id', protect, authorize('admin', 'superadmin'), async (req, res) => {
+  try {
+    const RSSFeedConfig = require('../models/RSSFeedConfig');
+    await RSSFeedConfig.findByIdAndDelete(req.params.id);
+    res.json({ success: true, message: 'Config deleted' });
+  } catch (error) {
+    console.error('Error deleting RSS config:', error);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+});
+
+// @route   POST /api/rss/configs/:id/run
+// @desc    Manually run a specific feed fetch
+// @access  Admin
+router.post('/configs/:id/run', protect, authorize('admin', 'superadmin'), async (req, res) => {
+  try {
+    const RSSFeedConfig = require('../models/RSSFeedConfig');
+    const rssCronService = require('../services/rssCronService');
+    
+    const config = await RSSFeedConfig.findById(req.params.id);
+    if (!config) {
+      return res.status(404).json({ success: false, message: 'Config not found' });
+    }
+
+    // Run asynchronously without waiting
+    rssCronService.processSingleFeed(config);
+
+    res.json({ success: true, message: 'Feed fetch triggered in background' });
+  } catch (error) {
+    console.error('Error triggering feed run:', error);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+});
+
 router.delete('/clear-history', protect, authorize('superadmin'), async (req, res) => {
   try {
     // Check if user is superadmin

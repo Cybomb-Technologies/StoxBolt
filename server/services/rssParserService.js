@@ -275,7 +275,7 @@ class RSSParserService {
             guid: item.guid,
             category: categoryId,
             imageUrl: item.imageUrl,
-            author: 'RSS Feed',
+            author: options.authorName || 'RSS Feed',
             authorId: userId,
             source: item.source || 'rss_feed',
             status: options.saveAsDraft ? 'draft' : 'published',

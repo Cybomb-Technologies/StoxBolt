@@ -17,7 +17,12 @@ import {
   Tag,
   History,
   Trash2,
-  Info
+  Info,
+  Settings,
+  Play,
+  Pause,
+  Edit,
+  Plus
 } from 'lucide-react';
 import {
   AlertDialog,
@@ -33,10 +38,170 @@ import { useAuth } from '@/contexts/AuthContext';
 
 const baseURL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
+// Simple button component
+const Button = ({ children, onClick, disabled, className = '', variant = 'default', size = 'default', ...props }) => {
+  const baseClasses = 'inline-flex items-center justify-center font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50';
+  
+  const variantClasses = {
+    default: 'bg-gray-900 text-white hover:bg-gray-800',
+    outline: 'border border-gray-300 bg-white hover:bg-gray-100',
+    destructive: 'bg-red-600 text-white hover:bg-red-700',
+    ghost: 'hover:bg-gray-100',
+    orange: 'bg-orange-600 text-white hover:bg-orange-700'
+  };
+  
+  const sizeClasses = {
+    default: 'h-10 px-4 py-2 rounded-md',
+    sm: 'h-8 rounded-md px-3 text-xs',
+    lg: 'h-12 rounded-md px-8',
+    icon: 'h-10 w-10 rounded-md'
+  };
+  
+  const classes = `${baseClasses} ${variantClasses[variant] || variantClasses.default} ${sizeClasses[size] || sizeClasses.default} ${className}`;
+  
+  return (
+    <button className={classes} onClick={onClick} disabled={disabled} {...props}>
+      {children}
+    </button>
+  );
+};
+
+// Simple badge component
+const Badge = ({ children, variant = 'default', className = '' }) => {
+  const baseClasses = 'inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold';
+  
+  const variantClasses = {
+    default: 'bg-gray-100 text-gray-800',
+    secondary: 'bg-gray-100 text-gray-800',
+    outline: 'border border-gray-300 bg-white text-gray-800',
+    destructive: 'bg-red-100 text-red-800',
+    green: 'bg-green-100 text-green-800'
+  };
+  
+  const classes = `${baseClasses} ${variantClasses[variant] || variantClasses.default} ${className}`;
+  
+  return <span className={classes}>{children}</span>;
+};
+
+// Simple input component
+const Input = ({ type = 'text', value, onChange, placeholder, className = '', ...props }) => {
+  const classes = `flex h-10 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent disabled:cursor-not-allowed disabled:opacity-50 ${className}`;
+  
+  return (
+    <input
+      type={type}
+      value={value}
+      onChange={onChange}
+      placeholder={placeholder}
+      className={classes}
+      {...props}
+    />
+  );
+};
+
+// Simple switch component
+const Switch = ({ checked, onCheckedChange, id }) => {
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={checked}
+      id={id}
+      onClick={() => onCheckedChange(!checked)}
+      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+        checked ? 'bg-orange-600' : 'bg-gray-300'
+      }`}
+    >
+      <span
+        className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+          checked ? 'translate-x-6' : 'translate-x-1'
+        }`}
+      />
+    </button>
+  );
+};
+
+// Tabs components
+const Tabs = ({ value, onValueChange, children, className = '' }) => {
+  return (
+    <div className={className}>
+      {React.Children.map(children, (child) =>
+        React.cloneElement(child, { activeTab: value, setActiveTab: onValueChange })
+      )}
+    </div>
+  );
+};
+
+const TabsList = ({ children, className = '' }) => {
+  return (
+    <div className={`inline-flex h-10 items-center justify-center rounded-lg bg-gray-100 p-1 ${className}`}>
+      {children}
+    </div>
+  );
+};
+
+const TabsTrigger = ({ value, children, disabled = false, className = '', activeTab, setActiveTab }) => {
+  const isActive = activeTab === value;
+  
+  return (
+    <button
+      onClick={() => !disabled && setActiveTab(value)}
+      disabled={disabled}
+      className={`inline-flex items-center justify-center whitespace-nowrap rounded-md px-3 py-1.5 text-sm font-medium transition-all ${
+        isActive
+          ? 'bg-white text-gray-900 shadow-sm'
+          : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200'
+      } ${disabled ? 'opacity-50 cursor-not-allowed' : ''} ${className}`}
+    >
+      {children}
+    </button>
+  );
+};
+
+const TabsContent = ({ value, children, className = '', activeTab }) => {
+  if (activeTab !== value) return null;
+  
+  return <div className={`mt-2 ${className}`}>{children}</div>;
+  };
+
+// Card components
+const Card = ({ children, className = '' }) => {
+  return (
+    <div className={`rounded-lg border border-gray-200 bg-white shadow-sm ${className}`}>
+      {children}
+    </div>
+  );
+};
+
+const CardHeader = ({ children, className = '' }) => {
+  return <div className={`p-6 ${className}`}>{children}</div>;
+};
+
+const CardTitle = ({ children, className = '' }) => {
+  return <h3 className={`text-xl font-semibold leading-none tracking-tight ${className}`}>{children}</h3>;
+};
+
+const CardDescription = ({ children, className = '' }) => {
+  return <p className={`text-sm text-gray-500 ${className}`}>{children}</p>;
+};
+
+const CardContent = ({ children, className = '' }) => {
+  return <div className={`p-6 pt-0 ${className}`}>{children}</div>;
+};
+
+const CardFooter = ({ children, className = '' }) => {
+  return <div className={`flex items-center p-6 pt-0 ${className}`}>{children}</div>;
+};
+
+// Separator component
+const Separator = ({ className = '' }) => {
+  return <hr className={`border-t border-gray-200 ${className}`} />;
+};
+
 const RSSImport = () => {
   const { toast } = useToast();
   const { user } = useAuth();
-  const [activeTab, setActiveTab] = useState('import');
+  const [activeTab, setActiveTab] = useState('manage');
   
   // Import state
   const [rssUrl, setRssUrl] = useState('');
@@ -58,6 +223,17 @@ const RSSImport = () => {
   const [historyPage, setHistoryPage] = useState(1);
   const [totalHistoryPages, setTotalHistoryPages] = useState(1);
   
+  // Configs state
+  const [configs, setConfigs] = useState([]);
+  const [loadingConfigs, setLoadingConfigs] = useState(false);
+  const [newConfig, setNewConfig] = useState({
+    name: '',
+    url: '',
+    brandName: '',
+    isActive: true
+  });
+  const [addingConfig, setAddingConfig] = useState(false);
+
   // Clear history dialog
   const [clearDialogOpen, setClearDialogOpen] = useState(false);
   const [clearingHistory, setClearingHistory] = useState(false);
@@ -350,172 +526,147 @@ const RSSImport = () => {
     return text.substring(0, maxLength) + '...';
   };
 
-  // Initialize history on component mount
+  // Config management functions
+  const fetchConfigs = async () => {
+    setLoadingConfigs(true);
+    try {
+      const adminToken = localStorage.getItem('adminToken');
+      const response = await fetch(`${baseURL}/api/rss/configs`, {
+        headers: { 'Authorization': `Bearer ${adminToken}` }
+      });
+      const data = await response.json();
+      if (data.success) {
+        setConfigs(data.data);
+      }
+    } catch (error) {
+      console.error('Error fetching configs:', error);
+    } finally {
+      setLoadingConfigs(false);
+    }
+  };
+
+  const handleAddConfig = async (e) => {
+    e.preventDefault();
+    if (!newConfig.name || !newConfig.url || !newConfig.brandName) {
+      toast({
+        title: 'Missing Fields',
+        description: 'Please fill in all fields',
+        variant: 'destructive'
+      });
+      return;
+    }
+
+    setAddingConfig(true);
+    try {
+      const adminToken = localStorage.getItem('adminToken');
+      const response = await fetch(`${baseURL}/api/rss/configs`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${adminToken}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(newConfig)
+      });
+      
+      const data = await response.json();
+      
+      if (data.success) {
+        toast({
+          title: 'Success',
+          description: 'RSS Feed added successfully',
+          className: 'bg-green-100 text-green-800 border-green-200'
+        });
+        setNewConfig({ name: '', url: '', brandName: '', isActive: true });
+        fetchConfigs();
+      } else {
+        throw new Error(data.message);
+      }
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: error.message || 'Failed to add feed',
+        variant: 'destructive'
+      });
+    } finally {
+      setAddingConfig(false);
+    }
+  };
+
+  const handleDeleteConfig = async (id) => {
+    if (!confirm('Are you sure you want to delete this feed config?')) return;
+    
+    try {
+      const adminToken = localStorage.getItem('adminToken');
+      const response = await fetch(`${baseURL}/api/rss/configs/${id}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${adminToken}` }
+      });
+      
+      if (response.ok) {
+        toast({ title: 'Deleted', description: 'Feed configuration deleted' });
+        fetchConfigs();
+      }
+    } catch (error) {
+      console.error('Error deleting config:', error);
+    }
+  };
+
+  const handleToggleConfig = async (config) => {
+    try {
+      const adminToken = localStorage.getItem('adminToken');
+      const response = await fetch(`${baseURL}/api/rss/configs/${config._id}`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${adminToken}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ isActive: !config.isActive })
+      });
+      
+      if (response.ok) {
+        fetchConfigs();
+        toast({ 
+          title: !config.isActive ? 'Feed Activated' : 'Feed Deactivated',
+          description: !config.isActive ? 'Auto-fetching enabled' : 'Auto-fetching disabled'
+        });
+      }
+    } catch (error) {
+      console.error('Error toggling config:', error);
+    }
+  };
+
+  const handleRunConfig = async (id) => {
+    try {
+      const adminToken = localStorage.getItem('adminToken');
+      const response = await fetch(`${baseURL}/api/rss/configs/${id}/run`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${adminToken}` }
+      });
+      
+      if (response.ok) {
+        toast({ 
+          title: 'Fetch Triggered', 
+          description: 'Background fetch started. Check import history shortly.',
+          className: 'bg-blue-100 text-blue-800 border-blue-200'
+        });
+      }
+    } catch (error) {
+      console.error('Error running config:', error);
+    }
+  };
+
+  // Initialize history and configs on component mount
   React.useEffect(() => {
     if (activeTab === 'history') {
       fetchHistory();
+    } else if (activeTab === 'manage') {
+      fetchConfigs();
     }
   }, [activeTab]);
 
-  // Simple button component
-  const Button = ({ children, onClick, disabled, className = '', variant = 'default', size = 'default', ...props }) => {
-    const baseClasses = 'inline-flex items-center justify-center font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50';
-    
-    const variantClasses = {
-      default: 'bg-gray-900 text-white hover:bg-gray-800',
-      outline: 'border border-gray-300 bg-white hover:bg-gray-100',
-      destructive: 'bg-red-600 text-white hover:bg-red-700',
-      ghost: 'hover:bg-gray-100',
-      orange: 'bg-orange-600 text-white hover:bg-orange-700'
-    };
-    
-    const sizeClasses = {
-      default: 'h-10 px-4 py-2 rounded-md',
-      sm: 'h-8 rounded-md px-3 text-xs',
-      lg: 'h-12 rounded-md px-8',
-      icon: 'h-10 w-10 rounded-md'
-    };
-    
-    const classes = `${baseClasses} ${variantClasses[variant] || variantClasses.default} ${sizeClasses[size] || sizeClasses.default} ${className}`;
-    
-    return (
-      <button className={classes} onClick={onClick} disabled={disabled} {...props}>
-        {children}
-      </button>
-    );
-  };
 
-  // Simple badge component
-  const Badge = ({ children, variant = 'default', className = '' }) => {
-    const baseClasses = 'inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold';
-    
-    const variantClasses = {
-      default: 'bg-gray-100 text-gray-800',
-      secondary: 'bg-gray-100 text-gray-800',
-      outline: 'border border-gray-300 bg-white text-gray-800',
-      destructive: 'bg-red-100 text-red-800',
-      green: 'bg-green-100 text-green-800'
-    };
-    
-    const classes = `${baseClasses} ${variantClasses[variant] || variantClasses.default} ${className}`;
-    
-    return <span className={classes}>{children}</span>;
-  };
 
-  // Simple input component
-  const Input = ({ type = 'text', value, onChange, placeholder, className = '', ...props }) => {
-    const classes = `flex h-10 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent disabled:cursor-not-allowed disabled:opacity-50 ${className}`;
-    
-    return (
-      <input
-        type={type}
-        value={value}
-        onChange={onChange}
-        placeholder={placeholder}
-        className={classes}
-        {...props}
-      />
-    );
-  };
 
-  // Simple switch component
-  const Switch = ({ checked, onCheckedChange, id }) => {
-    return (
-      <button
-        type="button"
-        role="switch"
-        aria-checked={checked}
-        id={id}
-        onClick={() => onCheckedChange(!checked)}
-        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-          checked ? 'bg-orange-600' : 'bg-gray-300'
-        }`}
-      >
-        <span
-          className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-            checked ? 'translate-x-6' : 'translate-x-1'
-          }`}
-        />
-      </button>
-    );
-  };
-
-  // Tabs components
-  const Tabs = ({ value, onValueChange, children, className = '' }) => {
-    return (
-      <div className={className}>
-        {React.Children.map(children, (child) =>
-          React.cloneElement(child, { activeTab: value, setActiveTab: onValueChange })
-        )}
-      </div>
-    );
-  };
-
-  const TabsList = ({ children, className = '' }) => {
-    return (
-      <div className={`inline-flex h-10 items-center justify-center rounded-lg bg-gray-100 p-1 ${className}`}>
-        {children}
-      </div>
-    );
-  };
-
-  const TabsTrigger = ({ value, children, disabled = false, className = '', activeTab, setActiveTab }) => {
-    const isActive = activeTab === value;
-    
-    return (
-      <button
-        onClick={() => !disabled && setActiveTab(value)}
-        disabled={disabled}
-        className={`inline-flex items-center justify-center whitespace-nowrap rounded-md px-3 py-1.5 text-sm font-medium transition-all ${
-          isActive
-            ? 'bg-white text-gray-900 shadow-sm'
-            : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200'
-        } ${disabled ? 'opacity-50 cursor-not-allowed' : ''} ${className}`}
-      >
-        {children}
-      </button>
-    );
-  };
-
-  const TabsContent = ({ value, children, className = '', activeTab }) => {
-    if (activeTab !== value) return null;
-    
-    return <div className={`mt-2 ${className}`}>{children}</div>;
-  };
-
-  // Card components
-  const Card = ({ children, className = '' }) => {
-    return (
-      <div className={`rounded-lg border border-gray-200 bg-white shadow-sm ${className}`}>
-        {children}
-      </div>
-    );
-  };
-
-  const CardHeader = ({ children, className = '' }) => {
-    return <div className={`p-6 ${className}`}>{children}</div>;
-  };
-
-  const CardTitle = ({ children, className = '' }) => {
-    return <h3 className={`text-xl font-semibold leading-none tracking-tight ${className}`}>{children}</h3>;
-  };
-
-  const CardDescription = ({ children, className = '' }) => {
-    return <p className={`text-sm text-gray-500 ${className}`}>{children}</p>;
-  };
-
-  const CardContent = ({ children, className = '' }) => {
-    return <div className={`p-6 pt-0 ${className}`}>{children}</div>;
-  };
-
-  const CardFooter = ({ children, className = '' }) => {
-    return <div className={`flex items-center p-6 pt-0 ${className}`}>{children}</div>;
-  };
-
-  // Separator component
-  const Separator = ({ className = '' }) => {
-    return <hr className={`border-t border-gray-200 ${className}`} />;
-  };
 
   return (
     <motion.div
@@ -540,23 +691,155 @@ const RSSImport = () => {
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full md:w-auto md:inline-grid grid-cols-3">
-            <TabsTrigger value="import" activeTab={activeTab} setActiveTab={setActiveTab} className="flex items-center gap-2">
+          <TabsList className="grid w-full md:w-auto md:inline-grid grid-cols-1">
+            {/* <TabsTrigger value="import" activeTab={activeTab} setActiveTab={setActiveTab} className="flex items-center gap-2">
               <Upload className="h-4 w-4" />
               Import RSS
+            </TabsTrigger>*/}
+            <TabsTrigger value="manage" activeTab={activeTab} setActiveTab={setActiveTab} className="flex items-center gap-2">
+              <Settings className="h-4 w-4" />
+              Manage Feeds
             </TabsTrigger>
-            <TabsTrigger value="preview" disabled={!parsedData} activeTab={activeTab} setActiveTab={setActiveTab} className="flex items-center gap-2">
+            {/* <TabsTrigger value="preview" disabled={!parsedData} activeTab={activeTab} setActiveTab={setActiveTab} className="flex items-center gap-2">
               <Eye className="h-4 w-4" />
               Preview ({previewItems.length})
-            </TabsTrigger>
-            <TabsTrigger value="history" activeTab={activeTab} setActiveTab={setActiveTab} className="flex items-center gap-2">
-              <History className="h-4 w-4" />
-              Import History
-            </TabsTrigger>
+            </TabsTrigger> */}
           </TabsList>
 
+          {/* Manage Feeds Tab */}
+          <TabsContent value="manage" activeTab={activeTab} className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Settings className="h-5 w-5 text-orange-600" />
+                  Manage RSS Feeds
+                </CardTitle>
+                <CardDescription>
+                  Configure automated RSS feed fetching
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                {/* Add New Feed Form */}
+                <div className="bg-gray-50 p-4 rounded-lg space-y-4">
+                  <h3 className="font-semibold text-gray-800 flex items-center gap-2">
+                    <Plus className="h-4 w-4" /> Add New Feed
+                  </h3>
+                  <form onSubmit={handleAddConfig} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 items-end">
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium">Feed Name</label>
+                      <Input 
+                        placeholder="e.g. Business Line" 
+                        value={newConfig.name}
+                        onChange={e => setNewConfig({...newConfig, name: e.target.value})}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium">RSS URL</label>
+                      <Input 
+                        placeholder="https://..." 
+                        value={newConfig.url}
+                        onChange={e => setNewConfig({...newConfig, url: e.target.value})}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium">Brand Name (Author)</label>
+                      <Input 
+                        placeholder="e.g. Hindu Business Line" 
+                        value={newConfig.brandName}
+                        onChange={e => setNewConfig({...newConfig, brandName: e.target.value})}
+                      />
+                    </div>
+                    <Button type="submit" disabled={addingConfig} className="bg-orange-600 hover:bg-orange-700">
+                      {addingConfig ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Add Feed'}
+                    </Button>
+                  </form>
+                </div>
+
+                <Separator />
+
+                {/* Feeds List */}
+                <div className="space-y-4">
+                  <h3 className="font-semibold text-gray-800">Saved Feeds</h3>
+                  
+                  {loadingConfigs ? (
+                    <div className="flex justify-center p-8">
+                      <Loader2 className="h-8 w-8 animate-spin text-orange-600" />
+                    </div>
+                  ) : configs.length === 0 ? (
+                    <div className="text-center py-8 text-gray-500">
+                      <p>No saved feeds found. Add one above.</p>
+                    </div>
+                  ) : (
+                    <div className="grid gap-4">
+                      {configs.map(config => (
+                        <div key={config._id} className="border rounded-lg p-4 flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white shadow-sm">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2">
+                              <h4 className="font-semibold text-lg">{config.name}</h4>
+                              <Badge variant={config.isActive ? "green" : "secondary"}>
+                                {config.isActive ? 'Active' : 'Paused'}
+                              </Badge>
+                            </div>
+                            <p className="text-sm text-gray-500 truncate max-w-md" title={config.url}>{config.url}</p>
+                            <p className="text-xs text-gray-400 mt-1">Author: {config.brandName}</p>
+                            
+                            {config.lastFetchedAt && (
+                              <div className="flex items-center gap-2 mt-2 text-xs">
+                                <span className={config.lastFetchStatus === 'error' ? 'text-red-600' : 'text-green-600'}>
+                                  Last fetch: {new Date(config.lastFetchedAt).toLocaleString()}
+                                </span>
+                                {config.lastErrorMessage && (
+                                  <span className="text-red-500 truncate max-w-xs" title={config.lastErrorMessage}>
+                                    - {config.lastErrorMessage}
+                                  </span>
+                                )}
+                              </div>
+                            )}
+                          </div>
+
+                          <div className="flex items-center gap-2">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleRunConfig(config._id)}
+                              title="Run Now"
+                            >
+                              <Play className="h-4 w-4 text-blue-600" />
+                            </Button>
+                            
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleToggleConfig(config)}
+                              title={config.isActive ? "Pause Auto-Fetch" : "Enable Auto-Fetch"}
+                            >
+                              {config.isActive ? (
+                                <Pause className="h-4 w-4 text-orange-600" />
+                              ) : (
+                                <Play className="h-4 w-4 text-green-600" />
+                              )}
+                            </Button>
+
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleDeleteConfig(config._id)}
+                              className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
           {/* Import Tab */}
-          <TabsContent value="import" activeTab={activeTab} className="space-y-6">
+          {/* <TabsContent value="import" activeTab={activeTab} className="space-y-6">
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
@@ -601,7 +884,7 @@ const RSSImport = () => {
                   </div>
                 </div>
 
-                {/* Quick Sample Feeds */}
+                
                 <div className="space-y-2">
                   <label className="text-sm text-gray-500">Quick Sample Feeds</label>
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
@@ -621,7 +904,7 @@ const RSSImport = () => {
                   </div>
                 </div>
 
-                {/* Instructions */}
+               
                 <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
                   <h3 className="font-semibold text-blue-800 mb-2 flex items-center gap-2">
                     <Info className="h-4 w-4" />
@@ -637,8 +920,9 @@ const RSSImport = () => {
                 </div>
               </CardContent>
             </Card>
+           
 
-            {/* Parse Results (if any) */}
+            
             {parsedData && (
               <Card>
                 <CardHeader>
@@ -687,7 +971,7 @@ const RSSImport = () => {
                 </CardContent>
               </Card>
             )}
-          </TabsContent>
+          </TabsContent> */}
 
           {/* Preview Tab */}
           <TabsContent value="preview" activeTab={activeTab} className="space-y-6">
@@ -879,148 +1163,6 @@ const RSSImport = () => {
                   </Button>
                 </div>
               </CardFooter>
-            </Card>
-          </TabsContent>
-
-          {/* History Tab */}
-          <TabsContent value="history" activeTab={activeTab} className="space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <History className="h-5 w-5 text-orange-600" />
-                    Import History
-                  </div>
-                  
-                  {user?.role === 'superadmin' && (
-                    <Button
-                      variant="destructive"
-                      size="sm"
-                      onClick={() => setClearDialogOpen(true)}
-                      disabled={history.length === 0}
-                    >
-                      <Trash2 className="h-4 w-4 mr-2" />
-                      Clear History
-                    </Button>
-                  )}
-                </CardTitle>
-                <CardDescription>
-                  Previously imported posts from RSS feeds
-                </CardDescription>
-              </CardHeader>
-              
-              <CardContent>
-                {loadingHistory ? (
-                  <div className="flex justify-center items-center py-12">
-                    <Loader2 className="h-8 w-8 animate-spin text-orange-600" />
-                  </div>
-                ) : history.length === 0 ? (
-                  <div className="text-center py-12 text-gray-500">
-                    <History className="h-12 w-12 mx-auto mb-3 opacity-50" />
-                    <p>No RSS import history found</p>
-                    <p className="text-sm mt-2">Import some RSS feeds to see them here</p>
-                  </div>
-                ) : (
-                  <div className="space-y-4">
-                    <div className="overflow-x-auto rounded-lg border">
-                      <table className="w-full min-w-[600px]">
-                        <thead className="bg-gray-50">
-                          <tr>
-                            <th className="py-3 px-4 text-left text-sm font-semibold text-gray-700">
-                              Title
-                            </th>
-                            <th className="py-3 px-4 text-left text-sm font-semibold text-gray-700">
-                              Category
-                            </th>
-                            <th className="py-3 px-4 text-left text-sm font-semibold text-gray-700">
-                              Status
-                            </th>
-                            <th className="py-3 px-4 text-left text-sm font-semibold text-gray-700">
-                              Imported On
-                            </th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-gray-200">
-                          {history.map((post) => (
-                            <tr key={post._id} className="hover:bg-gray-50">
-                              <td className="py-3 px-4">
-                                <div className="max-w-xs">
-                                  <p className="font-medium text-gray-900 truncate">
-                                    {post.title}
-                                  </p>
-                                  <p className="text-xs text-gray-500 truncate">
-                                    Source: {post.source || 'RSS'}
-                                  </p>
-                                </div>
-                              </td>
-                              <td className="py-3 px-4">
-                                {post.category ? (
-                                  <Badge variant="outline" className="text-xs">
-                                    {post.category.name}
-                                  </Badge>
-                                ) : (
-                                  <span className="text-sm text-gray-500">Uncategorized</span>
-                                )}
-                              </td>
-                              <td className="py-3 px-4">
-                                <Badge
-                                  className={
-                                    post.status === 'published'
-                                      ? 'bg-green-100 text-green-800'
-                                      : post.status === 'draft'
-                                      ? 'bg-gray-100 text-gray-800'
-                                      : 'bg-yellow-100 text-yellow-800'
-                                  }
-                                >
-                                  {post.status}
-                                </Badge>
-                              </td>
-                              <td className="py-3 px-4 text-sm text-gray-600">
-                                {formatDate(post.createdAt)}
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-
-                    {/* Pagination */}
-                    {totalHistoryPages > 1 && (
-                      <div className="flex justify-between items-center pt-4 border-t">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => {
-                            const newPage = Math.max(1, historyPage - 1);
-                            setHistoryPage(newPage);
-                            fetchHistory(newPage);
-                          }}
-                          disabled={historyPage === 1}
-                        >
-                          Previous
-                        </Button>
-                        
-                        <span className="text-sm text-gray-600">
-                          Page {historyPage} of {totalHistoryPages}
-                        </span>
-                        
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => {
-                            const newPage = Math.min(totalHistoryPages, historyPage + 1);
-                            setHistoryPage(newPage);
-                            fetchHistory(newPage);
-                          }}
-                          disabled={historyPage === totalHistoryPages}
-                        >
-                          Next
-                        </Button>
-                      </div>
-                    )}
-                  </div>
-                )}
-              </CardContent>
             </Card>
           </TabsContent>
         </Tabs>
