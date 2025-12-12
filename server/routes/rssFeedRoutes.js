@@ -1,0 +1,212 @@
+// backend/routes/rssFeedRoutes.js
+const express = require('express');
+const router = express.Router();
+const rssParserService = require('../services/rssParserService');
+const { protect, authorize } = require('../middleware/auth');
+const Post = require('../models/Post');
+
+// @route   POST /api/rss/parse
+// @desc    Parse RSS feed from URL
+// @access  Admin
+router.post('/parse', protect, authorize('admin', 'superadmin'), async (req, res) => {
+  try {
+    const { url } = req.body;
+
+    if (!url) {
+      return res.status(400).json({
+        success: false,
+        message: 'RSS feed URL is required'
+      });
+    }
+
+    // Validate URL
+    try {
+      new URL(url);
+    } catch (error) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid URL format'
+      });
+    }
+
+    const result = await rssParserService.parseRSSFeed(url);
+
+    if (!result.success) {
+      return res.status(400).json({
+        success: false,
+        message: 'Failed to parse RSS feed',
+        error: result.error
+      });
+    }
+
+    res.json({
+      success: true,
+      message: `Successfully parsed ${result.count} items`,
+      data: {
+        count: result.count,
+        items: result.items.slice(0, 20), // Return first 20 items for preview
+        sampleItem: result.items[0] || null
+      }
+    });
+  } catch (error) {
+    console.error('RSS parse error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error while parsing RSS feed',
+      error: error.message
+    });
+  }
+});
+
+// @route   POST /api/rss/save
+// @desc    Save parsed RSS items as posts
+// @access  Admin
+router.post('/save', protect, authorize('admin', 'superadmin'), async (req, res) => {
+  try {
+    const { 
+      url, 
+      items, 
+      saveAsDraft = false, 
+      force = false,
+      categoryFilter = null 
+    } = req.body;
+
+    if (!url && !items) {
+      return res.status(400).json({
+        success: false,
+        message: 'Either URL or items array is required'
+      });
+    }
+
+    let itemsToSave = items;
+
+    // If URL is provided, parse it first
+    if (url) {
+      const parseResult = await rssParserService.parseRSSFeed(url);
+      
+      if (!parseResult.success) {
+        return res.status(400).json({
+          success: false,
+          message: 'Failed to parse RSS feed',
+          error: parseResult.error
+        });
+      }
+
+      itemsToSave = parseResult.items;
+    }
+
+    // Apply category filter if specified
+    if (categoryFilter && itemsToSave) {
+      itemsToSave = itemsToSave.filter(item => 
+        item.categories && item.categories.some(cat => 
+          cat.toLowerCase().includes(categoryFilter.toLowerCase())
+        )
+      );
+    }
+
+    if (!itemsToSave || itemsToSave.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'No items to save'
+      });
+    }
+
+    const saveResult = await rssParserService.saveRSSItems(
+      itemsToSave,
+      req.user._id,
+      { saveAsDraft, force }
+    );
+
+    res.json({
+      success: saveResult.success,
+      message: `Saved ${saveResult.saved} items, ${saveResult.errors} errors`,
+      data: saveResult
+    });
+  } catch (error) {
+    console.error('RSS save error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error while saving RSS items',
+      error: error.message
+    });
+  }
+});
+
+// @route   GET /api/rss/history
+// @desc    Get RSS import history
+// @access  Admin
+router.get('/history', protect, authorize('admin', 'superadmin'), async (req, res) => {
+  try {
+    const { page = 1, limit = 20 } = req.query;
+    const skip = (page - 1) * limit;
+
+    // In a real implementation, you would have an RSSImport model
+    // For now, we'll return posts imported from RSS
+    
+    const posts = await Post.find({ source: 'rss_feed' })
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(parseInt(limit))
+      .populate('category', 'name slug')
+      .populate('authorId', 'name email');
+
+    const total = await Post.countDocuments({ source: 'rss_feed' });
+
+    res.json({
+      success: true,
+      data: posts,
+      total,
+      page: parseInt(page),
+      totalPages: Math.ceil(total / limit)
+    });
+  } catch (error) {
+    console.error('RSS history error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error while fetching RSS history',
+      error: error.message
+    });
+  }
+});
+
+// @route   DELETE /api/rss/clear-history
+// @desc    Clear RSS imported posts
+// @access  Superadmin only
+router.delete('/clear-history', protect, authorize('superadmin'), async (req, res) => {
+  try {
+    // Check if user is superadmin
+    if (req.user.role !== 'superadmin') {
+      return res.status(403).json({
+        success: false,
+        message: 'Only superadmin can clear RSS import history'
+      });
+    }
+
+    const { days } = req.query;
+    let deleteQuery = { source: 'rss_feed' };
+
+    if (days) {
+      const cutoffDate = new Date();
+      cutoffDate.setDate(cutoffDate.getDate() - parseInt(days));
+      deleteQuery.createdAt = { $lt: cutoffDate };
+    }
+
+    const Post = require('../models/Post');
+    const result = await Post.deleteMany(deleteQuery);
+
+    res.json({
+      success: true,
+      message: `Deleted ${result.deletedCount} RSS imported posts`,
+      deletedCount: result.deletedCount
+    });
+  } catch (error) {
+    console.error('Clear RSS history error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error while clearing RSS history',
+      error: error.message
+    });
+  }
+});
+
+module.exports = router;

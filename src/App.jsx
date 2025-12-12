@@ -68,7 +68,7 @@ const ScheduleApprovals = React.lazy(() =>
 const NewPostRouteHandler = React.lazy(() =>
   import("@/components/admin/NewPostRouteHandler")
 );
-
+const RSSImport = React.lazy(() => import("@/components/admin/RSSImport"));
 // Loading fallback
 const LoadingFallback = () => (
   <div className="min-h-screen flex items-center justify-center">
@@ -288,6 +288,14 @@ function App() {
                 element={
                   <React.Suspense fallback={<LoadingFallback />}>
                     <CategoryList/>
+                  </React.Suspense>
+                }
+              />
+              <Route
+                path="rss-import"
+                element={
+                  <React.Suspense fallback={<LoadingFallback />}>
+                    <RSSImport />
                   </React.Suspense>
                 }
               />
