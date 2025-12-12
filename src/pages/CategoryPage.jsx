@@ -2,17 +2,18 @@ import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { Helmet } from 'react-helmet';
 import PostCard from '@/components/PostCard';
-import { Loader2 } from 'lucide-react';
+import { Loader2, ChevronLeft, ChevronRight } from 'lucide-react';
 import { motion } from 'framer-motion';
 import axios from 'axios';
+import { useToast } from '@/components/ui/use-toast';
 
 const baseURL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
-// Same transform function as HomePage for consistency
+import { getRandomImage } from '@/utils/imageUtils';
+
 const transformPostData = (post) => {
   const getImageUrl = (postData) => {
     if (!postData) return '';
-    
     return postData.imageUrl || 
            postData.featuredImage || 
            postData.image || 
@@ -23,48 +24,33 @@ const transformPostData = (post) => {
 
   const getCategoryName = (categoryData) => {
     if (!categoryData) return '';
-    
     if (typeof categoryData === 'string') return categoryData;
-    
     if (typeof categoryData === 'object') {
-      return categoryData.name || 
-             categoryData.title || 
-             categoryData._id || 
-             '';
+      return categoryData.name || categoryData.title || categoryData._id || '';
     }
-    
     return '';
   };
 
   const getAuthorName = (authorData) => {
     if (!authorData) return 'Admin';
-    
     if (typeof authorData === 'string') return authorData;
-    
     if (typeof authorData === 'object') {
-      return authorData.name || 
-             authorData.username || 
-             authorData.email || 
-             'Admin';
+      return authorData.name || authorData.username || authorData.email || 'Admin';
     }
-    
     return 'Admin';
   };
 
   const getBodyContent = (bodyData) => {
     if (!bodyData) return '';
-    
     if (typeof bodyData === 'string') return bodyData;
-    
     if (typeof bodyData === 'object') {
-      return bodyData.content || 
-             bodyData.text || 
-             bodyData.description || 
-             '';
+      return bodyData.content || bodyData.text || bodyData.description || '';
     }
-    
     return '';
   };
+
+  const categoryName = getCategoryName(post.category);
+  const imageUrl = getImageUrl(post);
 
   return {
     id: post._id || post.id,
@@ -74,8 +60,8 @@ const transformPostData = (post) => {
     summary: post.summary || 
              post.excerpt || 
              (getBodyContent(post.body) ? getBodyContent(post.body).substring(0, 150) + '...' : ''),
-    image: getImageUrl(post),
-    category: getCategoryName(post.category),
+    image: imageUrl || getRandomImage(categoryName), // Use fallback if empty
+    category: categoryName,
     isSponsored: post.isSponsored || post.sponsored || false,
     publishedAt: post.publishDateTime || post.publishedAt || post.createdAt || post.updatedAt,
     createdAt: post.createdAt,
@@ -92,14 +78,13 @@ const CategoryPage = () => {
   const [posts, setPosts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
-  const [hasMore, setHasMore] = useState(true);
   const [totalPages, setTotalPages] = useState(1);
   const [categoryInfo, setCategoryInfo] = useState(null);
+  const { toast } = useToast();
 
   useEffect(() => {
     setPosts([]);
     setPage(1);
-    setHasMore(true);
     fetchCategoryInfo();
   }, [category]);
 
@@ -109,36 +94,19 @@ const CategoryPage = () => {
     }
   }, [categoryInfo]);
 
-  useEffect(() => {
-    const handleScroll = () => {
-      if (
-        window.innerHeight + document.documentElement.scrollTop >=
-        document.documentElement.offsetHeight - 500 &&
-        !loading &&
-        hasMore &&
-        page < totalPages
-      ) {
-        const nextPage = page + 1;
-        setPage(nextPage);
-        fetchPosts(nextPage);
-      }
-    };
-
-    window.addEventListener('scroll', handleScroll);
-    return () => window.removeEventListener('scroll', handleScroll);
-  }, [loading, hasMore, page, totalPages]);
-
   const fetchCategoryInfo = async () => {
     try {
-      const response = await axios.get(`${baseURL}/api/categories`);
+      // Increased limit to ensure we find the category even if it's far down the list
+      const response = await axios.get(`${baseURL}/api/categories`, {
+        params: { limit: 100 } 
+      });
+
       if (response.data.success) {
         const categories = response.data.data;
         
-        // Try to find category by ID first, then by slug
         let cat = categories.find(c => c._id === category);
         
         if (!cat) {
-          // Try to find by slug
           cat = categories.find(c => {
             const catSlug = c.slug || c.name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
             return catSlug === category;
@@ -148,126 +116,75 @@ const CategoryPage = () => {
         if (cat) {
           setCategoryInfo(cat);
         } else {
-          // If category not found, set default info
-          setCategoryInfo({
-            name: category,
-            _id: category
-          });
+          console.warn('Category not found in list, using params as fallback');
+          setCategoryInfo({ name: category, _id: null }); // Set _id null to avoid invalid ID errors
         }
       }
     } catch (error) {
       console.error('Error fetching category:', error);
-      setCategoryInfo({
-        name: category,
-        _id: category
-      });
+      setCategoryInfo({ name: category, _id: null });
     }
   };
 
-  const fetchPosts = async (pageNum) => {
+  const fetchPosts = async (pageNum = 1) => {
     setLoading(true);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+
     try {
-      // IMPORTANT: Use category ID for filtering, not name/slug
-      const categoryId = categoryInfo?._id || category;
+      const categoryId = categoryInfo?._id;
       
-      let response;
+      // Since we are fixing the backend query issue, we must have a valid ID.
+      // If we don't have an ID (slug fallback), the backend might not find it if it strictly expects ObjectId.
+      // But let's try calling with what we have.
       
-      // Try multiple API endpoint formats
-      try {
-        // Format 1: Filter by category ID
-        response = await axios.get(`${baseURL}/api/public-posts`, {
-          params: {
-            page: pageNum,
-            limit: 12,
-            status: 'published',
-            category: categoryId,
-            sort: '-createdAt'
-          }
-        });
-      } catch (error) {
-        console.log('First API call failed, trying alternative...');
-        
-        // Format 2: Alternative endpoint
-        response = await axios.get(`${baseURL}/api/posts/category/${categoryId}`, {
-          params: {
-            page: pageNum,
-            limit: 12,
-            status: 'published'
-          }
-        });
+      if (!categoryId) {
+        // Fallback: If no ID found, maybe the user passed a slug that isn't in DB yet?
+        // Or fetch all and filter client side as last resort?
+        // Let's try fetching with the slug/name as category param.
       }
+
+      const params = {
+        page: pageNum,
+        limit: 30, // 30 posts per page
+        status: 'published',
+        sort: '-createdAt'
+      };
+
+      if (categoryId) {
+        params.category = categoryId;
+      }
+
+      const response = await axios.get(`${baseURL}/api/public-posts`, { params });
       
       if (response.data.success) {
         let newPosts = [];
-        
-        // Handle different response structures
         if (Array.isArray(response.data.data)) {
           newPosts = response.data.data.map(transformPostData);
-        } else if (response.data.posts) {
-          newPosts = response.data.posts.map(transformPostData);
-        } else if (response.data.results) {
-          newPosts = response.data.results.map(transformPostData);
         }
-        
-        if (pageNum === 1) {
-          setPosts(newPosts);
-        } else {
-          setPosts(prev => {
-            const existingIds = new Set(prev.map(p => p.id));
-            const uniqueNewPosts = newPosts.filter(p => !existingIds.has(p.id));
-            return [...prev, ...uniqueNewPosts];
-          });
-        }
-        
-        setTotalPages(response.data.totalPages || 
-                     response.data.pages || 
-                     Math.ceil((response.data.total || 0) / 12) || 
-                     1);
-        setHasMore(pageNum < (response.data.totalPages || 
-                   response.data.pages || 
-                   Math.ceil((response.data.total || 0) / 12) || 
-                   1));
+
+        setPosts(newPosts);
+        setTotalPages(response.data.totalPages || 1);
+        setPage(pageNum);
       } else {
-        console.error('API returned failure:', response.data);
+        throw new Error(response.data.message || 'Failed to fetch posts');
       }
     } catch (error) {
       console.error('Error fetching posts:', error);
-      
-      // Fallback: Try to fetch all posts and filter client-side
-      if (pageNum === 1) {
-        try {
-          const allPostsResponse = await axios.get(`${baseURL}/api/public-posts`, {
-            params: {
-              status: 'published',
-              sort: '-createdAt'
-            }
-          });
-          
-          if (allPostsResponse.data.success && Array.isArray(allPostsResponse.data.data)) {
-            const allPosts = allPostsResponse.data.data.map(transformPostData);
-            
-            // Filter by category name or ID
-            const filteredPosts = allPosts.filter(post => {
-              const postCategory = post.category;
-              if (typeof postCategory === 'string') {
-                return postCategory === categoryInfo?.name || 
-                       postCategory === categoryInfo?._id;
-              } else if (postCategory && typeof postCategory === 'object') {
-                return postCategory._id === categoryInfo?._id || 
-                       postCategory.name === categoryInfo?.name;
-              }
-              return false;
-            });
-            
-            setPosts(filteredPosts.slice(0, 12));
-            setHasMore(false);
-          }
-        } catch (fallbackError) {
-          console.error('Fallback also failed:', fallbackError);
-        }
-      }
+      // Fallback mechanism moved out or simplified
+      setPosts([]);
+      toast({
+         title: 'Error',
+         description: 'Failed to load posts.',
+         variant: 'destructive'
+      });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handlePageChange = (newPage) => {
+    if (newPage >= 1 && newPage <= totalPages) {
+      fetchPosts(newPage);
     }
   };
 
@@ -275,7 +192,7 @@ const CategoryPage = () => {
     <>
       <Helmet>
         <title>{categoryInfo?.name || category} News - StoxBolt</title>
-        <meta name="description" content={`Latest ${categoryInfo?.name || category} financial news and market updates on StoxBolt. Stay informed with real-time analysis and insights.`} />
+        <meta name="description" content={`Latest ${categoryInfo?.name || category} financial news and market updates on StoxBolt.`} />
       </Helmet>
 
       <div className="min-h-screen py-12">
@@ -285,7 +202,7 @@ const CategoryPage = () => {
             animate={{ opacity: 1, y: 0 }}
             className="mb-8"
           >
-            <h1 className="text-4xl font-bold bg-gradient-to-r from-orange-600 to-red-600 bg-clip-text text-transparent mb-2">
+            <h1 className="text-4xl font-bold bg-gradient-to-r from-orange-600 to-red-600 bg-clip-text text-transparent mb-2 capitalize">
               {categoryInfo?.name || category} News
             </h1>
             <p className="text-gray-600">
@@ -293,34 +210,59 @@ const CategoryPage = () => {
             </p>
           </motion.div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {posts.map((post, index) => (
-              <PostCard key={post.id || post._id} post={post} index={index} />
-            ))}
-          </div>
-
-          {loading && (
-            <div className="flex justify-center items-center py-12">
+          {loading ? (
+             <div className="flex justify-center items-center py-12">
               <Loader2 className="h-8 w-8 animate-spin text-orange-600" />
               <span className="ml-2 text-gray-600">Loading posts...</span>
             </div>
+          ) : (
+            <>
+              {posts.length > 0 ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {posts.map((post, index) => (
+                    <PostCard key={post.id || index} post={post} index={index} />
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-12">
+                  <p className="text-gray-600 font-medium">No posts found in this category</p>
+                  <button 
+                    onClick={() => fetchPosts(1)}
+                    className="mt-4 px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors"
+                  >
+                    Try Again
+                  </button>
+                </div>
+              )}
+            </>
           )}
 
-          {!loading && posts.length === 0 && (
-            <div className="text-center py-12">
-              <p className="text-gray-600 font-medium">No posts found in this category</p>
-              <button 
-                onClick={() => fetchPosts(1)}
-                className="mt-4 px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors"
+          {/* Pagination Controls */}
+          {!loading && posts.length > 0 && totalPages > 1 && (
+            <div className="flex justify-center items-center mt-12 gap-4">
+              <button
+                onClick={() => handlePageChange(page - 1)}
+                disabled={page === 1}
+                className="flex items-center px-4 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-gray-700"
               >
-                Try Again
+                <ChevronLeft className="h-4 w-4 mr-2" />
+                Previous
               </button>
-            </div>
-          )}
+              
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-medium text-gray-700">
+                  Page {page} of {totalPages}
+                </span>
+              </div>
 
-          {!hasMore && posts.length > 0 && (
-            <div className="text-center py-12">
-              <p className="text-gray-600 font-medium">You've reached the end!</p>
+              <button
+                onClick={() => handlePageChange(page + 1)}
+                disabled={page === totalPages}
+                className="flex items-center px-4 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-gray-700"
+              >
+                Next
+                <ChevronRight className="h-4 w-4 ml-2" />
+              </button>
             </div>
           )}
         </div>

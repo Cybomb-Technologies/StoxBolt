@@ -15,6 +15,7 @@ import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import axios from 'axios';
 import { useToast } from '@/components/ui/use-toast';
+import { getRandomImage } from '@/utils/imageUtils';
 
 const baseURL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
@@ -70,6 +71,8 @@ const RelatedPostsCarousel = ({ category, currentPostId }) => {
       }
     };
 
+    const categoryName = getCategoryName(post.category);
+
     return {
       id: post._id || post.id,
       _id: post._id || post.id,
@@ -78,8 +81,8 @@ const RelatedPostsCarousel = ({ category, currentPostId }) => {
             post.body?.content || post.content || post.description || '',
       summary: post.summary || post.excerpt || 
               (typeof post.body === 'string' ? post.body.substring(0, 120) : ''),
-      image: post.imageUrl || post.image || post.thumbnail || post.featuredImage || '',
-      category: getCategoryName(post.category),
+      image: post.imageUrl || post.image || post.thumbnail || post.featuredImage || getRandomImage(categoryName),
+      category: categoryName,
       categoryId: getCategoryId(post.category),
       createdAt: post.createdAt,
       formattedDate: formatDate(post.createdAt || post.publishDateTime),
@@ -305,30 +308,17 @@ const RelatedPostsCarousel = ({ category, currentPostId }) => {
                         className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                         loading="lazy"
                         onError={(e) => {
-                          e.target.style.display = 'none';
-                          const parent = e.target.parentElement;
-                          if (parent) {
-                            parent.innerHTML = `
-                              <div class="w-full h-full bg-gradient-to-br from-orange-100 to-orange-50 flex items-center justify-center">
-                                <div class="text-orange-600 text-center p-4">
-                                  <svg class="w-12 h-12 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9.5a2.5 2.5 0 00-2.5-2.5H15"></path>
-                                  </svg>
-                                  <span class="text-sm font-medium">No Image Available</span>
-                                </div>
-                              </div>
-                            `;
-                          }
+                          e.target.onerror = null;
+                          e.target.src = getRandomImage(post.category);
                         }}
                       />
                     ) : (
                       <div className="w-full h-full bg-gradient-to-br from-orange-100 to-orange-50 flex items-center justify-center">
-                        <div className="text-orange-600 text-center p-4">
-                          <svg className="w-12 h-12 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9.5a2.5 2.5 0 00-2.5-2.5H15"></path>
-                          </svg>
-                          <span className="text-sm font-medium">No Image Available</span>
-                        </div>
+                         <img
+                          src={getRandomImage(post.category)}
+                          alt="Fallback"
+                          className="w-full h-full object-cover"
+                        />
                       </div>
                     )}
                     

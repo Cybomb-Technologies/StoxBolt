@@ -155,6 +155,9 @@ const connectDB = async () => {
   }
 };
 
+const rssCronService = require('./services/rssCronService');
+rssCronService.init();
+
 connectDB();
 
 const PORT = process.env.PORT;

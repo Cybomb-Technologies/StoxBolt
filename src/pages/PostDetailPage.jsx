@@ -9,6 +9,7 @@ import RelatedPostsCarousel from '@/components/RelatedPostsCarousel';
 import IndexSnapshot from '@/components/IndexSnapshot';
 import SocialImageExport from '@/components/SocialImageExport';
 import axios from 'axios';
+import { getRandomImage } from '@/utils/imageUtils';
 
 const baseURL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
@@ -55,13 +56,15 @@ const PostDetailPage = () => {
   const getSafePostData = (postData) => {
     if (!postData) return null;
     
+    const categoryName = getCategoryName(postData.category);
+
     return {
       ...postData,
       body: typeof postData.body === 'string' ? postData.body : 
             postData.body?.content || postData.content || postData.description || '',
-      categoryName: getCategoryName(postData.category),
+      categoryName: categoryName,
       categoryId: getCategoryId(postData.category),
-      imageUrl: postData.imageUrl || postData.image || postData.thumbnail || '',
+      imageUrl: postData.imageUrl || postData.image || postData.thumbnail || getRandomImage(categoryName),
       author: typeof postData.author === 'string' ? postData.author : 
               postData.author?.name || postData.author?.username || 'Admin',
       tags: Array.isArray(postData.tags) ? postData.tags : 
@@ -234,7 +237,8 @@ const PostDetailPage = () => {
                   alt={post.title}
                   className="w-full h-full object-cover"
                   onError={(e) => {
-                    e.target.style.display = 'none';
+                    e.target.onerror = null;
+                    e.target.src = getRandomImage(post.categoryName);
                   }}
                 />
               </div>

@@ -4,6 +4,7 @@ import { ChevronLeft, ChevronRight, User, Clock } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import axios from 'axios';
+import { getRandomImage } from '@/utils/imageUtils';
 
 const baseURL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
@@ -30,15 +31,18 @@ const HeroSlider = () => {
     try {
       const response = await axios.get(`${baseURL}/api/public-posts?limit=5&status=published&sort=-createdAt`);
       if (response.data.success) {
-        const posts = response.data.data.map(post => ({
-          id: post._id,
-          title: post.title,
-          image: post.imageUrl || post.image || post.thumbnail || post.featuredImage || '',
-          category: post.category?.name || post.category || 'Featured',
-          author: typeof post.author === 'string' ? post.author : post.author?.name || post.author?.username || 'Admin',
-          publishedAt: post.publishDateTime || post.createdAt,
-          body: post.body
-        }));
+        const posts = response.data.data.map(post => {
+            const categoryName = post.category?.name || post.category || 'Featured';
+            return {
+              id: post._id,
+              title: post.title,
+              image: post.imageUrl || post.image || post.thumbnail || post.featuredImage || getRandomImage(categoryName),
+              category: categoryName,
+              author: typeof post.author === 'string' ? post.author : post.author?.name || post.author?.username || 'Admin',
+              publishedAt: post.publishDateTime || post.createdAt,
+              body: post.body
+            };
+        });
         setSlides(posts);
       }
     } catch (error) {
@@ -91,7 +95,8 @@ const HeroSlider = () => {
                 alt={slides[currentSlide].title}
                 className="w-full h-full object-cover"
                 onError={(e) => {
-                  e.target.style.display = 'none';
+                  e.target.onerror = null; // Prevent infinite loop
+                  e.target.src = getRandomImage(slides[currentSlide].category);
                 }}
               />
             ) : null}

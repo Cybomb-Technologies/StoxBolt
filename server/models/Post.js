@@ -41,6 +41,21 @@ const PostSchema = new mongoose.Schema({
     ref: 'Admin',
     required: true
   },
+  source: {
+    type: String,
+    enum: ['admin', 'rss_feed', 'api'],
+    default: 'admin'
+  },
+  guid: {
+    type: String,
+    unique: false // Changed to false to avoid validation errors on legacy data
+  },
+  link: {
+    type: String
+  },
+  rssData: {
+    type: mongoose.Schema.Types.Mixed
+  },
   publishDateTime: {
     type: Date,
     default: null
