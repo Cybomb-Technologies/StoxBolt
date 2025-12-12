@@ -1,25 +1,23 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { 
   ChevronLeft, 
-  ChevronRight, 
-  Loader2, 
-  ExternalLink, 
-  Calendar, 
-  User,
+  ChevronRight,
+  FileText,
   Clock,
-  BookOpen,
-  FileText
+  User,
+  Calendar
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import axios from 'axios';
 import { useToast } from '@/components/ui/use-toast';
 import { getRandomImage } from '@/utils/imageUtils';
+import { cn } from '@/lib/utils';
 
 const baseURL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
-// Custom Skeleton component to avoid import errors
+// Custom Skeleton component
 const Skeleton = ({ className, ...props }) => (
   <div 
     className={`animate-pulse bg-gray-200 rounded-md ${className || ''}`}
@@ -34,37 +32,36 @@ const RelatedPostsCarousel = ({ category, currentPostId }) => {
   const [error, setError] = useState(null);
   const [isDragging, setIsDragging] = useState(false);
   const [dragStartX, setDragStartX] = useState(0);
+  const [visibleCards, setVisibleCards] = useState(3);
   const { toast } = useToast();
   const navigate = useNavigate();
 
   const transformPostData = useCallback((post) => {
     const getCategoryName = (categoryData) => {
-      if (!categoryData) return '';
+      if (!categoryData) return 'General';
       if (typeof categoryData === 'string') return categoryData;
       if (typeof categoryData === 'object') {
-        return categoryData.name || categoryData.title || categoryData._id || '';
+        return categoryData.name || categoryData.title || categoryData._id || 'General';
       }
-      return '';
+      return 'General';
     };
 
-    const getCategoryId = (categoryData) => {
-      if (!categoryData) return '';
-      if (typeof categoryData === 'string') return categoryData;
-      if (typeof categoryData === 'object') {
-        return categoryData._id || categoryData.id || '';
-      }
-      return '';
-    };
-
-    // Format date
     const formatDate = (dateString) => {
-      if (!dateString) return '';
+      if (!dateString) return 'Recent';
       try {
         const date = new Date(dateString);
+        const now = new Date();
+        const diffTime = Math.abs(now - date);
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+        
+        if (diffDays === 1) return 'Yesterday';
+        if (diffDays < 7) return `${diffDays} days ago`;
+        if (diffDays < 30) return `${Math.floor(diffDays / 7)} weeks ago`;
+        
         return date.toLocaleDateString('en-US', { 
           month: 'short', 
           day: 'numeric', 
-          year: 'numeric' 
+          year: diffDays > 365 ? 'numeric' : undefined 
         });
       } catch (error) {
         return 'Recent';
@@ -72,90 +69,107 @@ const RelatedPostsCarousel = ({ category, currentPostId }) => {
     };
 
     const categoryName = getCategoryName(post.category);
-
+    const bodyText = typeof post.body === 'string' ? post.body : 
+                    post.body?.content || post.content || post.description || '';
+    
     return {
       id: post._id || post.id,
-      _id: post._id || post.id,
       title: post.title || 'Untitled Post',
-      body: typeof post.body === 'string' ? post.body : 
-            post.body?.content || post.content || post.description || '',
       summary: post.summary || post.excerpt || 
-              (typeof post.body === 'string' ? post.body.substring(0, 120) : ''),
-      image: post.imageUrl || post.image || post.thumbnail || post.featuredImage || getRandomImage(categoryName),
+              bodyText.substring(0, 120) + (bodyText.length > 120 ? '...' : ''),
+      image: post.imageUrl || post.image || post.thumbnail || 
+             post.featuredImage || getRandomImage(categoryName),
       category: categoryName,
-      categoryId: getCategoryId(post.category),
-      createdAt: post.createdAt,
       formattedDate: formatDate(post.createdAt || post.publishDateTime),
-      updatedAt: post.updatedAt,
       author: post.author ? 
-        (typeof post.author === 'string' ? post.author : post.author.name || post.author.username) : 
+        (typeof post.author === 'string' ? post.author : 
+         post.author.name || post.author.username || 'Admin') : 
         'Admin',
-      readTime: post.readTime || Math.ceil(((post.body?.length || 0) / 1000) * 0.5) || 3
+      readTime: post.readTime || Math.max(1, Math.ceil(bodyText.length / 1500)) || 3
     };
   }, []);
 
+  // Fetch related posts
   useEffect(() => {
+    const fetchRelatedPosts = async () => {
+      setLoading(true);
+      setError(null);
+      
+      try {
+        const params = new URLSearchParams();
+        
+        if (category) {
+          params.append('category', typeof category === 'object' ? category._id : category);
+        }
+        
+        if (currentPostId) params.append('exclude', currentPostId);
+        params.append('limit', '6'); // Get up to 6 posts
+        params.append('status', 'published');
+        params.append('sort', '-createdAt');
+
+        const response = await axios.get(`${baseURL}/api/public-posts?${params.toString()}`);
+        
+        if (response.data.success) {
+          const postsData = response.data.data || [];
+          const transformedPosts = postsData.slice(0, 6).map(transformPostData); // Limit to 6
+          setPosts(transformedPosts);
+        } else {
+          setError('No related posts available');
+        }
+      } catch (error) {
+        console.error('Error fetching related posts:', error);
+        setError('Unable to load related articles');
+      } finally {
+        setLoading(false);
+      }
+    };
+
     fetchRelatedPosts();
-  }, [category, currentPostId]);
+  }, [category, currentPostId, transformPostData]);
 
-  const fetchRelatedPosts = async () => {
-    setLoading(true);
-    setError(null);
-    
-    try {
-      const params = new URLSearchParams();
-      
-      if (category) {
-        params.append('category', category);
-      }
-      
-      if (currentPostId) params.append('exclude', currentPostId);
-      params.append('limit', '8');
-      params.append('status', 'published');
-      params.append('sort', '-createdAt');
-
-      const response = await axios.get(`${baseURL}/api/public-posts?${params.toString()}`);
-      
-      if (response.data.success) {
-        const postsData = response.data.data || [];
-        const transformedPosts = postsData.map(transformPostData);
-        setPosts(transformedPosts);
+  // Handle responsive card count
+  useEffect(() => {
+    const updateVisibleCards = () => {
+      if (window.innerWidth < 640) {
+        setVisibleCards(1);
+      } else if (window.innerWidth < 1024) {
+        setVisibleCards(2);
       } else {
-        setError('Failed to fetch related posts');
-        toast({
-          title: 'Error',
-          description: response.data.message || 'Failed to load related articles',
-          variant: 'destructive'
-        });
+        setVisibleCards(3);
       }
-    } catch (error) {
-      console.error('Error fetching related posts:', error);
-      setError('Failed to fetch related posts');
-      toast({
-        title: 'Error',
-        description: error.response?.data?.message || 'Failed to load related articles',
-        variant: 'destructive'
-      });
-    } finally {
-      setLoading(false);
+    };
+
+    updateVisibleCards();
+    window.addEventListener('resize', updateVisibleCards);
+    return () => window.removeEventListener('resize', updateVisibleCards);
+  }, []);
+
+  // Navigation handlers
+  const nextSlide = () => {
+    if (posts.length <= visibleCards) return;
+    const maxIndex = Math.ceil(posts.length / visibleCards) - 1;
+    const nextIndex = Math.floor(currentIndex / visibleCards) + 1;
+    
+    if (nextIndex <= maxIndex) {
+      setCurrentIndex(nextIndex * visibleCards);
+    } else {
+      setCurrentIndex(0); // Loop back to start
     }
   };
 
-  const handlePostClick = (postId) => {
-    navigate(`/post/${postId}`);
-  };
-
-  const nextSlide = () => {
-    if (posts.length <= visibleCards) return;
-    setCurrentIndex((prev) => 
-      Math.min(prev + 1, posts.length - visibleCards)
-    );
-  };
-
   const prevSlide = () => {
-    setCurrentIndex((prev) => Math.max(prev - 1, 0));
+    if (posts.length <= visibleCards) return;
+    const maxIndex = Math.ceil(posts.length / visibleCards) - 1;
+    const prevIndex = Math.floor(currentIndex / visibleCards) - 1;
+    
+    if (prevIndex >= 0) {
+      setCurrentIndex(prevIndex * visibleCards);
+    } else {
+      setCurrentIndex(maxIndex * visibleCards); // Loop to end
+    }
   };
 
+  // Drag handlers for touch/mouse
   const handleDragStart = (e) => {
     setIsDragging(true);
     setDragStartX(e.clientX || e.touches[0].clientX);
@@ -176,41 +190,37 @@ const RelatedPostsCarousel = ({ category, currentPostId }) => {
     }
   };
 
-  const handleDragMove = (e) => {
-    if (!isDragging) return;
-    e.preventDefault();
+  const handlePostClick = (postId) => {
+    if (isDragging) return; // Prevent click during drag
+    navigate(`/post/${postId}`);
   };
 
-  // Responsive card count
-  const [visibleCards, setVisibleCards] = useState(3);
-
-  useEffect(() => {
-    const updateVisibleCards = () => {
-      if (window.innerWidth < 768) {
-        setVisibleCards(1);
-      } else if (window.innerWidth < 1024) {
-        setVisibleCards(2);
-      } else {
-        setVisibleCards(3);
-      }
-    };
-
-    updateVisibleCards();
-    window.addEventListener('resize', updateVisibleCards);
-    return () => window.removeEventListener('resize', updateVisibleCards);
-  }, []);
-
+  // Loading skeleton
   const LoadingSkeleton = () => (
-    <div className="mt-12 bg-white rounded-2xl shadow-xl p-6 md:p-8">
-      <Skeleton className="h-8 w-48 mb-6" />
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+    <div className="mt-12 bg-white rounded-2xl shadow-lg p-6 md:p-8">
+      <div className="flex items-center justify-between mb-8">
+        <div>
+          <Skeleton className="h-8 w-48 mb-2" />
+          <Skeleton className="h-4 w-64" />
+        </div>
+        <div className="flex gap-2">
+          <Skeleton className="w-10 h-10 rounded-full" />
+          <Skeleton className="w-10 h-10 rounded-full" />
+        </div>
+      </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
         {Array.from({ length: 3 }).map((_, index) => (
-          <div key={index} className="bg-gray-50 rounded-xl overflow-hidden">
+          <div key={index} className="bg-gray-50 rounded-xl overflow-hidden border border-gray-100">
             <Skeleton className="h-48 w-full" />
-            <div className="p-4">
-              <Skeleton className="h-6 w-3/4 mb-2" />
+            <div className="p-5">
+              <Skeleton className="h-6 w-32 mb-3 rounded-full" />
+              <Skeleton className="h-7 w-full mb-3" />
               <Skeleton className="h-4 w-full mb-2" />
-              <Skeleton className="h-4 w-2/3" />
+              <Skeleton className="h-4 w-2/3 mb-4" />
+              <div className="flex items-center justify-between">
+                <Skeleton className="h-4 w-20" />
+                <Skeleton className="h-4 w-16" />
+              </div>
             </div>
           </div>
         ))}
@@ -218,209 +228,163 @@ const RelatedPostsCarousel = ({ category, currentPostId }) => {
     </div>
   );
 
+  // Post card component
+  const PostCard = ({ post }) => (
+    <motion.div
+      whileHover={{ y: -8, transition: { duration: 0.2 } }}
+      whileTap={{ scale: 0.98 }}
+      className="h-full bg-white rounded-xl overflow-hidden border border-gray-200 hover:border-orange-200 hover:shadow-lg transition-all duration-300 cursor-pointer group"
+      onClick={() => handlePostClick(post.id)}
+    >
+      {/* Image container */}
+      <div className="relative h-48 overflow-hidden bg-gray-100">
+        <motion.img
+          src={post.image}
+          alt={post.title}
+          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+          loading="lazy"
+        />
+        <div className="absolute top-3 left-3">
+          <span className="inline-block px-3 py-1 bg-orange-500 text-white text-xs font-medium rounded-full">
+            {post.category}
+          </span>
+        </div>
+      </div>
+
+      {/* Content */}
+      <div className="p-5">
+        <h3 className="font-bold text-gray-900 text-lg mb-3 line-clamp-2 group-hover:text-orange-600 transition-colors">
+          {post.title}
+        </h3>
+        <p className="text-gray-600 text-sm mb-4 line-clamp-2">
+          {post.summary}
+        </p>
+
+        {/* Meta info */}
+        <div className="flex items-center justify-between text-gray-500 text-xs pt-4 border-t border-gray-100">
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-1">
+              <User className="h-3 w-3" />
+              <span>{post.author}</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <Clock className="h-3 w-3" />
+              <span>{post.readTime} min read</span>
+            </div>
+          </div>
+          <div className="flex items-center gap-1">
+            <Calendar className="h-3 w-3" />
+            <span>{post.formattedDate}</span>
+          </div>
+        </div>
+      </div>
+    </motion.div>
+  );
+
+  // If no posts, don't show anything
+  if (!loading && posts.length === 0) {
+    return null;
+  }
+
   if (loading) {
     return <LoadingSkeleton />;
   }
 
-  if (error || posts.length === 0) {
-    return null;
-  }
+  // Calculate visible posts based on current index and visible cards
+  const visiblePosts = posts.slice(currentIndex, currentIndex + visibleCards);
+  const totalPages = Math.ceil(posts.length / visibleCards);
+  const currentPage = Math.floor(currentIndex / visibleCards);
 
   return (
-    <div className="mt-12 bg-white rounded-2xl shadow-xl p-6 md:p-8">
-      <div className="flex items-center justify-between mb-6">
+    <div className="mt-12 bg-white rounded-2xl shadow-lg p-6 md:p-8">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900">Related Articles</h2>
-          <p className="text-gray-600 mt-1 flex items-center">
-            <FileText className="h-4 w-4 mr-2" />
+          <h2 className="text-2xl md:text-3xl font-bold text-gray-900">
+            Related Articles
+          </h2>
+          <p className="text-gray-600 mt-2 flex items-center">
+            <FileText className="h-4 w-4 mr-2 flex-shrink-0" />
             Discover more content you might like
           </p>
         </div>
+        
+        {/* Navigation buttons */}
         {posts.length > visibleCards && (
-          <div className="hidden md:flex items-center space-x-2">
+          <div className="flex items-center gap-2">
             <Button
               onClick={prevSlide}
-              disabled={currentIndex === 0}
               variant="outline"
               size="icon"
-              className="rounded-full w-10 h-10 hover:bg-gray-50 transition-all hover:scale-105 active:scale-95"
+              className="rounded-full w-10 h-10 hover:bg-gray-50 border-gray-300 hover:border-orange-300 transition-all"
               aria-label="Previous articles"
-            >
-              <ChevronLeft className="h-5 w-5 text-gray-700" />
-            </Button>
-            <Button
-              onClick={nextSlide}
-              disabled={currentIndex >= posts.length - visibleCards}
-              variant="outline"
-              size="icon"
-              className="rounded-full w-10 h-10 hover:bg-gray-50 transition-all hover:scale-105 active:scale-95"
-              aria-label="Next articles"
-            >
-              <ChevronRight className="h-5 w-5 text-gray-700" />
-            </Button>
-          </div>
-        )}
-      </div>
-      
-      <div className="relative">
-        <div 
-          className="overflow-hidden select-none"
-          onMouseDown={handleDragStart}
-          onMouseUp={handleDragEnd}
-          onMouseMove={handleDragMove}
-          onMouseLeave={() => setIsDragging(false)}
-          onTouchStart={handleDragStart}
-          onTouchEnd={handleDragEnd}
-          onTouchMove={handleDragMove}
-        >
-          <motion.div
-            className="flex gap-4 md:gap-6"
-            animate={{ x: `-${currentIndex * (100 / visibleCards)}%` }}
-            transition={{ 
-              type: 'spring', 
-              stiffness: 300, 
-              damping: 30,
-              duration: 0.3 
-            }}
-            style={{ width: `${(posts.length * 100) / visibleCards}%` }}
-          >
-            {posts.map((post) => (
-              <div
-                key={post.id}
-                className={`min-w-[calc(${100 / visibleCards}%-${visibleCards === 1 ? '0rem' : '1rem'})] group cursor-pointer`}
-                onClick={() => !isDragging && handlePostClick(post.id)}
-                role="button"
-                tabIndex={0}
-                onKeyDown={(e) => {
-                  if ((e.key === 'Enter' || e.key === ' ') && !isDragging) {
-                    e.preventDefault();
-                    handlePostClick(post.id);
-                  }
-                }}
-                aria-label={`Read article: ${post.title}`}
-              >
-                <div className="bg-gray-50 rounded-xl overflow-hidden hover:shadow-xl transition-all duration-300 h-full border border-gray-100 hover:border-orange-300 hover:translate-y-[-4px]">
-                  <div className="relative h-48 md:h-52 overflow-hidden">
-                    {post.image ? (
-                      <img
-                        src={post.image}
-                        alt={post.title}
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                        loading="lazy"
-                        onError={(e) => {
-                          e.target.onerror = null;
-                          e.target.src = getRandomImage(post.category);
-                        }}
-                      />
-                    ) : (
-                      <div className="w-full h-full bg-gradient-to-br from-orange-100 to-orange-50 flex items-center justify-center">
-                         <img
-                          src={getRandomImage(post.category)}
-                          alt="Fallback"
-                          className="w-full h-full object-cover"
-                        />
-                      </div>
-                    )}
-                    
-                    <div className="absolute top-3 right-3 bg-white/90 backdrop-blur-sm text-orange-700 px-3 py-1 rounded-full text-xs font-semibold shadow-sm flex items-center">
-                      {post.category}
-                    </div>
-                    
-                    <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 via-black/30 to-transparent p-4 pt-8">
-                      <div className="flex items-center justify-between text-white">
-                        <div className="flex items-center space-x-3">
-                          <div className="flex items-center text-xs">
-                            <Calendar className="h-3 w-3 mr-1" />
-                            <span className="text-white/90">{post.formattedDate}</span>
-                          </div>
-                          <div className="flex items-center text-xs">
-                            <User className="h-3 w-3 mr-1" />
-                            <span className="text-white/90">{post.author}</span>
-                          </div>
-                        </div>
-                        <div className="flex items-center text-xs bg-white/20 backdrop-blur-sm px-2 py-1 rounded">
-                          <Clock className="h-3 w-3 mr-1" />
-                          {post.readTime} min
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                  
-                  <div className="p-5">
-                    <h3 className="font-bold text-gray-900 line-clamp-2 group-hover:text-orange-600 transition-colors mb-3 text-lg">
-                      {post.title}
-                    </h3>
-                    <p className="text-sm text-gray-600 line-clamp-3 mb-4 leading-relaxed">
-                      {post.summary}
-                    </p>
-                    
-                    <div className="flex items-center justify-between">
-                      <span className="inline-flex items-center text-sm text-orange-600 font-medium group-hover:text-orange-700 transition-colors">
-                        Read Full Article
-                        <ExternalLink className="h-4 w-4 ml-2 group-hover:translate-x-1 transition-transform" />
-                      </span>
-                      <div className="flex items-center text-gray-500 text-xs">
-                        <BookOpen className="h-3 w-3 mr-1" />
-                        Featured
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </motion.div>
-        </div>
-
-        {/* Mobile navigation buttons */}
-        {posts.length > visibleCards && (
-          <div className="md:hidden flex items-center justify-center mt-6 space-x-4">
-            <Button
-              onClick={prevSlide}
-              disabled={currentIndex === 0}
-              variant="outline"
-              size="icon"
-              className="rounded-full w-10 h-10"
             >
               <ChevronLeft className="h-5 w-5" />
             </Button>
-            <div className="flex space-x-2">
-              {Array.from({ length: Math.min(3, Math.ceil(posts.length / visibleCards)) }).map((_, idx) => (
-                <button
-                  key={idx}
-                  onClick={() => setCurrentIndex(idx * visibleCards)}
-                  className={`w-2.5 h-2.5 rounded-full transition-all ${
-                    Math.floor(currentIndex / visibleCards) === idx 
-                      ? 'bg-orange-500 w-8' 
-                      : 'bg-gray-300 hover:bg-gray-400'
-                  }`}
-                  aria-label={`Go to page ${idx + 1}`}
-                />
-              ))}
+            <div className="flex items-center gap-2 px-3">
+              <span className="text-sm font-medium text-gray-700">
+                {currentPage + 1}
+              </span>
+              <span className="text-gray-400">/</span>
+              <span className="text-sm text-gray-500">{totalPages}</span>
             </div>
             <Button
               onClick={nextSlide}
-              disabled={currentIndex >= posts.length - visibleCards}
               variant="outline"
               size="icon"
-              className="rounded-full w-10 h-10"
+              className="rounded-full w-10 h-10 hover:bg-gray-50 border-gray-300 hover:border-orange-300 transition-all"
+              aria-label="Next articles"
             >
               <ChevronRight className="h-5 w-5" />
             </Button>
           </div>
         )}
+      </div>
 
-        {/* Desktop pagination dots */}
+      {/* Carousel */}
+      <div className="relative">
+        <div 
+          className="overflow-hidden select-none"
+          onMouseDown={handleDragStart}
+          onMouseUp={handleDragEnd}
+          onMouseLeave={() => setIsDragging(false)}
+          onTouchStart={handleDragStart}
+          onTouchEnd={handleDragEnd}
+        >
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={currentPage}
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -20 }}
+              transition={{ duration: 0.3 }}
+              className={cn(
+                "grid gap-6",
+                visibleCards === 1 && "grid-cols-1",
+                visibleCards === 2 && "grid-cols-1 sm:grid-cols-2",
+                visibleCards === 3 && "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3"
+              )}
+            >
+              {visiblePosts.map((post) => (
+                <PostCard key={post.id} post={post} />
+              ))}
+            </motion.div>
+          </AnimatePresence>
+        </div>
+
+        {/* Mobile indicators */}
         {posts.length > visibleCards && (
-          <div className="hidden md:flex justify-center mt-8 space-x-2">
-            {Array.from({ length: Math.ceil(posts.length / visibleCards) }).map((_, idx) => (
+          <div className="flex justify-center mt-8 gap-2">
+            {Array.from({ length: totalPages }).map((_, idx) => (
               <button
                 key={idx}
                 onClick={() => setCurrentIndex(idx * visibleCards)}
-                className={`w-8 h-1.5 rounded-full transition-all ${
-                  Math.floor(currentIndex / visibleCards) === idx 
-                    ? 'bg-orange-500' 
-                    : 'bg-gray-300 hover:bg-gray-400'
-                }`}
+                className={cn(
+                  "h-2 rounded-full transition-all duration-300",
+                  currentPage === idx 
+                    ? "bg-orange-500 w-8" 
+                    : "bg-gray-300 w-2 hover:bg-gray-400 hover:w-4"
+                )}
                 aria-label={`Go to page ${idx + 1}`}
               />
             ))}
@@ -428,16 +392,15 @@ const RelatedPostsCarousel = ({ category, currentPostId }) => {
         )}
       </div>
 
-      {posts.length > 0 && (
-        <div className="mt-8 pt-6 border-t border-gray-100 text-center">
-          <p className="text-gray-600 text-sm">
-            Showing {Math.min(posts.length, (currentIndex + visibleCards))} of {posts.length} related articles
-          </p>
-          <p className="text-gray-400 text-xs mt-1">
-            Click on any article to read more
+      {/* Footer info */}
+      <div className="mt-8 pt-6 border-t border-gray-100">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 text-sm">
+          <p className="text-gray-600">
+            Showing <span className="font-semibold">{Math.min(visiblePosts.length, posts.length)}</span> of{' '}
+            <span className="font-semibold">{posts.length}</span> related articles
           </p>
         </div>
-      )}
+      </div>
     </div>
   );
 };

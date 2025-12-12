@@ -93,18 +93,36 @@ class RSSParserService {
       const title = item.title?._ || item.title?.$?.text || item.title || '';
       const shortTitle = title.length > 100 ? title.substring(0, 97) + '...' : title;
 
-      // Extract description/content
-      let description = '';
-      if (item.description) {
-        description = item.description?._ || item.description?.$?.text || item.description || '';
+      // Extract content (prefer content:encoded, then description, then summary)
+      let content = '';
+      if (item['content:encoded']) {
+        content = item['content:encoded']?._ || item['content:encoded']?.$?.text || item['content:encoded'] || '';
+      } else if (item.description) {
+        content = item.description?._ || item.description?.$?.text || item.description || '';
       } else if (item.content) {
-        description = item.content?._ || item.content?.$?.text || item.content || '';
+        content = item.content?._ || item.content?.$?.text || item.content || '';
       } else if (item.summary) {
-        description = item.summary?._ || item.summary?.$?.text || item.summary || '';
+        content = item.summary?._ || item.summary?.$?.text || item.summary || '';
       }
 
-      // Clean HTML tags from description
-      description = description.replace(/<[^>]*>/g, '').trim();
+      // Extract clean description (stripped tags)
+      let description = content.replace(/<[^>]*>/g, '').trim();
+      // If description is too long, truncate it for the short description field
+      if (description.length > 300) {
+        description = description.substring(0, 300) + '...';
+      }
+
+      // Extract author
+      let author = '';
+      if (item['dc:creator']) {
+        author = item['dc:creator']?._ || item['dc:creator'] || '';
+      } else if (item.author) {
+         if (typeof item.author === 'string') {
+            author = item.author;
+         } else if (item.author.name) {
+            author = item.author.name;
+         }
+      }
 
       // Extract link
       let link = '';
@@ -138,10 +156,10 @@ class RSSParserService {
 
       // Extract publication date
       let pubDate = '';
-      if (item.pubdate) {
-        pubDate = item.pubdate;
-      } else if (item.pubDate) {
+      if (item.pubDate) {
         pubDate = item.pubDate;
+      } else if (item.pubdate) {
+        pubDate = item.pubdate;
       } else if (item.published) {
         pubDate = item.published;
       } else if (item.updated) {
@@ -152,17 +170,35 @@ class RSSParserService {
 
       // Extract image/media
       let imageUrl = '';
+      
+      // 1. Try media:content
       if (item['media:content']) {
         if (Array.isArray(item['media:content'])) {
           const imageContent = item['media:content'].find(media => 
-            media.$ && (media.$.medium === 'image' || media.$['medium'] === 'image')
+            media.$ && (media.$.medium === 'image' || media.$['medium'] === 'image' || (media.$.type && media.$.type.startsWith('image/')))
           );
-          imageUrl = imageContent ? imageContent.$.url : '';
+          if (imageContent) imageUrl = imageContent.$.url;
         } else if (item['media:content'].$ && item['media:content'].$.url) {
           imageUrl = item['media:content'].$.url;
         }
-      } else if (item.enclosure && item.enclosure.$.url) {
-        imageUrl = item.enclosure.$.url;
+      } 
+      
+      // 2. Try enclosure
+      if (!imageUrl && item.enclosure) {
+        if (Array.isArray(item.enclosure)) {
+           const imageEnclosure = item.enclosure.find(enc => enc.$ && (enc.$.type && enc.$.type.startsWith('image/') || (enc.$.url && enc.$.url.match(/\.(jpg|jpeg|png|gif|webp)$/i))));
+           if (imageEnclosure) imageUrl = imageEnclosure.$.url;
+        } else if (item.enclosure.$ && item.enclosure.$.url) {
+           imageUrl = item.enclosure.$.url;
+        }
+      }
+
+      // 3. Try parsing from content:encoded or description
+      if (!imageUrl && content) {
+        const imgMatch = content.match(/<img[^>]+src="([^">]+)"/);
+        if (imgMatch) {
+          imageUrl = imgMatch[1];
+        }
       }
 
       // Generate unique GUID if not present
@@ -172,12 +208,13 @@ class RSSParserService {
         guid,
         title: title.trim(),
         shortTitle: shortTitle.trim(),
-        description: description.trim(),
-        content: description.trim(), // Use description as content initially
+        description: description, // Short description
+        content: content, // Full HTML content
         link,
         categories,
         pubDate,
         imageUrl,
+        author,
         source: 'rss_feed',
         rawData: item // Keep raw data for debugging
       };
@@ -275,7 +312,7 @@ class RSSParserService {
             guid: item.guid,
             category: categoryId,
             imageUrl: item.imageUrl,
-            author: options.authorName || 'RSS Feed',
+            author: item.author || options.authorName || 'RSS Feed',
             authorId: userId,
             source: item.source || 'rss_feed',
             status: options.saveAsDraft ? 'draft' : 'published',
