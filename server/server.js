@@ -12,7 +12,7 @@ const app = express();
 app.use(helmet());
 
 const corsOptions = {
-  origin: ['http://localhost:3000', 'http://localhost:5000', 'http://localhost:5173', 'https://stoxbolt.com'],
+  origin: ['http://localhost:3000', 'http://localhost:5000', 'http://localhost:5173', 'https://stoxbolt.com','https://www.stoxbolt.com'],
   credentials: true,
   optionsSuccessStatus: 200
 };
@@ -143,7 +143,7 @@ app.use('*', (req, res) => {
 // MongoDB connection
 const connectDB = async () => {
   try {
-    await mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/stoxbolt', {
+    await mongoose.connect(process.env.MONGODB_URI, {
       useNewUrlParser: true,
       useUnifiedTopology: true,
     });
