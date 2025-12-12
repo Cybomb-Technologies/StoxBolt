@@ -50,7 +50,7 @@ const categoryRoutes = require('./routes/categoryRoutes');
 const publicPostRoutes = require('./routes/publicPostRoutes');
 // Try different paths for userAuthRoutes
 const userAuthRoutes = require('./routes/User-routes/User-routes');
-
+const rssFeedRoutes = require('./routes/rssFeedRoutes');
 
 // Routes
 app.use('/api/auth', authRoutes); //Auth Routes(Admin)
@@ -62,6 +62,7 @@ app.use('/api/upload', uploadRoutes);
 app.use('/api/bulk-upload', bulkUploadRoutes);
 app.use('/api/approval', approvalRoutes);
 app.use('/api/categories', categoryRoutes);
+app.use('/api/rss', rssFeedRoutes);
 
 app.use('/api/user-auth', userAuthRoutes); //User Routes
 app.use('/api/public-posts', publicPostRoutes); 
@@ -133,7 +134,8 @@ app.use('*', (req, res) => {
       '/api/categories',
       '/api/user-auth',
       '/health',
-      '/test-paths'
+      '/test-paths',
+       '/api/rss',
     ]
   });
 });

@@ -209,6 +209,13 @@ const AdminDashboard = () => {
         description: user?.role === 'admin' ? 'Create post (needs approval)' : 'Create new post'
       },
       {
+        title: 'RSS Import',
+        path: '/admin/rss-import',
+        icon: <PlusCircle className="h-5 w-5" />,
+        roles: ['admin', 'superadmin'],
+        description: 'Import posts from RSS feed'
+      },
+      {
         title: 'Categories',
         path: '/admin/categories',
         icon: <PlusCircle className="h-5 w-5" />,
