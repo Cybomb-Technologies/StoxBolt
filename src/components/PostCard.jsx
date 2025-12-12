@@ -5,6 +5,7 @@ import { Share2, Bookmark, Clock, TrendingUp } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
 import axios from 'axios';
+import { getRandomImage } from '@/utils/imageUtils';
 
 const baseURL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
@@ -232,8 +233,8 @@ const PostCard = ({ post, index }) => {
                 alt={postTitle}
                 className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
                 onError={(e) => {
-                  e.target.style.display = 'none';
-                  e.target.parentElement.classList.add('bg-gray-100');
+                  e.target.onerror = null;
+                  e.target.src = getRandomImage(postCategory);
                 }}
                 loading="lazy"
               />

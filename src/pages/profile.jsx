@@ -366,31 +366,7 @@ const Profile = () => {
               variants={itemVariants}
             >
               <div className="bg-white rounded-xl shadow-lg overflow-hidden">
-                {/* Tab Header */}
-                <div className="border-b border-gray-200">
-                  <div className="flex overflow-x-auto scrollbar-hide">
-                    {['profile', 'saved', 'password'].map((tab) => (
-                      <motion.button
-                        key={tab}
-                        onClick={() => setActiveTab(tab)}
-                        className={`px-4 sm:px-5 md:px-6 py-3 sm:py-4 font-medium text-sm sm:text-base md:text-lg whitespace-nowrap flex-shrink-0 transition-all duration-300 ${
-                          activeTab === tab
-                            ? 'border-b-2 border-orange-600 text-orange-600 font-semibold'
-                            : 'text-gray-600 hover:text-gray-900'
-                        }`}
-                        whileHover={{ scale: 1.05 }}
-                        whileTap={{ scale: 0.95 }}
-                      >
-                        {tab === 'profile' && <User className="inline mr-2 h-3 w-3 sm:h-4 sm:w-4" />}
-                        {tab === 'saved' && <Bookmark className="inline mr-2 h-3 w-3 sm:h-4 sm:w-4" />}
-                        {tab === 'password' && <Lock className="inline mr-2 h-3 w-3 sm:h-4 sm:w-4" />}
-                        {tab === 'profile' && 'Profile Information'}
-                        {tab === 'saved' && 'Saved Posts'}
-                        {tab === 'password' && 'Change Password'}
-                      </motion.button>
-                    ))}
-                  </div>
-                </div>
+                
 
                 {/* Tab Content */}
                 <div className="p-4 sm:p-5 md:p-6 lg:p-8">
