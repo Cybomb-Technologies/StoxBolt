@@ -1,4 +1,5 @@
 const Admin = require('../models/admin');
+const User = require('../models/User-models/User-models'); // Import Standard User Model
 const Activity = require('../models/Activity');
 const bcrypt = require('bcryptjs');
 
@@ -435,6 +436,10 @@ exports.getAdminStats = async (req, res) => {
     const activeAdmins = await Admin.countDocuments({ role: 'admin', isActive: true });
     const inactiveAdmins = await Admin.countDocuments({ role: 'admin', isActive: false });
     const adminsWithCRUD = await Admin.countDocuments({ role: 'admin', curdAccess: true });
+    
+    // Get total registered users count using the imported User model
+    // Note: This uses the User-models.js model which tracks actual registered users
+    const totalUsers = await User.countDocuments({});
 
     res.status(200).json({
       success: true,
@@ -444,7 +449,8 @@ exports.getAdminStats = async (req, res) => {
         inactiveAdmins,
         adminsWithCRUD,
         adminsWithoutCRUD: totalAdmins - adminsWithCRUD,
-        superadminCount: 1
+        superadminCount: 1,
+        totalUsers // Add totalUsers to the response
       }
     });
 

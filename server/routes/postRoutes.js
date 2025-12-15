@@ -3,6 +3,7 @@ const express = require('express');
 const router = express.Router();
 const { 
   getPosts,
+  getPostStats,
   createPost, 
   updatePost, 
   deletePost, 
@@ -20,6 +21,7 @@ const {
 const { protect, authorize } = require('../middleware/auth');
 const { checkCRUDAccess } = require('../middleware/curdAccess');
 const ensureCRUDAccess = require('../middleware/crudCheck');
+router.get('/stats', getPostStats);
 router.get('/', getPosts);
 
 // All routes require authentication
