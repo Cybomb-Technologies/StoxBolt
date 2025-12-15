@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { Helmet } from 'react-helmet';
 import { motion } from 'framer-motion';
-import { Share2, Bookmark, Clock, User, ArrowLeft, BookmarkCheck } from 'lucide-react';
+import { Share2, Bookmark, Clock, User, ArrowLeft, BookmarkCheck, ExternalLink } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
 import RelatedPostsCarousel from '@/components/RelatedPostsCarousel';
@@ -250,6 +250,17 @@ const PostDetailPage = () => {
                   {post.categoryName}
                 </span>
                 <div className="flex items-center space-x-2">
+                  {post.link && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => window.open(post.link, '_blank')}
+                      className="hidden md:flex items-center gap-2 text-orange-600 border-orange-200 hover:bg-orange-50"
+                    >
+                      <ExternalLink className="h-4 w-4" />
+                      Read Source
+                    </Button>
+                  )}
                   <Button
                     variant="ghost"
                     size="icon"

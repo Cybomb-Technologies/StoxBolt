@@ -195,19 +195,15 @@ const Overview = () => {
     },
     activities: {
       total: 0,
-      recent: 0,
+      recent: [],
       today: 0,
-      thisWeek: 0
-    },
-    performance: {
-      views: 0,
-      engagement: 0,
-      completionRate: 0,
-      approvalRate: 0
+      thisWeek: 0,
+      thisMonth: 0,
+      thisYear: 0,
+      allTime: 0
     },
     recentActivities: [],
     trendingPosts: [],
-    categoryDistribution: [],
     pendingApprovals: [],
     systemHealth: {
       database: 'healthy',
@@ -245,7 +241,7 @@ const Overview = () => {
 
       // Fetch all data in parallel
       const fetchPromises = [
-        fetchPosts(headers),
+        fetchPostStats(headers),
         fetchCategories(headers),
         fetchUsers(headers),
         fetchActivities(headers),
@@ -255,7 +251,7 @@ const Overview = () => {
       ];
 
       const [
-        postsData,
+        postsStatsData,
         categoriesData,
         usersData,
         activitiesData,
@@ -269,7 +265,7 @@ const Overview = () => {
 
       // Process all data
       processDashboardData({
-        posts: postsData,
+        postsStats: postsStatsData,
         categories: categoriesData,
         users: usersData,
         activities: activitiesData,
@@ -294,14 +290,14 @@ const Overview = () => {
     }
   };
 
-  const fetchPosts = async (headers) => {
+  const fetchPostStats = async (headers) => {
     try {
-      const res = await fetch(`${baseURL}/api/posts?limit=500`, { headers });
-      if (!res.ok) throw new Error('Failed to fetch posts');
+      const res = await fetch(`${baseURL}/api/posts/stats`, { headers });
+      if (!res.ok) throw new Error('Failed to fetch post stats');
       return await res.json();
     } catch (error) {
-      console.error('Error fetching posts:', error);
-      return { success: false, data: [], total: 0 };
+      console.error('Error fetching post stats:', error);
+      return { success: false, data: {} };
     }
   };
 
@@ -372,22 +368,10 @@ const Overview = () => {
   };
 
   const processDashboardData = (responses) => {
-    // Process posts data
-    const postsResponse = responses.posts || {};
-    const allPosts = postsResponse.data || postsResponse.posts || [];
-    const postsTotal = postsResponse.total || allPosts.length;
+    // Process posts stats
+    const postsStatsResponse = responses.postsStats || {};
+    const postsStats = postsStatsResponse.data || {};
     
-    const publishedPosts = allPosts.filter(post => post.status === 'published');
-    const draftPosts = allPosts.filter(post => post.status === 'draft');
-    const pendingPosts = allPosts.filter(post => 
-      post.status === 'pending' || 
-      post.approvalStatus === 'pending_review'
-    );
-    const approvedPosts = allPosts.filter(post => 
-      post.status === 'approved' || 
-      post.approvalStatus === 'approved'
-    );
-
     // Process scheduled posts
     const scheduledResponse = responses.scheduled || {};
     const scheduledCount = scheduledResponse.count || (scheduledResponse.data ? scheduledResponse.data.length : 0);
@@ -396,9 +380,11 @@ const Overview = () => {
     const categoriesResponse = responses.categories || {};
     const allCategories = categoriesResponse.data || categoriesResponse.categories || [];
     
-    // Calculate category distribution
-    const categoryDistribution = calculateCategoryDistribution(allCategories, allPosts);
-    const trendingCategories = categoryDistribution.slice(0, 3);
+    const activeCategories = allCategories.filter(cat => 
+      cat.status === 'active' || 
+      cat.isActive === true || 
+      cat.postCount > 0
+    ).length;
 
     // Process admin stats
     const adminStatsResponse = responses.adminStats || {};
@@ -409,124 +395,113 @@ const Overview = () => {
     const usersData = usersResponse.data || usersResponse.users || [];
     
     // Calculate user stats
+    const totalUsers = adminStatsData.totalUsers || 0;
+    
     const totalAdmins = adminStatsData.totalAdmins || usersData.length || 0;
-    const superadminCount = usersData.filter(u => u.role === 'superadmin').length;
-    const adminCount = usersData.filter(u => u.role === 'admin').length;
-    const editorCount = usersData.filter(u => u.role === 'editor').length;
-    const activeAdmins = usersData.filter(u => u.status === 'active' || u.isActive === true).length;
+    const superadminCount = adminStatsData.superadminCount || usersData.filter(u => u.role === 'superadmin').length;
+    const adminCount = adminStatsData.totalAdmins ? (adminStatsData.totalAdmins - (adminStatsData.superadminCount || 0)) : usersData.filter(u => u.role === 'admin').length;
+    const activeAdmins = adminStatsData.activeAdmins || usersData.filter(u => u.status === 'active' || u.isActive === true).length;
 
     // Process activities data
     const activitiesResponse = responses.activities || {};
     const allActivities = activitiesResponse.data || activitiesResponse.activities || [];
-    
-    // Calculate activity stats
-    const today = new Date().toISOString().split('T')[0];
+    const activityStats = responses.activities.stats || {};
+
+    // Get daily stats from backend
+    const dailyStats = activityStats.dailyStats || [];
+
+    // Calculate today's activities
+    const todayStr = new Date().toISOString().split('T')[0];
+    const todayStat = dailyStats.find(stat => stat._id === todayStr);
+    const todayActivitiesCount = todayStat ? todayStat.count : 0;
+
+    // Calculate this week's activities
     const oneWeekAgo = new Date();
     oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
-    
-    const todayActivitiesCount = allActivities.filter(activity => {
-      const activityDate = activity.timestamp || activity.createdAt;
-      try {
-        return new Date(activityDate).toISOString().split('T')[0] === today;
-      } catch (e) {
-        return false;
-      }
-    }).length;
+    const weekStr = oneWeekAgo.toISOString().split('T')[0];
+    const weekStats = dailyStats.filter(stat => stat._id >= weekStr);
+    const weekActivitiesCount = weekStats.reduce((sum, stat) => sum + stat.count, 0);
 
-    const weekActivitiesCount = allActivities.filter(activity => {
-      const activityDate = activity.timestamp || activity.createdAt;
-      try {
-        return new Date(activityDate) >= oneWeekAgo;
-      } catch (e) {
-        return false;
-      }
-    }).length;
+    // Calculate this month's activities
+    const oneMonthAgo = new Date();
+    oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
+    const monthStr = oneMonthAgo.toISOString().split('T')[0];
+    const monthStats = dailyStats.filter(stat => stat._id >= monthStr);
+    const monthActivitiesCount = monthStats.reduce((sum, stat) => sum + stat.count, 0);
+
+    // Calculate this year's activities
+    const currentYear = new Date().getFullYear().toString();
+    const yearStats = dailyStats.filter(stat => stat._id.startsWith(currentYear));
+    const yearActivitiesCount = yearStats.reduce((sum, stat) => sum + stat.count, 0);
+
+    // Get all time total (from backend stats)
+    const totalActivitiesCount = activityStats.totalActivities || 0;
 
     // Get recent activities (last 5)
-    const recentActivities = allActivities.slice(0, 5);
+    const recentActivities = activityStats.recentActivities || allActivities.slice(0, 5);
 
-    // Get trending posts (most recent published posts)
-    const trendingPosts = publishedPosts
-      .sort((a, b) => {
-        try {
-          const dateA = new Date(a.createdAt || a.publishDateTime || 0);
-          const dateB = new Date(b.createdAt || b.publishDateTime || 0);
-          return dateB - dateA;
-        } catch (e) {
-          return 0;
-        }
-      })
-      .slice(0, 5);
+    // Get trending posts from stats
+    const trendingPosts = postsStats.trending || [];
 
     // Process pending approvals
     const pendingApprovalsResponse = responses.pendingApprovals || {};
     const pendingApprovals = pendingApprovalsResponse.data || pendingApprovalsResponse.approvals || [];
 
-    // Calculate performance metrics
-    const totalViews = publishedPosts.reduce((sum, post) => sum + (post.views || 0), 0);
-    const engagementRate = publishedPosts.length > 0 
-      ? Math.round((publishedPosts.filter(p => p.views > 100).length / publishedPosts.length) * 100)
-      : 0;
-    const approvalRate = (pendingPosts.length + approvedPosts.length) > 0
-      ? Math.round((approvedPosts.length / (pendingPosts.length + approvedPosts.length)) * 100)
-      : 0;
+    // Stats direct mapping
+    const postsTotal = postsStats.total || 0;
+    const publishedCount = postsStats.published || 0;
+    const draftCount = postsStats.draft || 0;
+    const pendingCount = postsStats.pendingApproval || 0;
+    const approvedCount = postsStats.approved || 0;
 
-    // Calculate posts per category
+    // Calculate approval rate
+    const approvalRate = (pendingCount + approvedCount) > 0
+      ? Math.round((approvedCount / (pendingCount + approvedCount)) * 100)
+      : 100;
+
+    // Posts per category (average)
     const postsPerCategory = allCategories.length > 0 
       ? Math.round(postsTotal / allCategories.length) 
       : 0;
-
-    // Active categories
-    const activeCategories = allCategories.filter(cat => 
-      cat.status === 'active' || 
-      cat.isActive === true || 
-      cat.postCount > 0
-    ).length;
 
     // Update state with all processed data
     setStats({
       posts: {
         total: postsTotal,
-        published: publishedPosts.length,
-        draft: draftPosts.length,
+        published: publishedCount,
+        draft: draftCount,
         scheduled: scheduledCount,
         trending: trendingPosts.length,
-        pendingApproval: pendingPosts.length,
-        approved: approvedPosts.length
+        pendingApproval: pendingCount,
+        approved: approvedCount
       },
       users: {
-        total: totalAdmins,
+        total: totalUsers,
         active: activeAdmins,
         admins: adminCount,
         superadmins: superadminCount,
-        editors: editorCount
       },
       categories: {
         total: allCategories.length,
         active: activeCategories,
         postsPerCategory: postsPerCategory,
-        trendingCategories: trendingCategories
       },
       activities: {
-        total: allActivities.length,
-        recent: recentActivities.length,
+        total: totalActivitiesCount,
+        recent: recentActivities,
         today: todayActivitiesCount,
-        thisWeek: weekActivitiesCount
-      },
-      performance: {
-        views: totalViews,
-        engagement: engagementRate,
-        completionRate: Math.round((trendingPosts.length / Math.max(publishedPosts.length, 1)) * 100),
-        approvalRate: approvalRate
+        thisWeek: weekActivitiesCount,
+        thisMonth: monthActivitiesCount,
+        thisYear: yearActivitiesCount,
+        allTime: totalActivitiesCount
       },
       recentActivities: recentActivities,
       trendingPosts: trendingPosts,
-      categoryDistribution: categoryDistribution,
       pendingApprovals: pendingApprovals,
       systemHealth: {
         database: postsTotal > 0 ? 'healthy' : 'warning',
-        api: allActivities.length > 0 ? 'healthy' : 'warning',
-        storage: 'healthy' // This could be enhanced with actual storage checks
+        api: (totalActivitiesCount || 0) > 0 ? 'healthy' : 'warning',
+        storage: 'healthy'
       },
       lastUpdated: new Date()
     });
@@ -746,12 +721,57 @@ const Overview = () => {
 
   const handleTimeRangeChange = (range) => {
     setTimeRange(range);
-    // In a real app, you would pass this to your API calls
     toast({
       title: 'Filter Applied',
       description: `Showing data for ${range}`,
       variant: 'default'
     });
+  };
+
+  // Function to get activity count based on selected time range
+  const getActivityCountForTimeRange = () => {
+    switch (timeRange) {
+      case 'today':
+        return stats.activities.today;
+      case 'week':
+        return stats.activities.thisWeek;
+      case 'month':
+        return stats.activities.thisMonth;
+      case 'year':
+        return stats.activities.thisYear;
+      case 'all':
+        return stats.activities.allTime;
+      default:
+        return stats.activities.today;
+    }
+  };
+
+  // Function to get comparison value for progress bar
+  const getComparisonValue = () => {
+    const currentValue = getActivityCountForTimeRange();
+    
+    switch (timeRange) {
+      case 'today':
+        // Compare today with weekly average
+        const weeklyAvg = stats.activities.thisWeek / 7;
+        return (currentValue / Math.max(weeklyAvg, 1)) * 100;
+      case 'week':
+        // Compare this week with monthly average
+        const monthlyAvg = stats.activities.thisMonth / 4;
+        return (currentValue / Math.max(monthlyAvg, 1)) * 100;
+      case 'month':
+        // Compare this month with yearly average
+        const yearlyAvg = stats.activities.thisYear / 12;
+        return (currentValue / Math.max(yearlyAvg, 1)) * 100;
+      case 'year':
+        // Compare this year with previous (assuming similar to current)
+        return (currentValue / Math.max(stats.activities.thisYear, 1)) * 100;
+      case 'all':
+        // Show 100% for all time
+        return 100;
+      default:
+        return 0;
+    }
   };
 
   if (loading && !refreshing) {
@@ -821,8 +841,9 @@ const Overview = () => {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.3 }}
+          className="h-full"
         >
-          <Card className="hover:shadow-md transition-shadow hover:border-orange-300">
+          <Card className="hover:shadow-md transition-shadow hover:border-orange-300 h-full flex flex-col">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm font-medium text-gray-600">
                 Total Posts
@@ -856,8 +877,9 @@ const Overview = () => {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.3, delay: 0.1 }}
+          className="h-full"
         >
-          <Card className="hover:shadow-md transition-shadow hover:border-teal-300">
+          <Card className="hover:shadow-md transition-shadow hover:border-teal-300 h-full flex flex-col">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm font-medium text-gray-600">
                 Categories
@@ -876,10 +898,6 @@ const Overview = () => {
                     <FileText className="h-3 w-3 text-blue-500 mr-2" />
                     <span className="text-sm">Posts per category: {stats.categories.postsPerCategory}</span>
                   </div>
-                  <div className="flex items-center">
-                    <TrendingIcon className="h-3 w-3 text-purple-500 mr-2" />
-                    <span className="text-sm">Trending: {stats.categories.trendingCategories.length}</span>
-                  </div>
                 </div>
               </div>
             </CardContent>
@@ -891,169 +909,66 @@ const Overview = () => {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.3, delay: 0.2 }}
+          className="h-full"
         >
-          <Card className="hover:shadow-md transition-shadow hover:border-green-300">
+          <Card className="hover:shadow-md transition-shadow hover:border-green-300 h-full flex flex-col">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm font-medium text-gray-600">
-                Activities Today
+                Activities ({timeRange === 'today' ? 'Today' : 
+                           timeRange === 'week' ? 'This Week' : 
+                           timeRange === 'month' ? 'This Month' : 
+                           timeRange === 'year' ? 'This Year' : 'All Time'})
               </CardTitle>
               <Activity className="h-4 w-4 text-green-600" />
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold">{formatNumber(stats.activities.today)}</div>
+              <div className="text-3xl font-bold">{formatNumber(getActivityCountForTimeRange())}</div>
               <div className="mt-4 space-y-3">
                 <div>
                   <div className="flex justify-between text-sm mb-1">
-                    <span>This Week</span>
-                    <span>{stats.activities.thisWeek}</span>
+                    <span>Comparison</span>
+                    <span>
+                      {timeRange === 'today' ? 'vs weekly avg' : 
+                       timeRange === 'week' ? 'vs monthly avg' : 
+                       timeRange === 'month' ? 'vs yearly avg' : 
+                       timeRange === 'year' ? 'vs previous year' : 'All time'}
+                    </span>
                   </div>
-                  <Progress value={(stats.activities.today / Math.max(stats.activities.thisWeek, 1)) * 100} />
+                  <Progress value={getComparisonValue()} />
                 </div>
                 <div className="flex items-center text-sm">
                   <Clock className="h-3 w-3 mr-2 text-gray-500" />
-                  <span>Recent: {stats.activities.recent} activities</span>
+                  <span>Recent: {stats.activities.recent.length} activities</span>
                 </div>
+                
               </div>
             </CardContent>
           </Card>
         </motion.div>
 
-        {/* Performance Card */}
+        {/* Users Card */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.3, delay: 0.3 }}
+          className="h-full"
         >
-          <Card className="hover:shadow-md transition-shadow hover:border-purple-300">
+          <Card className="hover:shadow-md transition-shadow hover:border-indigo-300 h-full flex flex-col">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm font-medium text-gray-600">
-                Performance
+                Users
               </CardTitle>
-              <TrendingUp className="h-4 w-4 text-purple-600" />
+              <Users className="h-4 w-4 text-indigo-600" />
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold">{formatNumber(stats.performance.views)}</div>
-              <p className="text-sm text-gray-500">Total Views</p>
-              <div className="mt-4 grid grid-cols-2 gap-4">
-                <div className="text-center p-2 bg-gray-50 rounded">
-                  <div className="text-lg font-semibold">{stats.performance.engagement || 0}%</div>
-                  <p className="text-xs text-gray-500">Engagement</p>
-                </div>
-                <div className="text-center p-2 bg-gray-50 rounded">
-                  <div className="text-lg font-semibold">{stats.performance.approvalRate || 0}%</div>
-                  <p className="text-xs text-gray-500">Approval Rate</p>
-                </div>
+              <div className="text-3xl font-bold">{formatNumber(stats.users.total)}</div>
+              <div className="flex items-center justify-between mt-4">
+                 <p className="text-sm text-gray-500">Total Registered Users</p>
               </div>
             </CardContent>
           </Card>
         </motion.div>
       </div>
-
-      {/* User Stats Grid (for Superadmin) */}
-      {user?.role === 'superadmin' && (
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-gray-600">Total Users</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{stats.users.total}</div>
-              <div className="flex items-center mt-2">
-                <Users className="h-4 w-4 text-gray-400 mr-2" />
-                <span className="text-sm text-gray-500">All system users</span>
-              </div>
-            </CardContent>
-          </Card>
-          
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-gray-600">Active Users</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{stats.users.active}</div>
-              <div className="flex items-center mt-2">
-                <UserCheck className="h-4 w-4 text-green-400 mr-2" />
-                <span className="text-sm text-gray-500">Currently active</span>
-              </div>
-            </CardContent>
-          </Card>
-          
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-gray-600">Admins</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{stats.users.admins}</div>
-              <div className="flex items-center mt-2">
-                <Shield className="h-4 w-4 text-blue-400 mr-2" />
-                <span className="text-sm text-gray-500">Admin users</span>
-              </div>
-            </CardContent>
-          </Card>
-          
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-gray-600">Editors</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{stats.users.editors}</div>
-              <div className="flex items-center mt-2">
-                <FileText className="h-4 w-4 text-purple-400 mr-2" />
-                <span className="text-sm text-gray-500">Editor users</span>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      )}
-
-      {/* Categories Quick Stats */}
-      {stats.categories.trendingCategories.length > 0 && (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ duration: 0.5 }}
-        >
-          <Card>
-            <CardHeader>
-              <CardTitle>Top Categories</CardTitle>
-              <CardDescription>Categories with most posts</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                {stats.categories.trendingCategories.map((category, index) => (
-                  <motion.div
-                    key={category.id || index}
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: index * 0.1 }}
-                    className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50 transition-colors cursor-pointer hover:shadow-sm"
-                    onClick={() => {
-                      toast({
-                        title: category.name,
-                        description: `${category.count} posts in this category`,
-                        variant: 'default'
-                      });
-                    }}
-                  >
-                    <div className="flex items-center space-x-3">
-                      <div className={`p-2 rounded-full ${category.color}`}>
-                        <Hash className="h-4 w-4" />
-                      </div>
-                      <div>
-                        <p className="font-medium">{category.name}</p>
-                        <p className="text-sm text-gray-500">{category.count} posts</p>
-                      </div>
-                    </div>
-                    <Badge variant={index === 0 ? 'orange' : index === 1 ? 'blue' : 'purple'}>
-                      #{index + 1}
-                    </Badge>
-                  </motion.div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        </motion.div>
-      )}
 
       {/* Charts and Detailed Views */}
       <Tabs defaultValue="activities">
@@ -1066,10 +981,7 @@ const Overview = () => {
             <TrendingUp className="h-4 w-4 mr-2" />
             Trending Posts
           </TabsTrigger>
-          <TabsTrigger value="categories">
-            <Layers className="h-4 w-4 mr-2" />
-            Category Distribution
-          </TabsTrigger>
+
           {user?.role === 'superadmin' && (
             <TabsTrigger value="insights">
               <BarChart className="h-4 w-4 mr-2" />
@@ -1212,108 +1124,6 @@ const Overview = () => {
           </Card>
         </TabsContent>
 
-        {/* Category Distribution Tab */}
-        <TabsContent value="categories">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Category Distribution Chart */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Category Distribution</CardTitle>
-                <CardDescription>Posts by category (Top 10)</CardDescription>
-              </CardHeader>
-              <CardContent>
-                {stats.categoryDistribution.length > 0 ? (
-                  <div className="space-y-4">
-                    {stats.categoryDistribution.map((category, index) => {
-                      const percentage = (category.count / Math.max(stats.posts.total, 1)) * 100;
-                      return (
-                        <div key={category.id || index} className="space-y-2">
-                          <div className="flex justify-between items-center">
-                            <div className="flex items-center space-x-2">
-                              <div className={`w-3 h-3 rounded-full ${category.color.split(' ')[0]}`}></div>
-                              <span className="text-sm font-medium truncate">{category.name}</span>
-                            </div>
-                            <div className="flex items-center space-x-2">
-                              <span className="text-sm">{category.count} posts</span>
-                              <span className="text-sm text-gray-500">({percentage.toFixed(1)}%)</span>
-                            </div>
-                          </div>
-                          <Progress value={percentage} className={category.color.split(' ')[0]} />
-                        </div>
-                      );
-                    })}
-                  </div>
-                ) : (
-                  <div className="text-center py-8 text-gray-500">
-                    <Layers className="h-12 w-12 mx-auto mb-4 text-gray-300" />
-                    <p>No category data available</p>
-                    <p className="text-sm mt-2">Create categories and assign posts to them</p>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-
-            {/* Category Management Quick Actions */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Category Management</CardTitle>
-                <CardDescription>Quick category actions</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div 
-                      className="text-center p-4 border rounded-lg hover:bg-gray-50 transition-colors cursor-pointer hover:shadow-sm"
-                      onClick={() => toast({
-                        title: 'Manage Categories',
-                        description: 'Redirecting to category management...',
-                        variant: 'default'
-                      })}
-                    >
-                      <div className="inline-flex items-center justify-center p-3 rounded-full bg-blue-100 text-blue-600 mb-2">
-                        <FolderOpen className="h-6 w-6" />
-                      </div>
-                      <p className="font-medium">Manage Categories</p>
-                      <p className="text-sm text-gray-500">{stats.categories.total} total</p>
-                    </div>
-                    <div 
-                      className="text-center p-4 border rounded-lg hover:bg-gray-50 transition-colors cursor-pointer hover:shadow-sm"
-                      onClick={() => toast({
-                        title: 'Create Category',
-                        description: 'Opening category creation form...',
-                        variant: 'default'
-                      })}
-                    >
-                      <div className="inline-flex items-center justify-center p-3 rounded-full bg-green-100 text-green-600 mb-2">
-                        <Tag className="h-6 w-6" />
-                      </div>
-                      <p className="font-medium">Create Category</p>
-                      <p className="text-sm text-gray-500">Add new category</p>
-                    </div>
-                  </div>
-                  
-                  {stats.categories.trendingCategories.length > 0 && (
-                    <div>
-                      <h4 className="font-medium mb-3">Top 3 Categories</h4>
-                      <div className="space-y-2">
-                        {stats.categories.trendingCategories.map((category, index) => (
-                          <div key={category.id || index} className="flex items-center justify-between p-3 border rounded hover:bg-gray-50">
-                            <div className="flex items-center space-x-2">
-                              <Badge className={category.color}>#{index + 1}</Badge>
-                              <span className="truncate">{category.name}</span>
-                            </div>
-                            <Badge variant="outline">{category.count} posts</Badge>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        </TabsContent>
-
         {/* Insights Tab (Superadmin Only) */}
         {user?.role === 'superadmin' && (
           <TabsContent value="insights">
@@ -1362,38 +1172,7 @@ const Overview = () => {
                 </CardContent>
               </Card>
 
-              {/* Activity Distribution Card */}
-              <Card>
-                <CardHeader>
-                  <CardTitle>Activity Distribution</CardTitle>
-                  <CardDescription>Breakdown of recent activities</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  {stats.recentActivities.length > 0 ? (
-                    <div className="space-y-3">
-                      {['create', 'update', 'publish', 'delete', 'upload', 'schedule_created', 'admin_updated'].map((type) => {
-                        const count = stats.recentActivities.filter(a => a.type === type).length;
-                        const percentage = (count / Math.max(stats.recentActivities.length, 1)) * 100;
-                        
-                        return (
-                          <div key={type} className="space-y-1">
-                            <div className="flex justify-between">
-                              <span className="text-sm capitalize">{type.replace(/_/g, ' ')}</span>
-                              <span className="text-sm font-medium">{count} ({percentage.toFixed(0)}%)</span>
-                            </div>
-                            <Progress value={percentage} />
-                          </div>
-                        );
-                      })}
-                    </div>
-                  ) : (
-                    <div className="text-center py-8 text-gray-500">
-                      <PieChart className="h-12 w-12 mx-auto mb-4 text-gray-300" />
-                      <p>No activity data available</p>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
+              
             </div>
           </TabsContent>
         )}

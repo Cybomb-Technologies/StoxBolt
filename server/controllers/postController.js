@@ -8,6 +8,66 @@ const isValidObjectId = (id) => {
   return mongoose.Types.ObjectId.isValid(id);
 };
 
+// @desc    Get post statistics
+// @route   GET /api/posts/stats
+// @access  Private
+exports.getPostStats = async (req, res) => {
+  try {
+    const total = await Post.countDocuments();
+    const published = await Post.countDocuments({ status: 'published' });
+    const draft = await Post.countDocuments({ status: 'draft' });
+    const scheduled = await Post.countDocuments({ status: 'scheduled' });
+    const pending = await Post.countDocuments({ 
+      $or: [
+        { status: 'pending_approval' },
+        { status: 'pending_review' },
+        { approvalStatus: 'pending_review' }
+      ]
+    });
+    const approved = await Post.countDocuments({ 
+      $or: [
+        { status: 'approved' },
+        { approvalStatus: 'approved' }
+      ]
+    });
+
+    // Get trending posts (top 5 by views, fallback to recent)
+    // Assuming 'views' field exists, otherwise this will just return top 5
+    const trending = await Post.find({ status: 'published' })
+      .sort({ views: -1, createdAt: -1 })
+      .limit(5)
+      .select('title views author createdAt category status');
+
+    // Get today's posts count
+    const startOfDay = new Date();
+    startOfDay.setHours(0, 0, 0, 0);
+    const todayCount = await Post.countDocuments({
+      createdAt: { $gte: startOfDay }
+    });
+
+    res.status(200).json({
+      success: true,
+      data: {
+        total,
+        published,
+        draft,
+        scheduled,
+        pendingApproval: pending,
+        approved,
+        trending,
+        today: todayCount
+      }
+    });
+
+  } catch (error) {
+    console.error('Get post stats error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error fetching stats'
+    });
+  }
+};
+
 // @desc    Get all posts with CRUD access consideration
 // @route   GET /api/posts
 // @access  Private
