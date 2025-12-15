@@ -322,6 +322,21 @@ const PostDetailPage = () => {
                 )}
               </div>
 
+   <div className="flex items-center space-x-2">
+                  {post.link && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => window.open(post.link, '_blank')}
+                      className="hidden md:flex items-center gap-2 text-orange-600 border-orange-200 hover:bg-orange-50"
+                    >
+                      <ExternalLink className="h-4 w-4" />
+                      Read More
+                    </Button>
+                  )}
+                 
+                </div>
+
               {post.tags && post.tags.length > 0 && (
                 <div className="mt-8 pt-6 border-t">
                   <h3 className="text-sm font-semibold text-gray-600 mb-3">Tags:</h3>
