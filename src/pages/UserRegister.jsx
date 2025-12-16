@@ -18,12 +18,12 @@ const UserRegister = () => {
   const { toast } = useToast();
 
   // Get API URL from Vite environment variable
-  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+  const API_URL = import.meta.env.VITE_API_URL || 'https://api.stoxbolt.com';
   const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID;
 
   const handleManualRegister = async (e) => {
     e.preventDefault();
-    
+
     // Validation
     if (!username || !email || !password || !confirmPassword) {
       toast({
@@ -33,7 +33,7 @@ const UserRegister = () => {
       });
       return;
     }
-    
+
     if (password !== confirmPassword) {
       toast({
         title: 'Password Mismatch',
@@ -42,7 +42,7 @@ const UserRegister = () => {
       });
       return;
     }
-    
+
     if (password.length < 6) {
       toast({
         title: 'Password too short',
@@ -51,7 +51,7 @@ const UserRegister = () => {
       });
       return;
     }
-    
+
     setLoading(true);
 
     try {
@@ -74,14 +74,14 @@ const UserRegister = () => {
           title: 'Registration Successful!',
           description: 'Your account has been created successfully'
         });
-        
+
         navigate('/user-login');
       } else {
         throw new Error(data.message || 'Registration failed');
       }
     } catch (error) {
       console.error('Registration error:', error);
-      
+
       toast({
         title: 'Registration Failed',
         description: error.message || 'Registration failed. Please try again.',
@@ -95,7 +95,7 @@ const UserRegister = () => {
   const handleGoogleRegister = async () => {
     try {
       setGoogleLoading(true);
-      
+
       // Load Google Identity Services script
       if (!window.google) {
         const script = document.createElement('script');
@@ -103,7 +103,7 @@ const UserRegister = () => {
         script.async = true;
         script.defer = true;
         document.body.appendChild(script);
-        
+
         // Wait for script to load
         await new Promise((resolve) => {
           script.onload = resolve;
@@ -163,7 +163,7 @@ const UserRegister = () => {
       });
 
       const data = await result.json();
-      
+
       if (!result.ok) {
         throw new Error(data.message || 'Google registration failed');
       }
@@ -171,12 +171,12 @@ const UserRegister = () => {
       if (data.success) {
         // Store token in localStorage
         localStorage.setItem('token', data.token);
-        
+
         toast({
           title: 'Registration Successful!',
           description: 'Your account has been created with Google'
         });
-        
+
         navigate('/dashboard');
       } else {
         throw new Error(data.message || 'Google registration failed');
@@ -345,7 +345,7 @@ const UserRegister = () => {
               Sign in here
             </Link>
           </p>
-          
+
           <Link to="/" className="inline-flex items-center text-gray-600 hover:text-gray-900">
             <ArrowLeft className="h-4 w-4 mr-2" />
             Back to Home

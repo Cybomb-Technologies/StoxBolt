@@ -2,6 +2,9 @@ const mongoose = require('mongoose');
 const Post = require('../models/Post');
 const AdminPost = require('../models/AdminPost');
 const Activity = require('../models/Activity');
+const Notification = require('../models/Notification');
+const { sendPushToUsers } = require('../utils/push');
+
 
 // Add this helper function at the beginning of the file
 const isValidObjectId = (id) => {
@@ -226,54 +229,52 @@ exports.createPost = async (req, res) => {
     }
     
     // In the createPost function, update the postData section:
-const postData = {
-  ...req.body,
-  authorId: req.user._id,
-  author: req.body.author || req.user.name
-};
+    const postData = {
+      ...req.body,
+      authorId: req.user._id,
+      author: req.body.author || req.user.name
+    };
 
-// Make sure category is an ObjectId
-if (req.body.category) {
-  if (!mongoose.Types.ObjectId.isValid(req.body.category)) {
-    // If category is a string (new category), create it first
-    const Category = require('../models/Category');
-    let category = await Category.findOne({ name: req.body.category });
-    
-    if (!category) {
-      // Create new category
-      category = await Category.create({
-        name: req.body.category,
-        createdBy: req.user._id
-      });
+    // Make sure category is an ObjectId
+    if (req.body.category) {
+      if (!mongoose.Types.ObjectId.isValid(req.body.category)) {
+        const Category = require('../models/Category');
+        let category = await Category.findOne({ name: req.body.category });
+        
+        if (!category) {
+          category = await Category.create({
+            name: req.body.category,
+            createdBy: req.user._id
+          });
+        }
+        
+        postData.category = category._id;
+      }
     }
-    
-    postData.category = category._id;
-  }
-}
 
-// In the updatePost function, add similar logic:
-if (req.body.category) {
-  if (!mongoose.Types.ObjectId.isValid(req.body.category)) {
-    // If category is a string (new category), create it first
-    const Category = require('../models/Category');
-    let category = await Category.findOne({ name: req.body.category });
-    
-    if (!category) {
-      // Create new category
-      category = await Category.create({
-        name: req.body.category,
-        createdBy: req.user._id
-      });
+    // In the updatePost function, add similar logic:
+    if (req.body.category) {
+      if (!mongoose.Types.ObjectId.isValid(req.body.category)) {
+        const Category = require('../models/Category');
+        let category = await Category.findOne({ name: req.body.category });
+        
+        if (!category) {
+          category = await Category.create({
+            name: req.body.category,
+            createdBy: req.user._id
+          });
+        }
+        
+        updateData.category = category._id;
+      }
     }
-    
-    updateData.category = category._id;
-  }
-}
 
-    
     // Handle tags
     if (postData.tags && typeof postData.tags === 'string') {
-      postData.tags = postData.tags.split(',').map(tag => tag.trim()).filter(tag => tag);
+      postData.tags = postData.tags
+        .split(',')
+        .map(tag => tag.trim())
+        .filter(tag => tag);
     }
     
     // Check if it's a scheduled post
@@ -290,7 +291,6 @@ if (req.body.category) {
       postData.isScheduled = true;
       
       if (req.user.role === 'admin') {
-        // Admin with CRUD access can schedule directly
         if (req.user.hasCRUDAccess) {
           console.log('Admin with CRUD access scheduling directly');
           postData.scheduleApproved = true;
@@ -298,13 +298,11 @@ if (req.body.category) {
           postData.scheduleApprovedAt = Date.now();
           postData.status = 'scheduled';
         } else {
-          // Admin without CRUD access needs approval
           console.log('Admin without CRUD access needs approval');
           postData.scheduleApproved = false;
           postData.status = 'pending_approval';
         }
       } else if (req.user.role === 'superadmin') {
-        // Superadmin can schedule directly
         console.log('Superadmin scheduling directly');
         postData.scheduleApproved = true;
         postData.scheduleApprovedBy = req.user._id;
@@ -312,21 +310,17 @@ if (req.body.category) {
         postData.status = 'scheduled';
       }
     } else {
-      // NOT scheduled - Immediate publication
       console.log('Not scheduled - checking direct publication rights');
       
       if (req.user.role === 'admin' && req.user.hasCRUDAccess) {
-        // Admin with CRUD access can publish directly
         console.log('Admin with CRUD access publishing directly');
         postData.status = 'published';
-        postData.publishDateTime = new Date(); // Set to now
+        postData.publishDateTime = new Date();
       } else if (req.user.role === 'superadmin') {
-        // Superadmin can publish directly
         console.log('Superadmin publishing directly');
         postData.status = 'published';
         postData.publishDateTime = new Date();
       } else {
-        // Admin without CRUD access needs approval
         console.log('Admin without CRUD access needs approval');
         postData.status = 'pending_approval';
       }
@@ -340,9 +334,57 @@ if (req.body.category) {
     console.log('Final post data:', JSON.stringify(postData, null, 2));
     
     const post = await Post.create(postData);
-    
+
+    /* =====================================================
+   📢 PUSH NOTIFICATION TO USERS
+   ===================================================== */
+try {
+  // Only when post is actually published
+  if (post.status === 'published') {
+    await sendPushToUsers({
+      title: 'New Blog Post Published',
+      message: post.title,
+      url: `/posts/${post._id}`
+    });
+  }
+} catch (pushErr) {
+  console.error('Push notification failed:', pushErr);
+}
+/* ===================================================== */
+
+
+    /* =====================================================
+       🔔 DIRECT NOTIFICATION SAVE (LOGIC CHANGE ONLY)
+       ===================================================== */
+    try {
+      const notification = new Notification({
+        title: 'New Post Created',
+        message: `New post created: ${post.title}`,
+        type: 'create-post',
+        relatedId: post._id
+      });
+
+      await notification.save();
+
+      if (global.io) {
+        const unreadCount = await Notification.countDocuments({ isRead: false });
+        global.io.emit('newNotification', {
+          notification,
+          unreadCount
+        });
+      }
+    } catch (notifyErr) {
+      console.error('Notification save failed:', notifyErr);
+    }
+    /* ===================================================== */
+
     // If admin without CRUD access created a scheduled post, create AdminPost for approval
-    if (req.user.role === 'admin' && !req.user.hasCRUDAccess && post.isScheduled && !post.scheduleApproved) {
+    if (
+      req.user.role === 'admin' &&
+      !req.user.hasCRUDAccess &&
+      post.isScheduled &&
+      !post.scheduleApproved
+    ) {
       const adminPostData = {
         ...postData,
         postId: post._id,
@@ -375,7 +417,9 @@ if (req.body.category) {
     
     res.status(201).json({
       success: true,
-      message: req.user.hasCRUDAccess ? 'Post created successfully' : 'Post created - scheduled posts need approval',
+      message: req.user.hasCRUDAccess
+        ? 'Post created successfully'
+        : 'Post created - scheduled posts need approval',
       data: post
     });
     
@@ -387,7 +431,9 @@ if (req.body.category) {
       error: process.env.NODE_ENV === 'development' ? error.message : undefined
     });
   }
+  
 };
+
 
 // @desc    Update post with CRUD access consideration
 // @route   PUT /api/posts/:id

@@ -1,12 +1,12 @@
 // MyApprovals.jsx - COMPLETE FIXED VERSION
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { 
-  FileText, 
-  Clock, 
-  CheckCircle, 
-  XCircle, 
-  AlertCircle, 
+import {
+  FileText,
+  Clock,
+  CheckCircle,
+  XCircle,
+  AlertCircle,
   Eye,
   MessageSquare,
   RefreshCw,
@@ -25,7 +25,7 @@ import {
 import { useToast } from '@/components/ui/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
 
-const baseURL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+const baseURL = import.meta.env.VITE_API_URL || 'https://api.stoxbolt.com';
 
 const MyApprovals = () => {
   const [myPosts, setMyPosts] = useState([]);
@@ -50,7 +50,7 @@ const MyApprovals = () => {
   const fetchMyPosts = async () => {
     setLoading(true);
     setError(null);
-    
+
     try {
       const adminToken = localStorage.getItem('adminToken');
       if (!adminToken) {
@@ -63,11 +63,11 @@ const MyApprovals = () => {
         limit: itemsPerPage.toString(),
         type: 'all'
       });
-      
+
       if (filterStatus !== 'all') {
         params.append('status', filterStatus);
       }
-      
+
       if (searchQuery.trim()) {
         params.append('search', searchQuery.trim());
       }
@@ -75,7 +75,7 @@ const MyApprovals = () => {
       // Use the correct endpoint
       const url = `${baseURL}/api/approval/my-submissions?${params.toString()}`;
       console.log('Fetching My Submissions from:', url);
-      
+
       const response = await fetch(url, {
         headers: {
           'Authorization': `Bearer ${adminToken}`,
@@ -85,10 +85,10 @@ const MyApprovals = () => {
       });
 
       console.log('Response status:', response.status);
-      
+
       const data = await response.json();
       console.log('My Submissions Response:', data);
-      
+
       if (!response.ok) {
         if (response.status === 401) {
           throw new Error('Session expired. Please log in again.');
@@ -101,7 +101,7 @@ const MyApprovals = () => {
 
       if (data.success) {
         console.log('Received data count:', data.data.length);
-        
+
         // Debug log to see what we received
         if (data.data.length > 0) {
           console.log('Sample data received:');
@@ -115,11 +115,11 @@ const MyApprovals = () => {
             console.log('---');
           });
         }
-        
+
         setMyPosts(data.data);
         setTotalPosts(data.total);
         setTotalPages(data.totalPages);
-        
+
         // Show success message
         toast({
           title: 'Success',
@@ -132,14 +132,14 @@ const MyApprovals = () => {
     } catch (error) {
       console.error('Error fetching your posts:', error);
       setError(error.message);
-      
+
       toast({
         title: 'Error',
         description: error.message || 'Failed to load your submissions',
         variant: 'destructive',
         duration: 5000
       });
-      
+
       setMyPosts([]);
       setTotalPosts(0);
       setTotalPages(1);
@@ -148,123 +148,123 @@ const MyApprovals = () => {
     }
   };
 
- const getStatusBadge = (post) => {
-  console.log('Getting status for post:', {
-    id: post._id,
-    title: post.title,
-    type: post.type,
-    approvalStatus: post.approvalStatus,
-    isScheduledPost: post.isScheduledPost,
-    isScheduled: post.isScheduled,
-    scheduleApproved: post.scheduleApproved,
-    publishDateTime: post.publishDateTime,
-    status: post.status
-  });
-  
-  // FIRST: Check if it's a scheduled post by multiple criteria
-  const isScheduled = 
-    post.isScheduledPost || 
-    post.isScheduled ||
-    (post.publishDateTime && new Date(post.publishDateTime) > new Date()) ||
-    post.approvalStatus?.includes('scheduled') ||
-    post.status === 'scheduled';
-  
-  console.log('Is scheduled?', isScheduled, 'Criteria:', {
-    isScheduledPost: post.isScheduledPost,
-    isScheduled: post.isScheduled,
-    futureDate: post.publishDateTime && new Date(post.publishDateTime) > new Date(),
-    approvalStatusHasScheduled: post.approvalStatus?.includes('scheduled'),
-    statusIsScheduled: post.status === 'scheduled'
-  });
-  
-  // Handle scheduled posts
-  if (isScheduled) {
-    if (post.scheduleApproved || post.approvalStatus === 'scheduled_approved') {
-      return {
-        label: 'Schedule Approved',
+  const getStatusBadge = (post) => {
+    console.log('Getting status for post:', {
+      id: post._id,
+      title: post.title,
+      type: post.type,
+      approvalStatus: post.approvalStatus,
+      isScheduledPost: post.isScheduledPost,
+      isScheduled: post.isScheduled,
+      scheduleApproved: post.scheduleApproved,
+      publishDateTime: post.publishDateTime,
+      status: post.status
+    });
+
+    // FIRST: Check if it's a scheduled post by multiple criteria
+    const isScheduled =
+      post.isScheduledPost ||
+      post.isScheduled ||
+      (post.publishDateTime && new Date(post.publishDateTime) > new Date()) ||
+      post.approvalStatus?.includes('scheduled') ||
+      post.status === 'scheduled';
+
+    console.log('Is scheduled?', isScheduled, 'Criteria:', {
+      isScheduledPost: post.isScheduledPost,
+      isScheduled: post.isScheduled,
+      futureDate: post.publishDateTime && new Date(post.publishDateTime) > new Date(),
+      approvalStatusHasScheduled: post.approvalStatus?.includes('scheduled'),
+      statusIsScheduled: post.status === 'scheduled'
+    });
+
+    // Handle scheduled posts
+    if (isScheduled) {
+      if (post.scheduleApproved || post.approvalStatus === 'scheduled_approved') {
+        return {
+          label: 'Schedule Approved',
+          color: 'bg-green-100 text-green-800 border-green-200',
+          icon: CheckCircle,
+          isScheduled: true
+        };
+      } else if (post.approvalStatus === 'rejected' || post.rejectionReason) {
+        return {
+          label: 'Schedule Rejected',
+          color: 'bg-red-100 text-red-800 border-red-200',
+          icon: XCircle,
+          isScheduled: true
+        };
+      } else {
+        // Default for scheduled pending
+        return {
+          label: 'Schedule Pending',
+          color: 'bg-yellow-100 text-yellow-800 border-yellow-200',
+          icon: Clock,
+          isScheduled: true
+        };
+      }
+    }
+
+    // Use approvalStatus for AdminPosts, status for Posts
+    const status = post.approvalStatus || post.status || 'pending_review';
+
+    const statusConfig = {
+      pending_review: {
+        label: 'Pending Review',
+        color: 'bg-yellow-100 text-yellow-800 border-yellow-200',
+        icon: Clock
+      },
+      approved: {
+        label: 'Approved',
         color: 'bg-green-100 text-green-800 border-green-200',
-        icon: CheckCircle,
-        isScheduled: true
-      };
-    } else if (post.approvalStatus === 'rejected' || post.rejectionReason) {
-      return {
-        label: 'Schedule Rejected',
+        icon: CheckCircle
+      },
+      rejected: {
+        label: 'Rejected',
         color: 'bg-red-100 text-red-800 border-red-200',
-        icon: XCircle,
-        isScheduled: true
-      };
-    } else {
-      // Default for scheduled pending
-      return {
+        icon: XCircle
+      },
+      changes_requested: {
+        label: 'Changes Requested',
+        color: 'bg-blue-100 text-blue-800 border-blue-200',
+        icon: MessageSquare
+      },
+      scheduled_pending: {
         label: 'Schedule Pending',
         color: 'bg-yellow-100 text-yellow-800 border-yellow-200',
         icon: Clock,
         isScheduled: true
-      };
-    }
-  }
-  
-  // Use approvalStatus for AdminPosts, status for Posts
-  const status = post.approvalStatus || post.status || 'pending_review';
-  
-  const statusConfig = {
-    pending_review: {
-      label: 'Pending Review',
-      color: 'bg-yellow-100 text-yellow-800 border-yellow-200',
-      icon: Clock
-    },
-    approved: {
-      label: 'Approved',
-      color: 'bg-green-100 text-green-800 border-green-200',
-      icon: CheckCircle
-    },
-    rejected: {
-      label: 'Rejected',
-      color: 'bg-red-100 text-red-800 border-red-200',
-      icon: XCircle
-    },
-    changes_requested: {
-      label: 'Changes Requested',
-      color: 'bg-blue-100 text-blue-800 border-blue-200',
-      icon: MessageSquare
-    },
-    scheduled_pending: {
-      label: 'Schedule Pending',
-      color: 'bg-yellow-100 text-yellow-800 border-yellow-200',
-      icon: Clock,
-      isScheduled: true
-    },
-    scheduled_approved: {
-      label: 'Schedule Approved',
-      color: 'bg-green-100 text-green-800 border-green-200',
-      icon: CheckCircle,
-      isScheduled: true
-    },
-    draft: {
-      label: 'Draft',
-      color: 'bg-gray-100 text-gray-800 border-gray-200',
-      icon: FileText
-    },
-    published: {
-      label: 'Published',
-      color: 'bg-purple-100 text-purple-800 border-purple-200',
-      icon: CheckCircle
-    },
-    pending_approval: {
-      label: 'Pending Approval',
-      color: 'bg-yellow-100 text-yellow-800 border-yellow-200',
-      icon: Clock
-    },
-    scheduled: {
-      label: 'Scheduled',
-      color: 'bg-blue-100 text-blue-800 border-blue-200',
-      icon: CalendarClock,
-      isScheduled: true
-    }
-  };
+      },
+      scheduled_approved: {
+        label: 'Schedule Approved',
+        color: 'bg-green-100 text-green-800 border-green-200',
+        icon: CheckCircle,
+        isScheduled: true
+      },
+      draft: {
+        label: 'Draft',
+        color: 'bg-gray-100 text-gray-800 border-gray-200',
+        icon: FileText
+      },
+      published: {
+        label: 'Published',
+        color: 'bg-purple-100 text-purple-800 border-purple-200',
+        icon: CheckCircle
+      },
+      pending_approval: {
+        label: 'Pending Approval',
+        color: 'bg-yellow-100 text-yellow-800 border-yellow-200',
+        icon: Clock
+      },
+      scheduled: {
+        label: 'Scheduled',
+        color: 'bg-blue-100 text-blue-800 border-blue-200',
+        icon: CalendarClock,
+        isScheduled: true
+      }
+    };
 
-  return statusConfig[status] || statusConfig.pending_review;
-};
+    return statusConfig[status] || statusConfig.pending_review;
+  };
 
   const formatDate = (dateString) => {
     try {
@@ -289,7 +289,7 @@ const MyApprovals = () => {
       const now = new Date();
       const diffMs = date - now;
       const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-      
+
       let relativeTime = '';
       if (diffDays === 0) {
         relativeTime = 'Today';
@@ -300,8 +300,8 @@ const MyApprovals = () => {
       } else {
         relativeTime = 'Past due';
       }
-      
-      return `${date.toLocaleDateString()} ${date.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})} (${relativeTime})`;
+
+      return `${date.toLocaleDateString()} ${date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} (${relativeTime})`;
     } catch (error) {
       return 'Invalid date';
     }
@@ -314,7 +314,7 @@ const MyApprovals = () => {
       status: 'published',
       createdAt: post.createdAt || new Date().toISOString(),
     };
-    
+
     localStorage.setItem('postPreview', JSON.stringify(previewData));
     window.open(`/post/preview`, '_blank');
   };
@@ -355,36 +355,36 @@ const MyApprovals = () => {
   }
 
   // Add this right after loading check in MyApprovals.jsx
-if (process.env.NODE_ENV === 'development') {
-  console.log('=== MYAPPROVALS DEBUG ===');
-  console.log('Total posts:', myPosts.length);
-  console.log('All posts data:');
-  
-  myPosts.forEach((post, index) => {
-    console.log(`${index + 1}. ID: ${post._id}`);
-    console.log(`   Title: ${post.title}`);
-    console.log(`   Type: ${post.type}`);
-    console.log(`   Approval Status: ${post.approvalStatus}`);
-    console.log(`   isScheduledPost: ${post.isScheduledPost}`);
-    console.log(`   isScheduled: ${post.isScheduled}`);
-    console.log(`   scheduleApproved: ${post.scheduleApproved}`);
-    console.log(`   publishDateTime: ${post.publishDateTime}`);
-    console.log(`   Future date?: ${post.publishDateTime && new Date(post.publishDateTime) > new Date()}`);
-    console.log('---');
-  });
-  
-  // Check specifically for scheduled posts
-  const scheduledPosts = myPosts.filter(post => 
-    post.isScheduledPost || 
-    post.isScheduled ||
-    (post.publishDateTime && new Date(post.publishDateTime) > new Date())
-  );
-  
-  console.log(`Scheduled posts found: ${scheduledPosts.length}`);
-  scheduledPosts.forEach((post, index) => {
-    console.log(`${index + 1}. ${post.title} - ${post.approvalStatus}`);
-  });
-}
+  if (process.env.NODE_ENV === 'development') {
+    console.log('=== MYAPPROVALS DEBUG ===');
+    console.log('Total posts:', myPosts.length);
+    console.log('All posts data:');
+
+    myPosts.forEach((post, index) => {
+      console.log(`${index + 1}. ID: ${post._id}`);
+      console.log(`   Title: ${post.title}`);
+      console.log(`   Type: ${post.type}`);
+      console.log(`   Approval Status: ${post.approvalStatus}`);
+      console.log(`   isScheduledPost: ${post.isScheduledPost}`);
+      console.log(`   isScheduled: ${post.isScheduled}`);
+      console.log(`   scheduleApproved: ${post.scheduleApproved}`);
+      console.log(`   publishDateTime: ${post.publishDateTime}`);
+      console.log(`   Future date?: ${post.publishDateTime && new Date(post.publishDateTime) > new Date()}`);
+      console.log('---');
+    });
+
+    // Check specifically for scheduled posts
+    const scheduledPosts = myPosts.filter(post =>
+      post.isScheduledPost ||
+      post.isScheduled ||
+      (post.publishDateTime && new Date(post.publishDateTime) > new Date())
+    );
+
+    console.log(`Scheduled posts found: ${scheduledPosts.length}`);
+    scheduledPosts.forEach((post, index) => {
+      console.log(`${index + 1}. ${post.title} - ${post.approvalStatus}`);
+    });
+  }
 
   return (
     <div className="min-h-screen bg-gray-50 p-4 md:p-6">
@@ -474,7 +474,7 @@ if (process.env.NODE_ENV === 'development') {
                   className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 focus:outline-none"
                 />
               </div>
-              
+
               <div className="flex flex-wrap gap-2">
                 <select
                   value={filterStatus}
@@ -491,14 +491,14 @@ if (process.env.NODE_ENV === 'development') {
                   <option value="draft">Draft</option>
                   <option value="published">Published</option>
                 </select>
-                
+
                 <button
                   onClick={handleFilterApply}
                   className="px-4 py-2.5 bg-orange-600 text-white font-medium rounded-lg hover:bg-orange-700 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 transition-colors"
                 >
                   Apply Filters
                 </button>
-                
+
                 <button
                   onClick={handleClearFilters}
                   className="px-4 py-2.5 border border-gray-300 text-gray-700 font-medium rounded-lg hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 transition-colors"
@@ -507,7 +507,7 @@ if (process.env.NODE_ENV === 'development') {
                 </button>
               </div>
             </div>
-            
+
             {/* Results count */}
             <div className="mt-4 flex items-center justify-between text-sm">
               <p className="text-gray-600">
@@ -526,7 +526,7 @@ if (process.env.NODE_ENV === 'development') {
           {/* Posts List */}
           <div className="divide-y divide-gray-200">
             {myPosts.length === 0 ? (
-              <motion.div 
+              <motion.div
                 className="text-center py-12"
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
@@ -575,14 +575,14 @@ if (process.env.NODE_ENV === 'development') {
                 const statusConfig = getStatusBadge(post);
                 const Icon = statusConfig.icon;
                 const isScheduled = post.isScheduledPost || post.isScheduled;
-                
+
                 // Handle postId properly
                 const postIdValue = post._id || 'no-id';
                 const linkedPostTitle = post.postId && typeof post.postId === 'object' ? post.postId.title : null;
-                
+
                 return (
-                  <motion.div 
-                    key={postIdValue} 
+                  <motion.div
+                    key={postIdValue}
                     className="px-6 py-4 hover:bg-gray-50 transition-colors"
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
@@ -590,11 +590,10 @@ if (process.env.NODE_ENV === 'development') {
                   >
                     <div className="flex items-center justify-between">
                       <div className="flex items-start space-x-4">
-                        <div className={`h-12 w-12 rounded-full flex items-center justify-center flex-shrink-0 ${
-                          isScheduled ? 
-                            'bg-gradient-to-br from-purple-100 to-purple-200' : 
+                        <div className={`h-12 w-12 rounded-full flex items-center justify-center flex-shrink-0 ${isScheduled ?
+                            'bg-gradient-to-br from-purple-100 to-purple-200' :
                             'bg-gradient-to-br from-orange-100 to-orange-200'
-                        }`}>
+                          }`}>
                           {isScheduled ? (
                             <CalendarClock className="h-6 w-6 text-purple-600" />
                           ) : (
@@ -610,26 +609,26 @@ if (process.env.NODE_ENV === 'development') {
                               <Icon className="h-3 w-3 mr-1" />
                               {statusConfig.label}
                             </span>
-                            
+
                             {isScheduled && (
                               <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800 border border-purple-200">
                                 <Calendar className="h-3 w-3 mr-1" />
                                 Scheduled
                               </span>
                             )}
-                            
+
                             {post.isUpdateRequest && (
                               <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800 border border-blue-200">
                                 Update Request
                               </span>
                             )}
-                            
+
                             {/* Show source type */}
                             <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-800 border border-gray-200">
                               {post.type === 'approval' ? 'AdminPost' : 'Post'}
                             </span>
                           </div>
-                          
+
                           <div className="flex flex-wrap items-center gap-4 text-gray-600 text-sm mb-2">
                             {post.category && (
                               <div className="flex items-center">
@@ -637,25 +636,25 @@ if (process.env.NODE_ENV === 'development') {
                                 {typeof post.category === 'object' ? post.category.name : post.category}
                               </div>
                             )}
-                            
+
                             {post.version && (
                               <div className="flex items-center">
                                 <span className="font-medium">Version:</span> {post.version}
                               </div>
                             )}
-                            
+
                             <div className="flex items-center">
                               <Calendar className="h-3 w-3 mr-2" />
                               Submitted {formatDate(post.createdAt)}
                             </div>
-                            
+
                             {isScheduled && post.publishDateTime && (
                               <div className="flex items-center">
                                 <Clock className="h-3 w-3 mr-2" />
                                 Scheduled: {formatScheduleDate(post.publishDateTime)}
                               </div>
                             )}
-                            
+
                             {/* Show linked post if exists */}
                             {linkedPostTitle && (
                               <div className="flex items-center">
@@ -663,13 +662,13 @@ if (process.env.NODE_ENV === 'development') {
                               </div>
                             )}
                           </div>
-                          
+
                           {post.shortTitle && (
                             <p className="text-gray-600 text-sm mb-2 truncate">
                               {post.shortTitle}
                             </p>
                           )}
-                          
+
                           {post.reviewerNotes && (
                             <div className="mt-2 p-2 bg-blue-50 text-blue-700 rounded text-xs">
                               <div className="flex items-start">
@@ -678,7 +677,7 @@ if (process.env.NODE_ENV === 'development') {
                               </div>
                             </div>
                           )}
-                          
+
                           {post.rejectionReason && (
                             <div className="mt-2 p-2 bg-red-50 text-red-700 rounded text-xs">
                               <div className="flex items-start">
@@ -687,11 +686,11 @@ if (process.env.NODE_ENV === 'development') {
                               </div>
                             </div>
                           )}
-                          
-                          
+
+
                         </div>
                       </div>
-                      
+
                       <div className="flex items-center space-x-2 ml-4">
                         <button
                           onClick={() => handlePreview(post)}
@@ -700,7 +699,7 @@ if (process.env.NODE_ENV === 'development') {
                         >
                           <Eye className="h-5 w-5" />
                         </button>
-                        
+
                         {post.approvalStatus === 'changes_requested' && (
                           <button
                             onClick={() => window.location.href = `/admin/posts/edit/${postIdValue}`}
@@ -709,7 +708,7 @@ if (process.env.NODE_ENV === 'development') {
                             Make Changes
                           </button>
                         )}
-                        
+
                         {/* {isScheduled && !post.scheduleApproved && (
                           <span className="text-xs text-gray-500 italic">
                             Awaiting schedule approval
@@ -753,7 +752,7 @@ if (process.env.NODE_ENV === 'development') {
           )}
         </div>
 
-        
+
       </div>
     </div>
   );

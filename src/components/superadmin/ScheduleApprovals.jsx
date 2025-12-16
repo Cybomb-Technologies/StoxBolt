@@ -3,13 +3,13 @@ import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
-import { 
-  Calendar, 
-  Clock, 
-  CheckCircle, 
-  XCircle, 
-  Eye, 
-  User, 
+import {
+  Calendar,
+  Clock,
+  CheckCircle,
+  XCircle,
+  Eye,
+  User,
   Loader2,
   Search,
   Filter,
@@ -28,7 +28,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 
-const baseURL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+const baseURL = import.meta.env.VITE_API_URL || 'https://api.stoxbolt.com';
 
 const ScheduleApprovals = () => {
   const [pendingPosts, setPendingPosts] = useState([]);
@@ -53,127 +53,127 @@ const ScheduleApprovals = () => {
     }
   }, [user, currentPage]);
 
- // In ScheduleApprovals.jsx - Update the fetchPendingApprovals function
-const fetchPendingApprovals = async () => {
-  setLoading(true);
-  setError(null);
-  try {
-    const adminToken = localStorage.getItem('adminToken');
-    if (!adminToken) {
-      throw new Error('No authentication adminToken found');
-    }
+  // In ScheduleApprovals.jsx - Update the fetchPendingApprovals function
+  const fetchPendingApprovals = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const adminToken = localStorage.getItem('adminToken');
+      if (!adminToken) {
+        throw new Error('No authentication adminToken found');
+      }
 
-    console.log('Fetching pending approvals from:', `${baseURL}/api/posts/pending-schedule`);
-    
-    const response = await fetch(`${baseURL}/api/posts/pending-schedule`, {
-      headers: {
-        'Authorization': `Bearer ${adminToken}`,
-        'Content-Type': 'application/json'
-      },
-      credentials: 'include' // Add this if using cookies
-    });
+      console.log('Fetching pending approvals from:', `${baseURL}/api/posts/pending-schedule`);
 
-    console.log('Response status:', response.status);
-    
-    // Handle non-JSON responses
-    const contentType = response.headers.get('content-type');
-    if (!contentType || !contentType.includes('application/json')) {
-      const text = await response.text();
-      console.error('Non-JSON response:', text);
-      throw new Error(`Server returned non-JSON response: ${response.status} ${response.statusText}`);
-    }
-    
-    const data = await response.json();
-    console.log('Response data:', data);
-    
-    if (!response.ok) {
-      // Check for specific error statuses
-      if (response.status === 401) {
-        throw new Error('Session expired. Please log in again.');
-      } else if (response.status === 403) {
-        throw new Error('Access denied. Only superadmin can view schedule approvals.');
-      } else if (response.status === 404) {
-        throw new Error('Endpoint not found. Please check the API URL.');
-      } else if (response.status === 500) {
-        // Server error - use the error message from response if available
-        const errorMsg = data.message || data.error || `Server error: ${response.status}`;
-        throw new Error(errorMsg);
+      const response = await fetch(`${baseURL}/api/posts/pending-schedule`, {
+        headers: {
+          'Authorization': `Bearer ${adminToken}`,
+          'Content-Type': 'application/json'
+        },
+        credentials: 'include' // Add this if using cookies
+      });
+
+      console.log('Response status:', response.status);
+
+      // Handle non-JSON responses
+      const contentType = response.headers.get('content-type');
+      if (!contentType || !contentType.includes('application/json')) {
+        const text = await response.text();
+        console.error('Non-JSON response:', text);
+        throw new Error(`Server returned non-JSON response: ${response.status} ${response.statusText}`);
+      }
+
+      const data = await response.json();
+      console.log('Response data:', data);
+
+      if (!response.ok) {
+        // Check for specific error statuses
+        if (response.status === 401) {
+          throw new Error('Session expired. Please log in again.');
+        } else if (response.status === 403) {
+          throw new Error('Access denied. Only superadmin can view schedule approvals.');
+        } else if (response.status === 404) {
+          throw new Error('Endpoint not found. Please check the API URL.');
+        } else if (response.status === 500) {
+          // Server error - use the error message from response if available
+          const errorMsg = data.message || data.error || `Server error: ${response.status}`;
+          throw new Error(errorMsg);
+        } else {
+          throw new Error(data.message || `Server error: ${response.status}`);
+        }
+      }
+
+      if (data.success) {
+        let filteredPosts = data.data || [];
+
+        console.log('Received posts:', filteredPosts.length);
+
+        // Apply search
+        if (searchQuery) {
+          const query = searchQuery.toLowerCase();
+          filteredPosts = filteredPosts.filter(post =>
+            post.title?.toLowerCase().includes(query) ||
+            (post.authorId?.name || post.author || '').toLowerCase().includes(query) ||
+            (post.categoryName || post.category?.name || '').toLowerCase().includes(query)
+          );
+        }
+
+        // Calculate pagination
+        const totalFiltered = filteredPosts.length;
+        const startIndex = (currentPage - 1) * itemsPerPage;
+        const endIndex = startIndex + itemsPerPage;
+        const paginatedPosts = filteredPosts.slice(startIndex, endIndex);
+
+        setPendingPosts(paginatedPosts);
+        setTotalPages(Math.ceil(totalFiltered / itemsPerPage));
+        setTotalPosts(totalFiltered);
+
+        // Show success toast if we found posts
+        if (filteredPosts.length > 0) {
+          toast({
+            title: 'Success',
+            description: `Found ${filteredPosts.length} posts pending approval`,
+            variant: 'default'
+          });
+        }
       } else {
-        throw new Error(data.message || `Server error: ${response.status}`);
+        // Handle case where success is false but response is 200
+        throw new Error(data.message || 'Failed to fetch pending approvals');
       }
-    }
+    } catch (error) {
+      console.error('Error fetching pending approvals:', error);
+      console.error('Error details:', error.message, error.stack);
 
-    if (data.success) {
-      let filteredPosts = data.data || [];
-      
-      console.log('Received posts:', filteredPosts.length);
-      
-      // Apply search
-      if (searchQuery) {
-        const query = searchQuery.toLowerCase();
-        filteredPosts = filteredPosts.filter(post => 
-          post.title?.toLowerCase().includes(query) || 
-          (post.authorId?.name || post.author || '').toLowerCase().includes(query) ||
-          (post.categoryName || post.category?.name || '').toLowerCase().includes(query)
-        );
+      // More specific error messages
+      let userMessage = error.message || 'Failed to load pending approvals';
+
+      if (error.message.includes('NetworkError') || error.message.includes('Failed to fetch')) {
+        userMessage = 'Network error. Please check your internet connection and server status.';
+      } else if (error.message.includes('500')) {
+        userMessage = 'Server error. The backend service encountered an issue.';
+      } else if (error.message.includes('non-JSON response')) {
+        userMessage = 'Server returned an invalid response. Check if the backend is running properly.';
       }
-      
-      // Calculate pagination
-      const totalFiltered = filteredPosts.length;
-      const startIndex = (currentPage - 1) * itemsPerPage;
-      const endIndex = startIndex + itemsPerPage;
-      const paginatedPosts = filteredPosts.slice(startIndex, endIndex);
-      
-      setPendingPosts(paginatedPosts);
-      setTotalPages(Math.ceil(totalFiltered / itemsPerPage));
-      setTotalPosts(totalFiltered);
-      
-      // Show success toast if we found posts
-      if (filteredPosts.length > 0) {
-        toast({
-          title: 'Success',
-          description: `Found ${filteredPosts.length} posts pending approval`,
-          variant: 'default'
-        });
-      }
-    } else {
-      // Handle case where success is false but response is 200
-      throw new Error(data.message || 'Failed to fetch pending approvals');
+
+      setError(userMessage);
+
+      toast({
+        title: 'Error',
+        description: userMessage,
+        variant: 'destructive',
+        duration: 5000
+      });
+
+      setPendingPosts([]);
+    } finally {
+      setLoading(false);
     }
-  } catch (error) {
-    console.error('Error fetching pending approvals:', error);
-    console.error('Error details:', error.message, error.stack);
-    
-    // More specific error messages
-    let userMessage = error.message || 'Failed to load pending approvals';
-    
-    if (error.message.includes('NetworkError') || error.message.includes('Failed to fetch')) {
-      userMessage = 'Network error. Please check your internet connection and server status.';
-    } else if (error.message.includes('500')) {
-      userMessage = 'Server error. The backend service encountered an issue.';
-    } else if (error.message.includes('non-JSON response')) {
-      userMessage = 'Server returned an invalid response. Check if the backend is running properly.';
-    }
-    
-    setError(userMessage);
-    
-    toast({
-      title: 'Error',
-      description: userMessage,
-      variant: 'destructive',
-      duration: 5000
-    });
-    
-    setPendingPosts([]);
-  } finally {
-    setLoading(false);
-  }
-};
+  };
 
   const handleApprove = async (post) => {
     // Use approvalId if available (for AdminPosts), otherwise use _id
     const postId = post.approvalId || post._id;
-    
+
     // Validate postId
     if (!postId) {
       console.error('No post ID found:', post);
@@ -184,13 +184,13 @@ const fetchPendingApprovals = async () => {
       });
       return;
     }
-    
+
     setProcessingId(postId);
-    
+
     try {
       const adminToken = localStorage.getItem('adminToken');
       console.log('Approving schedule for post:', postId, 'Title:', post.title);
-      
+
       const response = await fetch(`${baseURL}/api/posts/${postId}/approve-schedule`, {
         method: 'PUT',
         headers: {
@@ -201,7 +201,7 @@ const fetchPendingApprovals = async () => {
 
       const data = await response.json();
       console.log('Approve response:', data);
-      
+
       if (!response.ok) {
         if (response.status === 400 && data.message?.includes('already')) {
           toast({
@@ -209,7 +209,7 @@ const fetchPendingApprovals = async () => {
             description: data.message || 'This schedule was already processed',
             variant: 'default'
           });
-          
+
           setPendingPosts(prevPosts => prevPosts.filter(p => p._id !== post._id));
           setTotalPosts(prev => prev - 1);
         } else {
@@ -221,7 +221,7 @@ const fetchPendingApprovals = async () => {
           description: 'Post schedule has been approved successfully',
           variant: 'default'
         });
-        
+
         setPendingPosts(prevPosts => prevPosts.filter(p => p._id !== post._id));
         setTotalPosts(prev => prev - 1);
       }
@@ -236,77 +236,77 @@ const fetchPendingApprovals = async () => {
       setProcessingId(null);
     }
   };
-// In the handleReject function, add better refresh logic:
-const handleReject = async (post) => {
-  const reason = window.prompt('Please enter rejection reason:');
-  if (!reason || reason.trim() === '') {
-    toast({
-      title: 'Cancelled',
-      description: 'Rejection was cancelled or reason was empty',
-      variant: 'default'
-    });
-    return;
-  }
-  
-  const postId = post.approvalId || post._id;
-  
-  setProcessingId(postId);
-  try {
-    const adminToken = localStorage.getItem('adminToken');
-    
-    const response = await fetch(`${baseURL}/api/posts/${postId}/reject-schedule`, {
-      method: 'PUT',
-      headers: {
-        'Authorization': `Bearer ${adminToken}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({ rejectionReason: reason })
-    });
-
-    const data = await response.json();
-    
-    if (!response.ok) {
-      throw new Error(data.message || `Failed to reject schedule (Status: ${response.status})`);
+  // In the handleReject function, add better refresh logic:
+  const handleReject = async (post) => {
+    const reason = window.prompt('Please enter rejection reason:');
+    if (!reason || reason.trim() === '') {
+      toast({
+        title: 'Cancelled',
+        description: 'Rejection was cancelled or reason was empty',
+        variant: 'default'
+      });
+      return;
     }
-    
-    // CRITICAL FIX: Force complete refresh of the list
-    toast({
-      title: 'Schedule Rejected',
-      description: 'Post schedule has been rejected and moved to drafts',
-      variant: 'default'
-    });
-    
-    // OPTION 1: Immediate filter from local state
-    setPendingPosts(prevPosts => prevPosts.filter(p => {
-      // Remove based on all possible identifiers
-      return !(
-        p._id === post._id || 
-        p.approvalId === postId ||
-        (post.adminPostId && p.adminPostId === post.adminPostId)
-      );
-    }));
-    
-    // OPTION 2: Force complete data refresh after 1 second
-    setTimeout(() => {
-      fetchPendingApprovals();
-    }, 1000);
-    
-    // Also update total count
-    setTotalPosts(prev => Math.max(0, prev - 1));
-    
-  } catch (error) {
-    console.error('Reject error:', error);
-    
-    toast({
-      title: 'Error',
-      description: error.message || 'Failed to reject schedule',
-      variant: 'destructive',
-      duration: 5000
-    });
-  } finally {
-    setProcessingId(null);
-  }
-};
+
+    const postId = post.approvalId || post._id;
+
+    setProcessingId(postId);
+    try {
+      const adminToken = localStorage.getItem('adminToken');
+
+      const response = await fetch(`${baseURL}/api/posts/${postId}/reject-schedule`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${adminToken}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ rejectionReason: reason })
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || `Failed to reject schedule (Status: ${response.status})`);
+      }
+
+      // CRITICAL FIX: Force complete refresh of the list
+      toast({
+        title: 'Schedule Rejected',
+        description: 'Post schedule has been rejected and moved to drafts',
+        variant: 'default'
+      });
+
+      // OPTION 1: Immediate filter from local state
+      setPendingPosts(prevPosts => prevPosts.filter(p => {
+        // Remove based on all possible identifiers
+        return !(
+          p._id === post._id ||
+          p.approvalId === postId ||
+          (post.adminPostId && p.adminPostId === post.adminPostId)
+        );
+      }));
+
+      // OPTION 2: Force complete data refresh after 1 second
+      setTimeout(() => {
+        fetchPendingApprovals();
+      }, 1000);
+
+      // Also update total count
+      setTotalPosts(prev => Math.max(0, prev - 1));
+
+    } catch (error) {
+      console.error('Reject error:', error);
+
+      toast({
+        title: 'Error',
+        description: error.message || 'Failed to reject schedule',
+        variant: 'destructive',
+        duration: 5000
+      });
+    } finally {
+      setProcessingId(null);
+    }
+  };
 
   const handlePreview = (post) => {
     const previewData = {
@@ -315,7 +315,7 @@ const handleReject = async (post) => {
       status: 'published',
       createdAt: post.createdAt || new Date().toISOString(),
     };
-    
+
     localStorage.setItem('postPreview', JSON.stringify(previewData));
     window.open(`/post/preview`, '_blank');
   };
@@ -419,7 +419,7 @@ const handleReject = async (post) => {
                 <div className="mt-2 text-sm text-red-700">
                   <p>{error}</p>
                   <p className="mt-1 text-xs">
-                    Check if: 
+                    Check if:
                     1. Server is running on {baseURL}
                     2. Database is connected
                     3. You have superadmin privileges
@@ -492,7 +492,7 @@ const handleReject = async (post) => {
                   className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 focus:outline-none"
                 />
               </div>
-              
+
               <div className="flex flex-wrap gap-2">
                 <button
                   onClick={handleFilterApply}
@@ -500,14 +500,14 @@ const handleReject = async (post) => {
                 >
                   Apply Search
                 </button>
-                
+
                 <button
                   onClick={handleClearFilters}
                   className="px-4 py-2.5 border border-gray-300 text-gray-700 font-medium rounded-lg hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 transition-colors"
                 >
                   Clear
                 </button>
-                
+
                 <button
                   onClick={fetchPendingApprovals}
                   disabled={loading}
@@ -518,7 +518,7 @@ const handleReject = async (post) => {
                 </button>
               </div>
             </div>
-            
+
             {/* Results count */}
             <div className="mt-4 flex items-center justify-between text-sm">
               <p className="text-gray-600">
@@ -571,8 +571,8 @@ const handleReject = async (post) => {
               </div>
             ) : (
               pendingPosts.map((post) => (
-                <motion.div 
-                  key={post._id} 
+                <motion.div
+                  key={post._id}
                   className="px-6 py-4 hover:bg-gray-50 transition-colors"
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
@@ -595,30 +595,30 @@ const handleReject = async (post) => {
                             Pending Approval
                           </span>
                         </div>
-                        
+
                         <div className="flex flex-wrap items-center gap-4 text-gray-600 text-sm mb-1">
                           <div className="flex items-center">
                             <User className="h-3 w-3 mr-2" />
                             {post.authorId?.name || post.author || 'Unknown Author'}
                           </div>
-                          
+
                           {post.category && (
                             <div className="flex items-center">
                               <Tag className="h-3 w-3 mr-2" />
                               {post.category}
                             </div>
                           )}
-                          
+
                           <div className="flex items-center">
                             <Calendar className="h-3 w-3 mr-2" />
                             Scheduled: {formatDateTime(post.publishDateTime)}
                           </div>
                         </div>
-                        
+
                         {post.shortTitle && (
                           <p className="text-gray-600 text-sm mt-1">{post.shortTitle}</p>
                         )}
-                        
+
                         {post.rejectionReason && (
                           <div className="mt-2 p-2 rounded text-xs bg-red-50 text-red-700">
                             <div className="flex items-start">
@@ -629,7 +629,7 @@ const handleReject = async (post) => {
                         )}
                       </div>
                     </div>
-                    
+
                     <div className="flex items-center space-x-2">
                       <button
                         onClick={() => handlePreview(post)}
@@ -638,7 +638,7 @@ const handleReject = async (post) => {
                       >
                         <Eye className="h-5 w-5" />
                       </button>
-                      
+
                       <button
                         onClick={() => handleReject(post)}
                         disabled={processingId === (post.approvalId || post._id)}
@@ -651,7 +651,7 @@ const handleReject = async (post) => {
                           <ThumbsDown className="h-5 w-5" />
                         )}
                       </button>
-                      
+
                       <button
                         onClick={() => handleApprove(post)}
                         disabled={processingId === (post.approvalId || post._id)}

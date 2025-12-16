@@ -1,14 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { 
-  UserPlus, 
-  Edit, 
-  Trash2, 
-  Search, 
-  Filter, 
-  Loader2, 
-  UserCheck, 
-  UserX, 
+import {
+  UserPlus,
+  Edit,
+  Trash2,
+  Search,
+  Filter,
+  Loader2,
+  UserCheck,
+  UserX,
   Shield,
   Mail,
   Calendar,
@@ -33,7 +33,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 
-const baseURL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+const baseURL = import.meta.env.VITE_API_URL || 'https://api.stoxbolt.com';
 
 const AdminList = () => {
   const [admins, setAdmins] = useState([]);
@@ -69,7 +69,7 @@ const AdminList = () => {
     setLoading(true);
     try {
       const adminToken = localStorage.getItem('adminToken');
-      
+
       if (!adminToken) {
         throw new Error('No authentication adminToken found');
       }
@@ -81,47 +81,47 @@ const AdminList = () => {
       });
 
       const data = await response.json();
-      
+
       if (!response.ok) {
         throw new Error(data.message || `Failed to fetch admins (${response.status})`);
       }
 
       if (data.success) {
         let filteredAdmins = data.data || [];
-        
+
         // Apply filters
         if (filterStatus !== 'all') {
-          filteredAdmins = filteredAdmins.filter(admin => 
+          filteredAdmins = filteredAdmins.filter(admin =>
             filterStatus === 'active' ? admin.isActive : !admin.isActive
           );
         }
-        
+
         if (filterRole !== 'all') {
           filteredAdmins = filteredAdmins.filter(admin => admin.role === filterRole);
         }
-        
+
         // Apply CRUD filter
         if (filterCRUD !== 'all') {
-          filteredAdmins = filteredAdmins.filter(admin => 
+          filteredAdmins = filteredAdmins.filter(admin =>
             filterCRUD === 'with' ? admin.curdAccess : !admin.curdAccess
           );
         }
-        
+
         // Apply search
         if (searchQuery) {
           const query = searchQuery.toLowerCase();
-          filteredAdmins = filteredAdmins.filter(admin => 
-            admin.name.toLowerCase().includes(query) || 
+          filteredAdmins = filteredAdmins.filter(admin =>
+            admin.name.toLowerCase().includes(query) ||
             admin.email.toLowerCase().includes(query)
           );
         }
-        
+
         // Calculate pagination
         const totalFiltered = filteredAdmins.length;
         const startIndex = (currentPage - 1) * itemsPerPage;
         const endIndex = startIndex + itemsPerPage;
         const paginatedAdmins = filteredAdmins.slice(startIndex, endIndex);
-        
+
         setAdmins(paginatedAdmins);
         setTotalPages(Math.ceil(totalFiltered / itemsPerPage));
         setTotalAdmins(totalFiltered);
@@ -143,7 +143,7 @@ const AdminList = () => {
   const fetchStats = async () => {
     try {
       const adminToken = localStorage.getItem('adminToken');
-      
+
       const response = await fetch(`${baseURL}/api/users/admins/stats`, {
         headers: {
           'Authorization': `Bearer ${adminToken}`
@@ -151,7 +151,7 @@ const AdminList = () => {
       });
 
       const data = await response.json();
-      
+
       if (response.ok && data.success) {
         setStats(data.data);
       }
@@ -203,7 +203,7 @@ const AdminList = () => {
       });
 
       const data = await response.json();
-      
+
       if (!response.ok) {
         throw new Error(data.message || `Failed to ${actionType} admin`);
       }
@@ -221,7 +221,7 @@ const AdminList = () => {
             autoClose: 3000,
           });
         }
-        
+
         // Refresh data
         fetchAdmins();
         fetchStats();
@@ -308,7 +308,7 @@ const AdminList = () => {
         </span>
       );
     }
-    
+
     if (curdAccess) {
       return (
         <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 border border-green-200">
@@ -389,7 +389,7 @@ const AdminList = () => {
               </div>
             </div>
           </div>
-          
+
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
             <div className="flex items-center justify-between">
               <div>
@@ -401,7 +401,7 @@ const AdminList = () => {
               </div>
             </div>
           </div>
-          
+
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
             <div className="flex items-center justify-between">
               <div>
@@ -413,7 +413,7 @@ const AdminList = () => {
               </div>
             </div>
           </div>
-          
+
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
             <div className="flex items-center justify-between">
               <div>
@@ -426,7 +426,7 @@ const AdminList = () => {
               </div>
             </div>
           </div>
-          
+
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
             <div className="flex items-center justify-between">
               <div>
@@ -472,7 +472,7 @@ const AdminList = () => {
                   className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 focus:outline-none"
                 />
               </div>
-              
+
               <div className="flex flex-wrap gap-2">
                 <select
                   value={filterStatus}
@@ -483,7 +483,7 @@ const AdminList = () => {
                   <option value="active">Active</option>
                   <option value="inactive">Inactive</option>
                 </select>
-                
+
                 <select
                   value={filterRole}
                   onChange={(e) => setFilterRole(e.target.value)}
@@ -493,7 +493,7 @@ const AdminList = () => {
                   <option value="admin">Admin</option>
                   <option value="superadmin">Super Admin</option>
                 </select>
-                
+
                 <select
                   value={filterCRUD}
                   onChange={(e) => setFilterCRUD(e.target.value)}
@@ -503,21 +503,21 @@ const AdminList = () => {
                   <option value="with">CRUD Mode</option>
                   <option value="without">Approval Mode</option>
                 </select>
-                
+
                 <button
                   onClick={handleFilterApply}
                   className="px-4 py-2.5 bg-orange-600 text-white font-medium rounded-lg hover:bg-orange-700 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 transition-colors"
                 >
                   Apply Filters
                 </button>
-                
+
                 <button
                   onClick={handleClearFilters}
                   className="px-4 py-2.5 border border-gray-300 text-gray-700 font-medium rounded-lg hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 transition-colors"
                 >
                   Clear
                 </button>
-                
+
                 <button
                   onClick={fetchAdmins}
                   disabled={loading}
@@ -528,7 +528,7 @@ const AdminList = () => {
                 </button>
               </div>
             </div>
-            
+
             {/* Results count */}
             <div className="mt-4 flex items-center justify-between text-sm">
               <p className="text-gray-600">
@@ -598,16 +598,16 @@ const AdminList = () => {
                         </div>
                       </div>
                     </div>
-                    
+
                     <div className="flex items-center space-x-2">
                       {/* CRUD Toggle Button - Only for regular admins */}
                       {admin.role === 'admin' && (
                         <button
                           onClick={() => handleToggleCRUD(admin)}
-                          className={`p-2 rounded-lg transition-colors ${admin.curdAccess 
-                            ? 'bg-green-100 text-green-700 hover:bg-green-200' 
+                          className={`p-2 rounded-lg transition-colors ${admin.curdAccess
+                            ? 'bg-green-100 text-green-700 hover:bg-green-200'
                             : 'bg-yellow-100 text-yellow-700 hover:bg-yellow-200'
-                          }`}
+                            }`}
                           title={admin.curdAccess ? "Switch to Approval Mode" : "Switch to CRUD Mode"}
                         >
                           {admin.curdAccess ? (
@@ -617,7 +617,7 @@ const AdminList = () => {
                           )}
                         </button>
                       )}
-                      
+
                       <button
                         onClick={() => navigate(`/admin/users/edit/${admin._id}`)}
                         className="p-2 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
@@ -625,7 +625,7 @@ const AdminList = () => {
                       >
                         <Edit className="h-5 w-5" />
                       </button>
-                      
+
                       {admin.isActive ? (
                         <button
                           onClick={() => openConfirmDialog(admin, 'deactivate')}
@@ -643,7 +643,7 @@ const AdminList = () => {
                           <UserCheck className="h-5 w-5" />
                         </button>
                       )}
-                      
+
                       {admin.role !== 'superadmin' && (
                         <button
                           onClick={() => openConfirmDialog(admin, 'delete')}
@@ -709,7 +709,7 @@ const AdminList = () => {
                   {actionType === 'toggle-curd' && (selectedAdmin?.curdAccess ? 'Disable CRUD Access' : 'Enable CRUD Access')}
                 </h3>
               </div>
-              
+
               <p className="text-gray-600 mb-6">
                 {actionType === 'deactivate' && (
                   `Are you sure you want to deactivate ${selectedAdmin?.name}? They will lose access to the admin panel.`
@@ -721,12 +721,12 @@ const AdminList = () => {
                   `Are you sure you want to permanently delete ${selectedAdmin?.name}? This action cannot be undone.`
                 )}
                 {actionType === 'toggle-curd' && (
-                  selectedAdmin?.curdAccess 
+                  selectedAdmin?.curdAccess
                     ? `Are you sure you want to disable CRUD access for ${selectedAdmin?.name}? They will switch to Approval Mode and need approval for published posts.`
                     : `Are you sure you want to enable CRUD access for ${selectedAdmin?.name}? They will switch to CRUD Mode and can directly create, update, and delete posts.`
                 )}
               </p>
-              
+
               <div className="flex justify-end space-x-3">
                 <button
                   onClick={() => setShowConfirmDialog(false)}
@@ -738,15 +738,14 @@ const AdminList = () => {
                 <button
                   onClick={handleAction}
                   disabled={actionLoading}
-                  className={`px-4 py-2.5 text-white font-medium rounded-lg focus:outline-none focus:ring-2 focus:ring-offset-2 transition-colors disabled:opacity-50 ${
-                    actionType === 'delete'
+                  className={`px-4 py-2.5 text-white font-medium rounded-lg focus:outline-none focus:ring-2 focus:ring-offset-2 transition-colors disabled:opacity-50 ${actionType === 'delete'
                       ? 'bg-red-600 hover:bg-red-700 focus:ring-red-500'
                       : actionType === 'toggle-curd'
-                      ? selectedAdmin?.curdAccess
-                        ? 'bg-yellow-600 hover:bg-yellow-700 focus:ring-yellow-500'
-                        : 'bg-green-600 hover:bg-green-700 focus:ring-green-500'
-                      : 'bg-orange-600 hover:bg-orange-700 focus:ring-orange-500'
-                  }`}
+                        ? selectedAdmin?.curdAccess
+                          ? 'bg-yellow-600 hover:bg-yellow-700 focus:ring-yellow-500'
+                          : 'bg-green-600 hover:bg-green-700 focus:ring-green-500'
+                        : 'bg-orange-600 hover:bg-orange-700 focus:ring-orange-500'
+                    }`}
                 >
                   {actionLoading ? (
                     <span className="flex items-center">

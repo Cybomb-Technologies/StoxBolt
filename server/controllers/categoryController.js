@@ -1,5 +1,6 @@
 // controllers/categoryController.js
 const Category = require('../models/Category');
+const Notification = require('../models/Notification');
 
 // @desc    Get all categories with pagination and filtering
 // @route   GET /api/categories
@@ -82,6 +83,9 @@ exports.getCategory = async (req, res) => {
 // @desc    Create new category
 // @route   POST /api/categories
 // @access  Private (Admin & Superadmin)
+
+
+
 exports.createCategory = async (req, res) => {
   try {
     // Check permissions
@@ -107,13 +111,23 @@ exports.createCategory = async (req, res) => {
     const categoryData = {
       name: req.body.name,
       description: req.body.description,
-      createdBy: req.user._id // Make sure this is set from authenticated user
+      createdBy: req.user._id
     };
 
-    console.log('Creating category with data:', categoryData); // Debug log
+    console.log('Creating category with data:', categoryData);
 
     const category = await Category.create(categoryData);
-    
+
+    // 🔔 NOTIFICATION (ONLY ADDITION)
+    await Notification.create({
+      type: 'create-category',
+      title: 'New Category Created',
+      message: `Category "${category.name}" has been created`,
+      referenceId: category._id,
+      createdBy: req.user._id,
+      isRead: false
+    });
+
     // Populate the createdBy field before sending response
     const populatedCategory = await Category.findById(category._id)
       .populate('createdBy', 'name email');
@@ -123,21 +137,27 @@ exports.createCategory = async (req, res) => {
       message: 'Category created successfully',
       data: populatedCategory
     });
+
   } catch (error) {
     console.error('Create category error:', error);
 
     let errorMessage = 'Server error';
     if (error.name === 'ValidationError') {
-      errorMessage = Object.values(error.errors).map(val => val.message).join(', ');
+      errorMessage = Object.values(error.errors)
+        .map(val => val.message)
+        .join(', ');
     }
 
     res.status(500).json({
       success: false,
       message: errorMessage,
-      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+      error: process.env.NODE_ENV === 'development'
+        ? error.message
+        : undefined
     });
   }
 };
+
 
 // @desc    Update category
 // @route   PUT /api/categories/:id

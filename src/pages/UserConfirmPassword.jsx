@@ -18,7 +18,7 @@ const UserConfirmPassword = () => {
   const { toast } = useToast();
 
   // Get environment variables
-  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+  const API_URL = import.meta.env.VITE_API_URL || 'https://api.stoxbolt.com';
 
   useEffect(() => {
     // Get email from localStorage
@@ -55,7 +55,7 @@ const UserConfirmPassword = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
+
     // Validation
     if (!newPassword || !confirmPassword) {
       toast({
@@ -101,7 +101,7 @@ const UserConfirmPassword = () => {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ 
+        body: JSON.stringify({
           email: email,
           newPassword: newPassword
         })
@@ -116,12 +116,12 @@ const UserConfirmPassword = () => {
       if (data.success) {
         // Clear localStorage
         localStorage.removeItem('resetEmail');
-        
+
         toast({
           title: 'Password Reset Successful!',
           description: 'Your password has been reset successfully'
         });
-        
+
         // Navigate to login page after delay
         setTimeout(() => {
           navigate('/user-login');
@@ -131,9 +131,9 @@ const UserConfirmPassword = () => {
       }
     } catch (error) {
       console.error('Reset password error:', error);
-      
+
       let errorMessage = error.message;
-      
+
       toast({
         title: 'Reset Failed',
         description: errorMessage,
@@ -200,22 +200,21 @@ const UserConfirmPassword = () => {
                 {showNewPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
               </button>
             </div>
-            
+
             {/* Password Strength Meter */}
             {newPassword && (
               <div className="mt-3">
                 <div className="flex justify-between text-sm mb-1">
                   <span className="text-gray-600">Password strength:</span>
-                  <span className={`font-medium ${
-                    passwordStrength < 50 ? 'text-red-600' : 
-                    passwordStrength < 75 ? 'text-yellow-600' : 
-                    'text-green-600'
-                  }`}>
+                  <span className={`font-medium ${passwordStrength < 50 ? 'text-red-600' :
+                      passwordStrength < 75 ? 'text-yellow-600' :
+                        'text-green-600'
+                    }`}>
                     {getStrengthText()}
                   </span>
                 </div>
                 <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
-                  <div 
+                  <div
                     className={`h-full ${getStrengthColor()} transition-all duration-300`}
                     style={{ width: `${passwordStrength}%` }}
                   />
@@ -268,7 +267,7 @@ const UserConfirmPassword = () => {
                 {showConfirmPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
               </button>
             </div>
-            
+
             {/* Password Match Indicator */}
             {confirmPassword && (
               <div className="mt-2">

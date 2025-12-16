@@ -6,7 +6,7 @@ import { Loader2, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import axios from 'axios';
 
-const baseURL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+const baseURL = import.meta.env.VITE_API_URL || 'https://api.stoxbolt.com';
 
 // Fallback images categorized
 const categoryImages = {
@@ -53,12 +53,12 @@ const transformPostData = (post) => {
   // Helper function to get image URL from post object
   const getImageUrl = (postData) => {
     if (!postData) return '';
-    return postData.imageUrl || 
-           postData.featuredImage || 
-           postData.image || 
-           postData.thumbnail || 
-           postData.bannerImage || 
-           '';
+    return postData.imageUrl ||
+      postData.featuredImage ||
+      postData.image ||
+      postData.thumbnail ||
+      postData.bannerImage ||
+      '';
   };
 
   // Helper function to get category name
@@ -99,9 +99,9 @@ const transformPostData = (post) => {
     _id: post._id || post.id,
     title: post.title || 'Untitled Post',
     body: getBodyContent(post.body),
-    summary: post.summary || 
-             post.excerpt || 
-             (getBodyContent(post.body) ? getBodyContent(post.body).substring(0, 150) + '...' : ''),
+    summary: post.summary ||
+      post.excerpt ||
+      (getBodyContent(post.body) ? getBodyContent(post.body).substring(0, 150) + '...' : ''),
     image: imageUrl || getRandomImage(categoryName),
     category: categoryName,
     isSponsored: post.isSponsored || post.sponsored || false,
@@ -110,8 +110,8 @@ const transformPostData = (post) => {
     updatedAt: post.updatedAt,
     status: post.status || 'published',
     author: getAuthorName(post.author),
-    tags: Array.isArray(post.tags) ? post.tags : 
-          (typeof post.tags === 'string' ? post.tags.split(',') : [])
+    tags: Array.isArray(post.tags) ? post.tags :
+      (typeof post.tags === 'string' ? post.tags.split(',') : [])
   };
 };
 
@@ -126,7 +126,7 @@ const HomePage = () => {
     setLoading(true);
     // Scroll to top when fetching new page
     window.scrollTo({ top: 0, behavior: 'smooth' });
-    
+
     try {
       const response = await axios.get(`${baseURL}/api/public-posts`, {
         params: {
@@ -136,12 +136,12 @@ const HomePage = () => {
           sort: '-createdAt'
         }
       });
-      
+
       if (response.data.success) {
-        const newPosts = Array.isArray(response.data.data) ? 
-          response.data.data.map(transformPostData) : 
+        const newPosts = Array.isArray(response.data.data) ?
+          response.data.data.map(transformPostData) :
           [];
-        
+
         setPosts(newPosts); // Replace posts instead of appending
         setTotalPages(response.data.totalPages || 1);
         setPage(pageNum); // Update current page state
@@ -201,7 +201,7 @@ const HomePage = () => {
               ) : (
                 <div className="text-center py-12">
                   <p className="text-gray-600 font-medium">No posts found</p>
-                  <button 
+                  <button
                     onClick={() => fetchPosts(1)}
                     className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
                   >
@@ -223,7 +223,7 @@ const HomePage = () => {
                 <ChevronLeft className="h-4 w-4 mr-2" />
                 Previous
               </button>
-              
+
               <div className="flex items-center gap-2">
                 <span className="text-sm font-medium text-gray-700">
                   Page {page} of {totalPages}

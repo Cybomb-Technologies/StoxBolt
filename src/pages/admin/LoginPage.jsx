@@ -17,48 +17,48 @@ const LoginPage = () => {
   const { toast } = useToast();
 
   const handleSubmit = async (e) => {
-  e.preventDefault();
-  
-  // Basic validation
-  if (!email || !password) {
-    toast({
-      title: 'Validation Error',
-      description: 'Please enter both email and password',
-      variant: 'destructive'
-    });
-    return;
-  }
-  
-  setLoading(true);
+    e.preventDefault();
 
-  try {
-    const response = await login(email, password);
-    toast({
-      title: 'Welcome back!',
-      description: 'You have successfully logged in'
-    });
-    navigate('/admin');
-  } catch (error) {
-    console.error('Login error:', error);
-    
-    // Show specific error messages
-    let errorMessage = 'Invalid email or password';
-    
-    if (error.message.includes('NetworkError') || error.message.includes('Failed to fetch')) {
-      errorMessage = 'Cannot connect to server. Make sure backend is running on http://localhost:5000';
-    } else if (error.message) {
-      errorMessage = error.message;
+    // Basic validation
+    if (!email || !password) {
+      toast({
+        title: 'Validation Error',
+        description: 'Please enter both email and password',
+        variant: 'destructive'
+      });
+      return;
     }
-    
-    toast({
-      title: 'Login failed',
-      description: errorMessage,
-      variant: 'destructive'
-    });
-  } finally {
-    setLoading(false);
-  }
-};
+
+    setLoading(true);
+
+    try {
+      const response = await login(email, password);
+      toast({
+        title: 'Welcome back!',
+        description: 'You have successfully logged in'
+      });
+      navigate('/admin');
+    } catch (error) {
+      console.error('Login error:', error);
+
+      // Show specific error messages
+      let errorMessage = 'Invalid email or password';
+
+      if (error.message.includes('NetworkError') || error.message.includes('Failed to fetch')) {
+        errorMessage = 'Cannot connect to server. Make sure backend is running on https://api.stoxbolt.com';
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+
+      toast({
+        title: 'Login failed',
+        description: errorMessage,
+        variant: 'destructive'
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <>
@@ -134,15 +134,6 @@ const LoginPage = () => {
               ) : 'Sign In'}
             </Button>
           </form>
-
-          <div className="mt-8 pt-6 border-t border-gray-200">
-            <p className="text-sm text-gray-600 text-center">
-              <span className="font-medium">Demo credentials:</span> admin@stoxbolt.com / admin123
-            </p>
-            <p className="text-xs text-gray-500 text-center mt-2">
-              Make sure backend server is running on http://localhost:5000
-            </p>
-          </div>
         </motion.div>
       </div>
     </>

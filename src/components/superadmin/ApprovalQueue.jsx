@@ -1,14 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { 
-  CheckCircle, 
-  XCircle, 
-  Eye, 
-  MessageSquare, 
-  Clock, 
-  Loader2, 
-  AlertCircle, 
-  FileText, 
+import {
+  CheckCircle,
+  XCircle,
+  Eye,
+  MessageSquare,
+  Clock,
+  Loader2,
+  AlertCircle,
+  FileText,
   RefreshCw,
   Search,
   Filter,
@@ -25,7 +25,7 @@ import {
 } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 
-const baseURL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+const baseURL = import.meta.env.VITE_API_URL || 'https://api.stoxbolt.com';
 
 const ApprovalQueue = () => {
   const [adminPosts, setAdminPosts] = useState([]);
@@ -42,7 +42,7 @@ const ApprovalQueue = () => {
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
   const { toast } = useToast();
-  
+
   const itemsPerPage = 10;
 
   useEffect(() => {
@@ -53,7 +53,7 @@ const ApprovalQueue = () => {
     setLoading(true);
     try {
       const adminToken = localStorage.getItem('adminToken');
-      
+
       const response = await fetch(`${baseURL}/api/approval/posts`, {
         headers: {
           'Authorization': `Bearer ${adminToken}`
@@ -61,43 +61,43 @@ const ApprovalQueue = () => {
       });
 
       const data = await response.json();
-      
+
       if (!response.ok) {
         throw new Error(data.message || 'Failed to fetch admin posts');
       }
 
       if (data.success) {
         let filteredPosts = data.data || [];
-        
+
         // Apply filters
         if (filterStatus !== 'all') {
-          filteredPosts = filteredPosts.filter(post => 
+          filteredPosts = filteredPosts.filter(post =>
             post.approvalStatus === filterStatus
           );
         }
-        
+
         if (filterType !== 'all') {
-          filteredPosts = filteredPosts.filter(post => 
+          filteredPosts = filteredPosts.filter(post =>
             filterType === 'update' ? post.isUpdateRequest : !post.isUpdateRequest
           );
         }
-        
+
         // Apply search
         if (searchQuery) {
           const query = searchQuery.toLowerCase();
-          filteredPosts = filteredPosts.filter(post => 
-            post.title.toLowerCase().includes(query) || 
+          filteredPosts = filteredPosts.filter(post =>
+            post.title.toLowerCase().includes(query) ||
             (post.authorId?.name || post.author || '').toLowerCase().includes(query) ||
             (post.category || '').toLowerCase().includes(query)
           );
         }
-        
+
         // Calculate pagination
         const totalFiltered = filteredPosts.length;
         const startIndex = (currentPage - 1) * itemsPerPage;
         const endIndex = startIndex + itemsPerPage;
         const paginatedPosts = filteredPosts.slice(startIndex, endIndex);
-        
+
         setAdminPosts(paginatedPosts);
         setTotalPages(Math.ceil(totalFiltered / itemsPerPage));
         setTotalPosts(totalFiltered);
@@ -121,7 +121,7 @@ const ApprovalQueue = () => {
     setActionLoading(true);
     try {
       const adminToken = localStorage.getItem('adminToken');
-      
+
       const response = await fetch(`${baseURL}/api/approval/posts/${postId}/approve`, {
         method: 'PUT',
         headers: {
@@ -132,7 +132,7 @@ const ApprovalQueue = () => {
       });
 
       const data = await response.json();
-      
+
       if (!response.ok) {
         throw new Error(data.message || 'Failed to approve post');
       }
@@ -163,7 +163,7 @@ const ApprovalQueue = () => {
     setActionLoading(true);
     try {
       const adminToken = localStorage.getItem('adminToken');
-      
+
       const response = await fetch(`${baseURL}/api/approval/posts/${postId}/reject`, {
         method: 'PUT',
         headers: {
@@ -174,7 +174,7 @@ const ApprovalQueue = () => {
       });
 
       const data = await response.json();
-      
+
       if (!response.ok) {
         throw new Error(data.message || 'Failed to reject post');
       }
@@ -205,7 +205,7 @@ const ApprovalQueue = () => {
     setActionLoading(true);
     try {
       const adminToken = localStorage.getItem('adminToken');
-      
+
       const response = await fetch(`${baseURL}/api/approval/posts/${postId}/request-changes`, {
         method: 'PUT',
         headers: {
@@ -216,7 +216,7 @@ const ApprovalQueue = () => {
       });
 
       const data = await response.json();
-      
+
       if (!response.ok) {
         throw new Error(data.message || 'Failed to request changes');
       }
@@ -317,7 +317,7 @@ const ApprovalQueue = () => {
       status: 'published',
       createdAt: post.createdAt || new Date().toISOString(),
     };
-    
+
     localStorage.setItem('postPreview', JSON.stringify(previewData));
     window.open(`/post/preview`, '_blank');
   };
@@ -430,7 +430,7 @@ const ApprovalQueue = () => {
                   className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 focus:outline-none"
                 />
               </div>
-              
+
               <div className="flex flex-wrap gap-2">
                 <select
                   value={filterStatus}
@@ -443,7 +443,7 @@ const ApprovalQueue = () => {
                   <option value="approved">Approved</option>
                   <option value="rejected">Rejected</option>
                 </select>
-                
+
                 <select
                   value={filterType}
                   onChange={(e) => setFilterType(e.target.value)}
@@ -453,21 +453,21 @@ const ApprovalQueue = () => {
                   <option value="new">New Posts</option>
                   <option value="update">Update Requests</option>
                 </select>
-                
+
                 <button
                   onClick={handleFilterApply}
                   className="px-4 py-2.5 bg-orange-600 text-white font-medium rounded-lg hover:bg-orange-700 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 transition-colors"
                 >
                   Apply Filters
                 </button>
-                
+
                 <button
                   onClick={handleClearFilters}
                   className="px-4 py-2.5 border border-gray-300 text-gray-700 font-medium rounded-lg hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 transition-colors"
                 >
                   Clear
                 </button>
-                
+
                 <button
                   onClick={fetchAdminPosts}
                   disabled={loading}
@@ -478,7 +478,7 @@ const ApprovalQueue = () => {
                 </button>
               </div>
             </div>
-            
+
             {/* Results count */}
             <div className="mt-4 flex items-center justify-between text-sm">
               <p className="text-gray-600">
@@ -525,36 +525,36 @@ const ApprovalQueue = () => {
                           {getApprovalStatusBadge(post.approvalStatus)}
                           {getPostTypeBadge(post.isUpdateRequest)}
                         </div>
-                        
+
                         <div className="flex flex-wrap items-center gap-4 text-gray-600 text-sm mb-1">
                           <div className="flex items-center">
                             <User className="h-3 w-3 mr-2" />
                             {post.authorId?.name || post.author}
                           </div>
-                          
+
                           {post.category && (
                             <div className="flex items-center">
                               <Tag className="h-3 w-3 mr-2" />
                               {post.category}
                             </div>
                           )}
-                          
+
                           {post.version && (
                             <div className="flex items-center">
                               <span className="font-medium">Version:</span> {post.version}
                             </div>
                           )}
                         </div>
-                        
+
                         <div className="flex items-center text-gray-500 text-sm">
                           <Calendar className="h-3 w-3 mr-2" />
                           Submitted {formatDate(post.createdAt)}
                         </div>
-                        
+
                         {post.shortTitle && (
                           <p className="text-gray-600 text-sm mt-1">{post.shortTitle}</p>
                         )}
-                        
+
                         {(post.reviewerNotes || post.rejectionReason) && (
                           <div className={`mt-2 p-2 rounded text-xs ${post.rejectionReason ? 'bg-red-50 text-red-700' : 'bg-blue-50 text-blue-700'}`}>
                             <div className="flex items-start">
@@ -565,7 +565,7 @@ const ApprovalQueue = () => {
                         )}
                       </div>
                     </div>
-                    
+
                     <div className="flex items-center space-x-2">
                       <button
                         onClick={() => handlePreview(post)}
@@ -574,7 +574,7 @@ const ApprovalQueue = () => {
                       >
                         <Eye className="h-5 w-5" />
                       </button>
-                      
+
                       {post.approvalStatus === 'pending_review' && (
                         <>
                           <button
@@ -584,7 +584,7 @@ const ApprovalQueue = () => {
                           >
                             <CheckCircle className="h-5 w-5" />
                           </button>
-                          
+
                           <button
                             onClick={() => openConfirmDialog(post, 'request_changes')}
                             className="p-2 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
@@ -592,7 +592,7 @@ const ApprovalQueue = () => {
                           >
                             <MessageSquare className="h-5 w-5" />
                           </button>
-                          
+
                           <button
                             onClick={() => openConfirmDialog(post, 'reject')}
                             className="p-2 text-gray-600 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
@@ -602,7 +602,7 @@ const ApprovalQueue = () => {
                           </button>
                         </>
                       )}
-                      
+
                       {post.approvalStatus === 'changes_requested' && (
                         <button
                           onClick={() => openConfirmDialog(post, 'approve')}
@@ -667,7 +667,7 @@ const ApprovalQueue = () => {
                   {actionType === 'request_changes' && 'Request Changes'}
                 </h3>
               </div>
-              
+
               <p className="text-gray-600 mb-4">
                 {actionType === 'approve' && (
                   `Are you sure you want to approve "${selectedPost?.title}"?`
@@ -679,26 +679,26 @@ const ApprovalQueue = () => {
                   `Are you sure you want to request changes for "${selectedPost?.title}"?`
                 )}
               </p>
-              
+
               <div className="mb-4">
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   {actionType === 'approve' ? 'Notes (optional)' :
-                   actionType === 'reject' ? 'Rejection Reason *' :
-                   'Feedback for Changes *'}
+                    actionType === 'reject' ? 'Rejection Reason *' :
+                      'Feedback for Changes *'}
                 </label>
                 <textarea
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
                   rows={3}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 focus:outline-none"
-                  placeholder={actionType === 'approve' 
-                    ? 'Add any notes about this approval...' 
+                  placeholder={actionType === 'approve'
+                    ? 'Add any notes about this approval...'
                     : actionType === 'reject'
-                    ? 'Why is this post being rejected?'
-                    : 'What changes need to be made?'}
+                      ? 'Why is this post being rejected?'
+                      : 'What changes need to be made?'}
                 />
               </div>
-              
+
               <div className="flex justify-end space-x-3">
                 <button
                   onClick={() => {
@@ -715,13 +715,12 @@ const ApprovalQueue = () => {
                 <button
                   onClick={handleAction}
                   disabled={actionLoading}
-                  className={`px-4 py-2.5 text-white font-medium rounded-lg focus:outline-none focus:ring-2 focus:ring-offset-2 transition-colors disabled:opacity-50 ${
-                    actionType === 'approve'
+                  className={`px-4 py-2.5 text-white font-medium rounded-lg focus:outline-none focus:ring-2 focus:ring-offset-2 transition-colors disabled:opacity-50 ${actionType === 'approve'
                       ? 'bg-green-600 hover:bg-green-700 focus:ring-green-500'
                       : actionType === 'reject'
-                      ? 'bg-red-600 hover:bg-red-700 focus:ring-red-500'
-                      : 'bg-blue-600 hover:bg-blue-700 focus:ring-blue-500'
-                  }`}
+                        ? 'bg-red-600 hover:bg-red-700 focus:ring-red-500'
+                        : 'bg-blue-600 hover:bg-blue-700 focus:ring-blue-500'
+                    }`}
                 >
                   {actionLoading ? (
                     <span className="flex items-center">

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  Edit, Trash2, Search, Filter, Loader2, Plus, 
+import {
+  Edit, Trash2, Search, Filter, Loader2, Plus,
   Info, AlertCircle, RefreshCw,
   Calendar,
   Mail,
@@ -9,13 +9,13 @@ import {
   Eye
 } from 'lucide-react';
 
-const baseURL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+const baseURL = import.meta.env.VITE_API_URL || 'https://api.stoxbolt.com';
 
 // Simple toast component
 const Toast = ({ title, description, variant, onClose }) => {
   const bgColor = variant === 'destructive' ? 'bg-red-100 border-red-200' : 'bg-green-100 border-green-200';
   const textColor = variant === 'destructive' ? 'text-red-800' : 'text-green-800';
-  
+
   return (
     <div className={`fixed top-4 right-4 z-50 p-4 rounded-lg border ${bgColor} ${textColor} shadow-lg max-w-sm`}>
       <div className="flex justify-between items-start">
@@ -52,19 +52,19 @@ const CategoryList = () => {
   const [formErrors, setFormErrors] = useState({});
   const [submitting, setSubmitting] = useState(false);
   const [toasts, setToasts] = useState([]);
-  
+
   // Simple toast function
   const toast = ({ title, description, variant = 'default', className = '' }) => {
     const id = Date.now();
     const newToast = { id, title, description, variant, className };
-    
+
     setToasts(prev => [...prev, newToast]);
-    
+
     // Auto remove after 5 seconds
     setTimeout(() => {
       setToasts(prev => prev.filter(t => t.id !== id));
     }, 5000);
-    
+
     return id;
   };
 
@@ -80,126 +80,126 @@ const CategoryList = () => {
   }, [currentPage, searchQuery]);
 
   // CategoryList.jsx - Update the fetchCategories function
-const fetchCategories = async () => {
-  setLoading(true);
-  try {
-    const adminToken = localStorage.getItem('adminToken');
-    
-    if (!adminToken) {
-      toast({
-        title: 'Authentication Error',
-        description: 'No authentication token found. Please log in again.',
-        variant: 'destructive'
+  const fetchCategories = async () => {
+    setLoading(true);
+    try {
+      const adminToken = localStorage.getItem('adminToken');
+
+      if (!adminToken) {
+        toast({
+          title: 'Authentication Error',
+          description: 'No authentication token found. Please log in again.',
+          variant: 'destructive'
+        });
+        return;
+      }
+
+      // Build query parameters
+      const params = new URLSearchParams({
+        page: currentPage,
+        limit: 10
       });
-      return;
-    }
 
-    // Build query parameters
-    const params = new URLSearchParams({
-      page: currentPage,
-      limit: 10
-    });
-    
-    if (searchQuery) {
-      params.append('search', searchQuery);
-    }
+      if (searchQuery) {
+        params.append('search', searchQuery);
+      }
 
-    const response = await fetch(`${baseURL}/api/categories?${params}`, {
-      headers: {
-        'Authorization': `Bearer ${adminToken}`
-      }
-    });
-
-    const data = await response.json();
-    
-    if (!response.ok) {
-      if (response.status === 401) {
-        // Token expired or invalid
-        localStorage.removeItem('adminToken');
-        toast({
-          title: 'Session Expired',
-          description: 'Your session has expired. Please log in again.',
-          variant: 'destructive'
-        });
-        return;
-      }
-      
-      if (response.status === 403) {
-        setCategories([]);
-        setTotalPages(1);
-        setTotalCategories(0);
-        toast({
-          title: 'Access Denied',
-          description: 'You do not have permission to view categories.',
-          variant: 'destructive'
-        });
-        return;
-      }
-      
-      // Check for specific error messages
-      if (data.error && data.error.includes('Schema')) {
-        toast({
-          title: 'Server Configuration Error',
-          description: 'Please contact the administrator. Server configuration issue detected.',
-          variant: 'destructive'
-        });
-        return;
-      }
-      
-      throw new Error(data.message || data.error || `Failed to fetch categories (${response.status})`);
-    }
-
-    if (data.success) {
-      setCategories(data.data || []);
-      setTotalPages(data.totalPages || 1);
-      setTotalCategories(data.total || 0);
-    } else {
-      throw new Error(data.message || 'Failed to load categories');
-    }
-  } catch (error) {
-    console.error('Error fetching categories:', error);
-    
-    // Don't show toast for auth errors (already handled above)
-    if (!error.message.includes('403') && !error.message.includes('401')) {
-      toast({
-        title: 'Error',
-        description: error.message || 'Failed to load categories',
-        variant: 'destructive'
+      const response = await fetch(`${baseURL}/api/categories?${params}`, {
+        headers: {
+          'Authorization': `Bearer ${adminToken}`
+        }
       });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        if (response.status === 401) {
+          // Token expired or invalid
+          localStorage.removeItem('adminToken');
+          toast({
+            title: 'Session Expired',
+            description: 'Your session has expired. Please log in again.',
+            variant: 'destructive'
+          });
+          return;
+        }
+
+        if (response.status === 403) {
+          setCategories([]);
+          setTotalPages(1);
+          setTotalCategories(0);
+          toast({
+            title: 'Access Denied',
+            description: 'You do not have permission to view categories.',
+            variant: 'destructive'
+          });
+          return;
+        }
+
+        // Check for specific error messages
+        if (data.error && data.error.includes('Schema')) {
+          toast({
+            title: 'Server Configuration Error',
+            description: 'Please contact the administrator. Server configuration issue detected.',
+            variant: 'destructive'
+          });
+          return;
+        }
+
+        throw new Error(data.message || data.error || `Failed to fetch categories (${response.status})`);
+      }
+
+      if (data.success) {
+        setCategories(data.data || []);
+        setTotalPages(data.totalPages || 1);
+        setTotalCategories(data.total || 0);
+      } else {
+        throw new Error(data.message || 'Failed to load categories');
+      }
+    } catch (error) {
+      console.error('Error fetching categories:', error);
+
+      // Don't show toast for auth errors (already handled above)
+      if (!error.message.includes('403') && !error.message.includes('401')) {
+        toast({
+          title: 'Error',
+          description: error.message || 'Failed to load categories',
+          variant: 'destructive'
+        });
+      }
+
+      setCategories([]);
+      setTotalPages(1);
+      setTotalCategories(0);
+    } finally {
+      setLoading(false);
     }
-    
-    setCategories([]);
-    setTotalPages(1);
-    setTotalCategories(0);
-  } finally {
-    setLoading(false);
-  }
-};
+  };
 
   const validateForm = () => {
     const errors = {};
-    
+
     if (!formData.name.trim()) {
       errors.name = 'Category name is required';
     } else if (formData.name.length > 50) {
       errors.name = 'Category name cannot exceed 50 characters';
     }
-    
+
     if (formData.description && formData.description.length > 200) {
       errors.description = 'Description cannot exceed 200 characters';
     }
-    
+
     setFormErrors(errors);
     return Object.keys(errors).length === 0;
   };
 
   const handleCreateCategory = async () => {
     if (!validateForm()) return;
-    
+
     setSubmitting(true);
     try {
       const adminToken = localStorage.getItem('adminToken');
-      
+
       if (!adminToken) {
         toast({
           title: 'Authentication Error',
@@ -219,7 +219,7 @@ const fetchCategories = async () => {
       });
 
       const data = await response.json();
-      
+
       if (!response.ok) {
         throw new Error(data.message || 'Failed to create category');
       }
@@ -247,11 +247,11 @@ const fetchCategories = async () => {
 
   const handleUpdateCategory = async () => {
     if (!validateForm() || !editingCategory) return;
-    
+
     setSubmitting(true);
     try {
       const adminToken = localStorage.getItem('adminToken');
-      
+
       if (!adminToken) {
         toast({
           title: 'Authentication Error',
@@ -271,7 +271,7 @@ const fetchCategories = async () => {
       });
 
       const data = await response.json();
-      
+
       if (!response.ok) {
         throw new Error(data.message || 'Failed to update category');
       }
@@ -301,7 +301,7 @@ const fetchCategories = async () => {
   const handleDelete = async (categoryId) => {
     try {
       const adminToken = localStorage.getItem('adminToken');
-      
+
       if (!adminToken) {
         toast({
           title: 'Authentication Error',
@@ -319,7 +319,7 @@ const fetchCategories = async () => {
       });
 
       const data = await response.json();
-      
+
       if (!response.ok) {
         throw new Error(data.message || 'Failed to delete category');
       }
@@ -528,7 +528,7 @@ const fetchCategories = async () => {
                     >
                       <Eye className="h-4 w-4 text-blue-500" />
                     </button>
-                    
+
                     {canManageCategories && (
                       <>
                         <button
@@ -613,11 +613,10 @@ const fetchCategories = async () => {
                   <button
                     key={pageNum}
                     onClick={() => setCurrentPage(pageNum)}
-                    className={`px-3 py-1.5 min-w-[40px] border rounded-lg text-sm ${
-                      currentPage === pageNum 
-                        ? 'bg-orange-600 text-white border-orange-600 hover:bg-orange-700' 
+                    className={`px-3 py-1.5 min-w-[40px] border rounded-lg text-sm ${currentPage === pageNum
+                        ? 'bg-orange-600 text-white border-orange-600 hover:bg-orange-700'
                         : 'border-gray-300 hover:bg-gray-50'
-                    }`}
+                      }`}
                   >
                     {pageNum}
                   </button>
@@ -658,12 +657,11 @@ const fetchCategories = async () => {
                     type="text"
                     value={formData.name}
                     onChange={(e) => {
-                      setFormData({...formData, name: e.target.value});
-                      if (formErrors.name) setFormErrors({...formErrors, name: ''});
+                      setFormData({ ...formData, name: e.target.value });
+                      if (formErrors.name) setFormErrors({ ...formErrors, name: '' });
                     }}
-                    className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500 ${
-                      formErrors.name ? 'border-red-500' : 'border-gray-300'
-                    }`}
+                    className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500 ${formErrors.name ? 'border-red-500' : 'border-gray-300'
+                      }`}
                     placeholder="Enter category name"
                   />
                   {formErrors.name && (
@@ -677,12 +675,11 @@ const fetchCategories = async () => {
                   <textarea
                     value={formData.description}
                     onChange={(e) => {
-                      setFormData({...formData, description: e.target.value});
-                      if (formErrors.description) setFormErrors({...formErrors, description: ''});
+                      setFormData({ ...formData, description: e.target.value });
+                      if (formErrors.description) setFormErrors({ ...formErrors, description: '' });
                     }}
-                    className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500 ${
-                      formErrors.description ? 'border-red-500' : 'border-gray-300'
-                    }`}
+                    className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500 ${formErrors.description ? 'border-red-500' : 'border-gray-300'
+                      }`}
                     placeholder="Enter category description (optional)"
                     rows="3"
                   />
@@ -745,12 +742,11 @@ const fetchCategories = async () => {
                     type="text"
                     value={formData.name}
                     onChange={(e) => {
-                      setFormData({...formData, name: e.target.value});
-                      if (formErrors.name) setFormErrors({...formErrors, name: ''});
+                      setFormData({ ...formData, name: e.target.value });
+                      if (formErrors.name) setFormErrors({ ...formErrors, name: '' });
                     }}
-                    className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500 ${
-                      formErrors.name ? 'border-red-500' : 'border-gray-300'
-                    }`}
+                    className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500 ${formErrors.name ? 'border-red-500' : 'border-gray-300'
+                      }`}
                   />
                   {formErrors.name && (
                     <p className="mt-1 text-sm text-red-500">{formErrors.name}</p>
@@ -763,12 +759,11 @@ const fetchCategories = async () => {
                   <textarea
                     value={formData.description}
                     onChange={(e) => {
-                      setFormData({...formData, description: e.target.value});
-                      if (formErrors.description) setFormErrors({...formErrors, description: ''});
+                      setFormData({ ...formData, description: e.target.value });
+                      if (formErrors.description) setFormErrors({ ...formErrors, description: '' });
                     }}
-                    className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500 ${
-                      formErrors.description ? 'border-red-500' : 'border-gray-300'
-                    }`}
+                    className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500 ${formErrors.description ? 'border-red-500' : 'border-gray-300'
+                      }`}
                     rows="3"
                   />
                   {formErrors.description && (

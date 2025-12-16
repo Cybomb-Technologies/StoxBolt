@@ -1,14 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { 
-  FileText, 
-  Edit, 
-  Trash2, 
-  Upload, 
-  Calendar, 
-  User, 
-  LogIn, 
-  Loader2, 
+import {
+  FileText,
+  Edit,
+  Trash2,
+  Upload,
+  Calendar,
+  User,
+  LogIn,
+  Loader2,
   Filter,
   RefreshCw,
   ChevronLeft,
@@ -32,7 +32,7 @@ import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
 
-const baseURL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+const baseURL = import.meta.env.VITE_API_URL || 'https://api.stoxbolt.com';
 
 const ActivityLog = () => {
   const [activities, setActivities] = useState([]);
@@ -53,7 +53,7 @@ const ActivityLog = () => {
     { value: 'delete', label: 'Delete', icon: <Trash2 className="h-4 w-4 mr-2" /> },
     { value: 'publish', label: 'Publish', icon: <Upload className="h-4 w-4 mr-2" /> },
     { value: 'upload', label: 'Upload', icon: <Upload className="h-4 w-4 mr-2" /> },
-    
+
   ];
 
   useEffect(() => {
@@ -137,7 +137,7 @@ const ActivityLog = () => {
       delete: <Trash2 className="h-5 w-5 text-red-600" />,
       publish: <Upload className="h-5 w-5 text-purple-600" />,
       upload: <Upload className="h-5 w-5 text-blue-600" />,
-     
+
     };
     return icons[type] || <ActivityIcon className="h-5 w-5 text-gray-600" />;
   };
@@ -159,22 +159,22 @@ const ActivityLog = () => {
     if (activity.userEmail) {
       return activity.userEmail;
     }
-    
+
     // Use username if available
     if (activity.username) {
       return activity.username;
     }
-    
+
     // Check if user field contains email
     if (activity.user && activity.user.includes('@')) {
       return activity.user;
     }
-    
+
     // For generic "Admin User", show a generic name
     if (activity.user === 'Admin User' || activity.user === 'adminuser' || activity.user === 'Unknown User') {
       return 'System';
     }
-    
+
     // Return the user field as is
     return activity.user || 'Unknown User';
   };
@@ -186,20 +186,20 @@ const ActivityLog = () => {
       delete: 'deleted',
       publish: 'published',
       upload: 'uploaded',
-     
+
     };
 
     const action = actions[activity.type] || activity.type;
     const userDisplayName = getUserDisplayName(activity);
-    
+
     if (activity.type === 'login') {
       return `${userDisplayName} ${action}`;
     } else if (activity.type.startsWith('admin_')) {
       // For admin activities, show the target user email if available in details
-      const targetUser = activity.details?.targetUserEmail || 
-                        activity.details?.targetUsername || 
-                        activity.details?.targetUser || 
-                        (activity.details?.email ? `(${activity.details.email})` : '');
+      const targetUser = activity.details?.targetUserEmail ||
+        activity.details?.targetUsername ||
+        activity.details?.targetUser ||
+        (activity.details?.email ? `(${activity.details.email})` : '');
       return `${userDisplayName} ${action} ${targetUser}`;
     } else if (activity.title && activity.title !== 'Untitled Activity') {
       return `${userDisplayName} ${action} "${activity.title}"`;
@@ -209,23 +209,23 @@ const ActivityLog = () => {
   };
 
   // Update the getActivityDetails function to handle category properly:
-const getActivityDetails = (activity) => {
-  if (!activity.details) return null;
+  const getActivityDetails = (activity) => {
+    if (!activity.details) return null;
 
-  // // Handle category display
-  // if (activity.details.category) {
-  //   let categoryName = '';
-  //   if (typeof activity.details.category === 'object' && activity.details.category !== null) {
-  //     categoryName = activity.details.category.name || activity.details.category._id || 'Unknown Category';
-  //   } else {
-  //     categoryName = activity.details.category;
-  //   }
-  //   return `Category: ${categoryName}`;
-  // }
+    // // Handle category display
+    // if (activity.details.category) {
+    //   let categoryName = '';
+    //   if (typeof activity.details.category === 'object' && activity.details.category !== null) {
+    //     categoryName = activity.details.category.name || activity.details.category._id || 'Unknown Category';
+    //   } else {
+    //     categoryName = activity.details.category;
+    //   }
+    //   return `Category: ${categoryName}`;
+    // }
 
-  if (activity.type === 'update' && activity.details.from && activity.details.to) {
-    return `Changed from "${activity.details.from}" to "${activity.details.to}"`;
-  }
+    if (activity.type === 'update' && activity.details.from && activity.details.to) {
+      return `Changed from "${activity.details.from}" to "${activity.details.to}"`;
+    }
 
     if (activity.type === 'upload' && activity.details.count) {
       return `Uploaded ${activity.details.count} posts`;
@@ -327,13 +327,13 @@ const getActivityDetails = (activity) => {
           {adminFields.map(field => {
             if (details[field.key] !== undefined && details[field.key] !== null && details[field.key] !== '') {
               let displayValue = details[field.key];
-              
+
               if (field.key === 'status') {
-                displayValue = details[field.key] === true ? 'Active' : 
-                             details[field.key] === false ? 'Inactive' : 
-                             details[field.key];
+                displayValue = details[field.key] === true ? 'Active' :
+                  details[field.key] === false ? 'Inactive' :
+                    details[field.key];
               }
-              
+
               return (
                 <div key={field.key} className="flex items-center">
                   <span className="text-gray-400 mr-2">{field.icon}</span>
@@ -348,15 +348,15 @@ const getActivityDetails = (activity) => {
       );
     }
 
-const postFields = [
-  { key: 'title', icon: <Type className="h-4 w-4" />, label: 'Title' },
-  { key: 'shortTitle', icon: <Type className="h-4 w-4" />, label: 'Short Title' },
-  { 
-    key: 'category', 
-    icon: <Hash className="h-4 w-4" />, 
-    label: 'Category' 
-  },
-  { key: 'region', icon: <Globe className="h-4 w-4" />, label: 'Region' },
+    const postFields = [
+      { key: 'title', icon: <Type className="h-4 w-4" />, label: 'Title' },
+      { key: 'shortTitle', icon: <Type className="h-4 w-4" />, label: 'Short Title' },
+      {
+        key: 'category',
+        icon: <Hash className="h-4 w-4" />,
+        label: 'Category'
+      },
+      { key: 'region', icon: <Globe className="h-4 w-4" />, label: 'Region' },
       { key: 'author', icon: <UserIcon className="h-4 w-4" />, label: 'Author' },
       { key: 'status', icon: activityType === 'publish' ? <CheckCircle className="h-4 w-4" /> : <BookOpen className="h-4 w-4" />, label: 'Status' },
       { key: 'isSponsored', icon: <Tag className="h-4 w-4" />, label: 'Sponsored' },
@@ -375,33 +375,33 @@ const postFields = [
         {/* Post Fields */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
 
-{postFields.map(field => {
-  if (details[field.key] !== undefined && details[field.key] !== null && details[field.key] !== '') {
-    let displayValue = details[field.key];
-    
-    // Special handling for category
-    if (field.key === 'category') {
-      if (typeof displayValue === 'object' && displayValue !== null) {
-        displayValue = displayValue.name || displayValue._id || 'Unknown Category';
-      }
-    } else if (field.key === 'isSponsored') {
-      displayValue = details[field.key] ? 'Yes' : 'No';
-    } else if (field.key === 'status' && activityType === 'publish') {
-      displayValue = 'Published';
-    }
-    
-    return (
-      <div key={field.key} className="flex items-start">
-        <span className="text-gray-400 mr-2 mt-0.5 flex-shrink-0">{field.icon}</span>
-        <div className="flex-1 min-w-0">
-          <div className="text-xs font-medium text-gray-500">{field.label}</div>
-          <div className="text-sm text-gray-900 truncate">{displayValue}</div>
-        </div>
-      </div>
-    );
-  }
-  return null;
-})}
+          {postFields.map(field => {
+            if (details[field.key] !== undefined && details[field.key] !== null && details[field.key] !== '') {
+              let displayValue = details[field.key];
+
+              // Special handling for category
+              if (field.key === 'category') {
+                if (typeof displayValue === 'object' && displayValue !== null) {
+                  displayValue = displayValue.name || displayValue._id || 'Unknown Category';
+                }
+              } else if (field.key === 'isSponsored') {
+                displayValue = details[field.key] ? 'Yes' : 'No';
+              } else if (field.key === 'status' && activityType === 'publish') {
+                displayValue = 'Published';
+              }
+
+              return (
+                <div key={field.key} className="flex items-start">
+                  <span className="text-gray-400 mr-2 mt-0.5 flex-shrink-0">{field.icon}</span>
+                  <div className="flex-1 min-w-0">
+                    <div className="text-xs font-medium text-gray-500">{field.label}</div>
+                    <div className="text-sm text-gray-900 truncate">{displayValue}</div>
+                  </div>
+                </div>
+              );
+            }
+            return null;
+          })}
         </div>
 
         {/* Other Details */}
@@ -442,9 +442,9 @@ const postFields = [
                   asChild
                   className="h-8"
                 >
-                  <a 
-                    href={details.imageUrl} 
-                    target="_blank" 
+                  <a
+                    href={details.imageUrl}
+                    target="_blank"
                     rel="noopener noreferrer"
                     className="text-xs"
                   >
@@ -484,8 +484,8 @@ const postFields = [
               <span className="text-xs font-medium text-gray-500">Content Preview</span>
             </div>
             <div className="text-sm text-gray-700 bg-gray-50 p-3 rounded-lg max-h-32 overflow-y-auto">
-              {details.body.length > 200 
-                ? `${details.body.substring(0, 200)}...` 
+              {details.body.length > 200
+                ? `${details.body.substring(0, 200)}...`
                 : details.body}
             </div>
           </div>
@@ -519,7 +519,7 @@ const postFields = [
             Track all system activities and user actions
           </p>
         </div>
-        
+
         <div className="flex items-center space-x-2 mt-4 md:mt-0">
           <Button
             variant="outline"
@@ -548,17 +548,16 @@ const postFields = [
             {totalActivities} total activities
           </span>
         </div>
-        
+
         <div className="flex flex-wrap gap-2">
           {activityTypes.map((type) => (
             <button
               key={type.value}
               onClick={() => handleFilterChange(type.value)}
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center ${
-                filterType === type.value
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center ${filterType === type.value
                   ? 'bg-orange-600 text-white'
                   : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
-              }`}
+                }`}
             >
               {type.icon}
               {type.label}
@@ -574,13 +573,13 @@ const postFields = [
             <ActivityIcon className="h-12 w-12 mx-auto text-gray-400 mb-4" />
             <p className="text-gray-600">No activities found</p>
             <p className="text-sm text-gray-500 mt-2">
-              {filterType !== 'all' 
+              {filterType !== 'all'
                 ? `No ${filterType.replace('_', ' ')} activities in the selected time period`
                 : 'Activities will appear here as they occur'
               }
             </p>
-            <Button 
-              variant="outline" 
+            <Button
+              variant="outline"
               className="mt-4"
               onClick={handleRefresh}
             >
@@ -592,7 +591,7 @@ const postFields = [
             {activities.map((activity, index) => {
               const activityId = activity._id || activity.id || `activity-${index}`;
               const isExpanded = expandedDetails[activityId];
-              
+
               return (
                 <motion.div
                   key={activityId}
@@ -604,20 +603,20 @@ const postFields = [
                   <div className="mt-1 flex-shrink-0">
                     {getActivityIcon(activity.type)}
                   </div>
-                  
+
                   <div className="flex-1 min-w-0">
                     <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between">
                       <div className="mb-2 sm:mb-0 flex-1">
                         <p className="text-gray-900 font-medium">
                           {getActivityText(activity)}
                         </p>
-                        
+
                         {getActivityDetails(activity) && (
                           <p className="text-sm text-gray-600 mt-1">
                             {getActivityDetails(activity)}
                           </p>
                         )}
-                        
+
                         {/* Show user info */}
                         <div className="flex items-center mt-2 space-x-4">
                           {activity.userEmail && (
@@ -627,18 +626,17 @@ const postFields = [
                             </div>
                           )}
                           {activity.severity && activity.severity !== 'info' && (
-                            <div className={`text-xs px-2 py-1 rounded-full ${
-                              activity.severity === 'error' ? 'bg-red-100 text-red-800' :
-                              activity.severity === 'warning' ? 'bg-orange-100 text-orange-800' :
-                              activity.severity === 'success' ? 'bg-green-100 text-green-800' :
-                              'bg-blue-100 text-blue-800'
-                            }`}>
+                            <div className={`text-xs px-2 py-1 rounded-full ${activity.severity === 'error' ? 'bg-red-100 text-red-800' :
+                                activity.severity === 'warning' ? 'bg-orange-100 text-orange-800' :
+                                  activity.severity === 'success' ? 'bg-green-100 text-green-800' :
+                                    'bg-blue-100 text-blue-800'
+                              }`}>
                               {activity.severity}
                             </div>
                           )}
                         </div>
                       </div>
-                      
+
                       <div className="flex items-center space-x-2 text-sm text-gray-500">
                         <Calendar className="h-3 w-3" />
                         <span className="whitespace-nowrap">
@@ -646,8 +644,8 @@ const postFields = [
                         </span>
                       </div>
                     </div>
-                    
-                    
+
+
                   </div>
                 </motion.div>
               );
@@ -662,7 +660,7 @@ const postFields = [
           <div className="text-sm text-gray-600 mb-4 sm:mb-0">
             Showing {activities.length} of {totalActivities} activities
           </div>
-          
+
           <div className="flex items-center space-x-2">
             <Button
               variant="outline"
@@ -673,7 +671,7 @@ const postFields = [
               <ChevronLeft className="h-4 w-4 mr-1" />
               Previous
             </Button>
-            
+
             <div className="flex items-center space-x-1">
               {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
                 let pageNum;
@@ -691,22 +689,21 @@ const postFields = [
                   <button
                     key={pageNum}
                     onClick={() => setCurrentPage(pageNum)}
-                    className={`h-8 w-8 rounded-md text-sm font-medium ${
-                      currentPage === pageNum
+                    className={`h-8 w-8 rounded-md text-sm font-medium ${currentPage === pageNum
                         ? 'bg-orange-600 text-white'
                         : 'text-gray-700 hover:bg-gray-100'
-                    }`}
+                      }`}
                   >
                     {pageNum}
                   </button>
                 );
               })}
-              
+
               {totalPages > 5 && (
                 <span className="text-gray-500 px-2">...</span>
               )}
             </div>
-            
+
             <Button
               variant="outline"
               size="sm"

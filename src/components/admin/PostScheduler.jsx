@@ -3,21 +3,21 @@ import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/components/ui/use-toast';
-import { 
-  Calendar, 
-  Clock, 
-  Trash2, 
-  Loader2, 
-  AlertCircle, 
-  CheckCircle, 
-  RefreshCw, 
+import {
+  Calendar,
+  Clock,
+  Trash2,
+  Loader2,
+  AlertCircle,
+  CheckCircle,
+  RefreshCw,
   AlertTriangle,
   CalendarClock,
   FileText
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 
-const baseURL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+const baseURL = import.meta.env.VITE_API_URL || 'https://api.stoxbolt.com';
 
 const PostScheduler = () => {
   const [scheduledPosts, setScheduledPosts] = useState([]);
@@ -41,16 +41,16 @@ const PostScheduler = () => {
       if (!adminToken) {
         throw new Error('No authentication adminToken found');
       }
-      
+
       console.log('Fetching all scheduled posts data...');
-      
+
       // Fetch scheduled posts (approved)
       const scheduledResponse = await fetch(`${baseURL}/api/posts/scheduled`, {
         headers: {
           'Authorization': `Bearer ${adminToken}`
         }
       });
-      
+
       let scheduledResult;
       try {
         scheduledResult = await scheduledResponse.json();
@@ -58,7 +58,7 @@ const PostScheduler = () => {
         console.error('Failed to parse scheduled posts response:', parseError);
         throw new Error('Invalid response from server');
       }
-      
+
       if (!scheduledResponse.ok) {
         throw new Error(scheduledResult?.message || 'Failed to fetch scheduled posts');
       }
@@ -66,7 +66,7 @@ const PostScheduler = () => {
       if (scheduledResult.success) {
         const scheduledPostsData = scheduledResult.data || [];
         console.log('Scheduled posts:', scheduledPostsData);
-        
+
         // Process scheduled posts with safe category handling
         const processedScheduled = scheduledPostsData.map((post) => {
           // Safe category name extraction
@@ -89,7 +89,7 @@ const PostScheduler = () => {
               }
             }
           }
-          
+
           return {
             ...post,
             categoryName,
@@ -97,9 +97,9 @@ const PostScheduler = () => {
             type: 'scheduled'
           };
         });
-        
+
         setScheduledPosts(processedScheduled);
-        
+
         // Check for overdue posts
         const now = new Date();
         const overduePosts = processedScheduled.filter(post => {
@@ -107,7 +107,7 @@ const PostScheduler = () => {
           const publishDate = new Date(post.publishDateTime);
           return publishDate <= now && post.status !== 'published';
         });
-        
+
         if (overduePosts.length > 0) {
           toast({
             title: 'Overdue Posts Detected',
@@ -116,7 +116,7 @@ const PostScheduler = () => {
             duration: 5000
           });
         }
-        
+
         // Show warning if there were data issues
         if (scheduledResult.warnings) {
           toast({
@@ -153,11 +153,11 @@ const PostScheduler = () => {
     if (!window.confirm('Are you sure you want to remove this scheduled post?')) {
       return;
     }
-    
+
     try {
       const adminToken = localStorage.getItem('adminToken');
       console.log('Deleting scheduled post:', postId);
-      
+
       const response = await fetch(`${baseURL}/api/scheduler/posts/${postId}`, {
         method: 'DELETE',
         headers: {
@@ -167,7 +167,7 @@ const PostScheduler = () => {
       });
 
       const data = await response.json();
-      
+
       if (!response.ok) {
         throw new Error(data.message || 'Failed to delete post');
       }
@@ -192,11 +192,11 @@ const PostScheduler = () => {
     if (!window.confirm('Publish this post immediately?')) {
       return;
     }
-    
+
     try {
       const adminToken = localStorage.getItem('adminToken');
       console.log('Publishing post now:', postId);
-      
+
       const response = await fetch(`${baseURL}/api/posts/admin/${postId}/publish`, {
         method: 'PUT',
         headers: {
@@ -206,7 +206,7 @@ const PostScheduler = () => {
       });
 
       const data = await response.json();
-      
+
       if (!response.ok) {
         throw new Error(data.message || 'Failed to publish post');
       }
@@ -255,25 +255,25 @@ const PostScheduler = () => {
   const getTimeRemaining = (dateString, status) => {
     try {
       if (!dateString) return 'No date';
-      
+
       const now = new Date();
       const scheduled = new Date(dateString);
-      
+
       // If post is already published, show "Published"
       if (status === 'published') {
         return 'Published';
       }
-      
+
       const diff = scheduled - now;
-      
+
       if (diff <= 0) return 'Overdue';
-      
+
       const days = Math.floor(diff / (1000 * 60 * 60 * 24));
       const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-      
+
       if (days > 0) return `${days}d ${hours}h`;
       if (hours > 0) return `${hours}h`;
-      
+
       const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
       return `${minutes}m`;
     } catch (error) {
@@ -301,9 +301,9 @@ const PostScheduler = () => {
           'Authorization': `Bearer ${adminToken}`
         }
       });
-      
+
       const data = await response.json();
-      
+
       if (data.success) {
         toast({
           title: 'Auto-publish Triggered',
@@ -428,7 +428,7 @@ const PostScheduler = () => {
             {scheduledPosts.length > 0 && `Next post: ${formatDateTime(scheduledPosts[0]?.publishDateTime)}`}
           </div>
         </div>
-        
+
         {scheduledPosts.length === 0 ? (
           <div className="text-center py-12 bg-gray-50 rounded-xl border-2 border-dashed border-gray-300">
             <Calendar className="h-16 w-16 mx-auto text-gray-400 mb-4" />
@@ -449,7 +449,7 @@ const PostScheduler = () => {
               const timeRemaining = getTimeRemaining(post.publishDateTime, post.status);
               const isOverdue = timeRemaining === 'Overdue';
               const isPublished = post.status === 'published';
-              
+
               return (
                 <div
                   key={post._id}
@@ -465,26 +465,26 @@ const PostScheduler = () => {
                           {isOverdue ? 'Overdue' : timeRemaining}
                         </div>
                       </div>
-                      
+
                       <div className="flex flex-wrap items-center gap-3 mt-2 text-sm text-gray-600">
                         <span className="flex items-center space-x-1 bg-white px-2 py-1 rounded border">
                           <Calendar className="h-3 w-3 flex-shrink-0" />
                           <span className="whitespace-nowrap">{formatDateTime(post.publishDateTime)}</span>
                         </span>
-                        
+
                         <span className="px-2 py-1 bg-blue-100 text-blue-700 rounded-full text-xs whitespace-nowrap border border-blue-200">
                           {post.categoryName || 'Uncategorized'}
                         </span>
-                        
+
                         <span className="text-sm whitespace-nowrap px-2 py-1 bg-gray-100 rounded border">
                           By: {getAuthorName(post)}
                         </span>
-                        
+
                         <span className="flex items-center gap-1 px-2 py-1 bg-purple-100 text-purple-700 rounded-full text-xs whitespace-nowrap border border-purple-200">
                           <FileText className="h-3 w-3" />
                           {post.source || 'Post'}
                         </span>
-                        
+
                         {isPublished && (
                           <span className="flex items-center text-green-600 whitespace-nowrap px-2 py-1 bg-green-100 rounded border border-green-200">
                             <CheckCircle className="h-3 w-3 mr-1 flex-shrink-0" />
@@ -492,14 +492,14 @@ const PostScheduler = () => {
                           </span>
                         )}
                       </div>
-                      
+
                       {post.shortTitle && (
                         <p className="text-sm text-gray-500 mt-2 line-clamp-2">
                           {post.shortTitle}
                         </p>
                       )}
                     </div>
-                    
+
                     <div className="ml-4 flex items-center space-x-2 flex-shrink-0">
                       {isOverdue && !isPublished && (
                         <Button
@@ -525,14 +525,14 @@ const PostScheduler = () => {
                       )}
                     </div>
                   </div>
-                  
+
                   {isOverdue && !isPublished && (
                     <div className="flex items-center mt-3 text-sm text-red-600 bg-red-100 px-3 py-2 rounded-lg">
                       <AlertCircle className="h-4 w-4 mr-2 flex-shrink-0" />
                       <span>This post was scheduled for {formatDateTime(post.publishDateTime)} but was not published automatically</span>
                     </div>
                   )}
-                  
+
                   {isPublished && (
                     <div className="flex items-center mt-3 text-sm text-green-600 bg-green-100 px-3 py-2 rounded-lg">
                       <CheckCircle className="h-4 w-4 mr-2 flex-shrink-0" />

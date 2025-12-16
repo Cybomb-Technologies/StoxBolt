@@ -2,21 +2,21 @@ import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
-import { 
-  Upload, 
-  FileText, 
-  Download, 
-  Loader2, 
-  AlertCircle, 
-  CheckCircle, 
-  XCircle, 
+import {
+  Upload,
+  FileText,
+  Download,
+  Loader2,
+  AlertCircle,
+  CheckCircle,
+  XCircle,
   RefreshCw,
   Eye,
   X
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
-const baseURL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+const baseURL = import.meta.env.VITE_API_URL || 'https://api.stoxbolt.com';
 
 const BulkUpload = () => {
   const [file, setFile] = useState(null);
@@ -33,21 +33,21 @@ const BulkUpload = () => {
     if (selectedFile) {
       const fileType = selectedFile.type;
       const fileName = selectedFile.name.toLowerCase();
-      
+
       console.log('Selected file:', {
         name: selectedFile.name,
         type: fileType,
         size: selectedFile.size,
         lastModified: new Date(selectedFile.lastModified).toLocaleString()
       });
-      
+
       // Accept CSV files
-      const isCSV = fileType === 'text/csv' || 
-                    fileType === 'application/vnd.ms-excel' || 
-                    fileType === 'application/csv' ||
-                    fileType === 'text/plain' ||
-                    fileName.endsWith('.csv');
-      
+      const isCSV = fileType === 'text/csv' ||
+        fileType === 'application/vnd.ms-excel' ||
+        fileType === 'application/csv' ||
+        fileType === 'text/plain' ||
+        fileName.endsWith('.csv');
+
       if (isCSV) {
         // Check file size (5MB limit)
         if (selectedFile.size > 5 * 1024 * 1024) {
@@ -59,13 +59,13 @@ const BulkUpload = () => {
           e.target.value = '';
           return;
         }
-        
+
         setFile(selectedFile);
         setUploadResult(null);
         setShowErrors(false);
         setDebugInfo(null);
         setFilePreview(null);
-        
+
         // Read and preview first few lines
         const reader = new FileReader();
         reader.onload = (event) => {
@@ -136,23 +136,23 @@ const BulkUpload = () => {
 
       if (!response.ok) {
         console.error('Upload failed:', data);
-        
+
         // Store debug info if available
         if (data.debug) {
           setDebugInfo(data.debug);
         }
-        
+
         throw new Error(data.message || `Upload failed with status ${response.status}`);
       }
 
       if (data.success) {
         setUploadResult(data);
-        
+
         // Store debug info if available
         if (data.debug) {
           setDebugInfo(data.debug);
         }
-        
+
         toast({
           title: data.errors?.length > 0 ? 'Upload Completed with Issues' : 'Upload Successful',
           description: `${data.count} posts imported successfully${data.errors?.length > 0 ? ` with ${data.errors.length} errors` : ''}`,
@@ -169,7 +169,7 @@ const BulkUpload = () => {
       }
     } catch (error) {
       console.error('Upload error:', error);
-      
+
       let errorMessage = error.message;
       if (error.message.includes('Failed to fetch')) {
         errorMessage = 'Network error. Please check your connection and try again.';
@@ -219,7 +219,7 @@ const BulkUpload = () => {
       a.download = 'stoxbolt-bulk-upload-template.csv';
       document.body.appendChild(a);
       a.click();
-      
+
       // Cleanup
       setTimeout(() => {
         window.URL.revokeObjectURL(url);
@@ -256,20 +256,20 @@ const BulkUpload = () => {
     e.preventDefault();
     e.stopPropagation();
     e.currentTarget.classList.remove('border-orange-500', 'bg-orange-50');
-    
+
     const droppedFile = e.dataTransfer.files[0];
     if (droppedFile) {
       const fileType = droppedFile.type;
       const fileName = droppedFile.name.toLowerCase();
-      
-      const isCSV = fileType === 'text/csv' || 
-                    fileType === 'application/vnd.ms-excel' || 
-                    fileType === 'application/csv' ||
-                    fileType === 'text/plain' ||
-                    fileName.endsWith('.csv');
-      
+
+      const isCSV = fileType === 'text/csv' ||
+        fileType === 'application/vnd.ms-excel' ||
+        fileType === 'application/csv' ||
+        fileType === 'text/plain' ||
+        fileName.endsWith('.csv');
+
       if (isCSV) {
-        
+
         if (droppedFile.size > 5 * 1024 * 1024) {
           toast({
             title: 'File Too Large',
@@ -278,13 +278,13 @@ const BulkUpload = () => {
           });
           return;
         }
-        
+
         setFile(droppedFile);
         setUploadResult(null);
         setShowErrors(false);
         setDebugInfo(null);
         setFilePreview(null);
-        
+
         // Read and preview
         const reader = new FileReader();
         reader.onload = (event) => {
@@ -381,8 +381,8 @@ const BulkUpload = () => {
         <div className="bg-green-50 border-2 border-green-200 rounded-xl p-4">
           <h4 className="font-semibold text-green-900 mb-2">Step 2: Upload CSV</h4>
           <p className="text-sm text-green-800 mb-3">Select your filled CSV file.</p>
-          
-          <div 
+
+          <div
             className="border-2 border-dashed border-gray-300 rounded-xl p-8 text-center hover:border-green-500 transition-colors cursor-pointer bg-white"
             onDragOver={handleDragOver}
             onDragLeave={handleDragLeave}
@@ -396,7 +396,7 @@ const BulkUpload = () => {
               className="hidden"
               id="csv-upload"
             />
-            
+
             {file ? (
               <div className="flex flex-col items-center">
                 <FileText className="h-16 w-16 mx-auto text-green-500 mb-4" />
@@ -458,7 +458,7 @@ const BulkUpload = () => {
                   </Button>
                 </div>
               </div>
-              
+
               {/* Quick preview */}
               {filePreview && (
                 <div className="mt-3 pt-3 border-t border-gray-100">
@@ -476,7 +476,7 @@ const BulkUpload = () => {
         <div className="bg-red-50 border-2 border-red-200 rounded-xl p-4">
           <h4 className="font-semibold text-red-900 mb-2">Step 3: Upload Posts</h4>
           <p className="text-sm text-red-800 mb-3">Click to upload and process your CSV file.</p>
-          
+
           <Button
             onClick={handleUpload}
             disabled={!file || uploading}
@@ -495,7 +495,7 @@ const BulkUpload = () => {
               </>
             )}
           </Button>
-          
+
           {!file && (
             <p className="text-xs text-gray-500 mt-2 text-center">
               Select a CSV file first
@@ -574,7 +574,7 @@ const BulkUpload = () => {
                     {showErrors ? 'Hide Errors' : 'Show Errors'}
                   </Button>
                 </div>
-                
+
                 {showErrors && (
                   <div className="max-h-96 overflow-y-auto space-y-3">
                     {uploadResult.errors.map((error, index) => (

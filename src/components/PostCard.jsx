@@ -7,7 +7,7 @@ import { useToast } from '@/components/ui/use-toast';
 import axios from 'axios';
 import { getRandomImage } from '@/utils/imageUtils';
 
-const baseURL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+const baseURL = import.meta.env.VITE_API_URL || 'https://api.stoxbolt.com';
 
 const PostCard = ({ post, index }) => {
   const [isBookmarked, setIsBookmarked] = useState(false);
@@ -24,17 +24,17 @@ const PostCard = ({ post, index }) => {
     try {
       const token = localStorage.getItem('token');
       const postId = post?.id || post?._id;
-      
+
       if (token && postId) {
         const response = await axios.get(
-          `${baseURL}/api/user-auth/bookmarks/${postId}/status`, 
+          `${baseURL}/api/user-auth/bookmarks/${postId}/status`,
           {
             headers: {
               Authorization: `Bearer ${token}`
             }
           }
         );
-        
+
         // Handle different response formats
         if (response.data.success !== undefined) {
           setIsBookmarked(response.data.data?.isBookmarked || response.data.isBookmarked || false);
@@ -51,7 +51,7 @@ const PostCard = ({ post, index }) => {
   const handleShare = async (e) => {
     e.preventDefault();
     e.stopPropagation();
-    
+
     try {
       if (navigator.share) {
         await navigator.share({
@@ -66,7 +66,7 @@ const PostCard = ({ post, index }) => {
           description: 'Post link copied to clipboard'
         });
       }
-      
+
       const postId = post?.id || post?._id;
       if (postId) {
         try {
@@ -90,13 +90,13 @@ const PostCard = ({ post, index }) => {
   const handleBookmark = async (e) => {
     e.preventDefault();
     e.stopPropagation();
-    
+
     setBookmarkLoading(true);
-    
+
     try {
       const token = localStorage.getItem('token');
       const postId = post?.id || post?._id;
-      
+
       if (!token) {
         toast({
           title: 'Login Required',
@@ -122,7 +122,7 @@ const PostCard = ({ post, index }) => {
             Authorization: `Bearer ${token}`
           }
         });
-        
+
         setIsBookmarked(false);
         toast({
           title: 'Removed from bookmarks',
@@ -131,7 +131,7 @@ const PostCard = ({ post, index }) => {
       } else {
         // Add bookmark using POST to toggle endpoint
         await axios.post(
-          `${baseURL}/api/user-auth/posts/${postId}/bookmark`, 
+          `${baseURL}/api/user-auth/posts/${postId}/bookmark`,
           {}, // Empty body
           {
             headers: {
@@ -139,7 +139,7 @@ const PostCard = ({ post, index }) => {
             }
           }
         );
-        
+
         setIsBookmarked(true);
         toast({
           title: 'Added to bookmarks',
@@ -148,11 +148,11 @@ const PostCard = ({ post, index }) => {
       }
     } catch (error) {
       console.error('Error updating bookmark:', error);
-      
-      const errorMessage = error.response?.data?.message || 
-                         error.message || 
-                         'Failed to update bookmark';
-      
+
+      const errorMessage = error.response?.data?.message ||
+        error.message ||
+        'Failed to update bookmark';
+
       toast({
         title: 'Error',
         description: errorMessage,
@@ -165,13 +165,13 @@ const PostCard = ({ post, index }) => {
 
   const getTimeAgo = (dateString) => {
     if (!dateString) return 'Recently';
-    
+
     const date = new Date(dateString);
     if (isNaN(date.getTime())) return 'Recently';
-    
+
     const now = new Date();
     const diffInHours = Math.floor((now - date) / (1000 * 60 * 60));
-    
+
     if (diffInHours < 1) return 'Just now';
     if (diffInHours < 24) return `${diffInHours}h ago`;
     return `${Math.floor(diffInHours / 24)}d ago`;
@@ -184,13 +184,13 @@ const PostCard = ({ post, index }) => {
 
   const getImageUrl = (postData) => {
     if (!postData) return '';
-    
+
     // Check all possible image property names
-    return postData.imageUrl || 
-           postData.image || 
-           postData.thumbnail || 
-           postData.featuredImage || 
-           '';
+    return postData.imageUrl ||
+      postData.image ||
+      postData.thumbnail ||
+      postData.featuredImage ||
+      '';
   };
 
   if (!post) {
@@ -204,7 +204,7 @@ const PostCard = ({ post, index }) => {
   const postImage = getImageUrl(post);
   const isSponsored = post.isSponsored || false;
   const publishedAt = post.publishedAt || post.createdAt || post.updatedAt;
-  
+
   // Extract category name - simplified
   let postCategory = '';
   if (post.category) {
@@ -243,14 +243,14 @@ const PostCard = ({ post, index }) => {
                 <span className="text-gray-400 text-sm">No image</span>
               </div>
             )}
-            
+
             {isSponsored && (
               <div className="absolute top-3 left-3 bg-yellow-500 text-white px-3 py-1 rounded-full text-xs font-bold flex items-center space-x-1">
                 <TrendingUp className="h-3 w-3" />
                 <span>Sponsored</span>
               </div>
             )}
-            
+
             {postCategory && (
               <div className={`absolute top-3 right-3 ${getCategoryColor()} text-white px-3 py-1 rounded-full text-xs font-semibold`}>
                 {postCategory}
@@ -263,11 +263,11 @@ const PostCard = ({ post, index }) => {
               <h3 className="text-xl font-bold text-gray-900 mb-3 group-hover:text-orange-600 transition-colors line-clamp-2">
                 {postTitle}
               </h3>
-              
+
               <p className="text-gray-600 text-sm mb-4 line-clamp-3 h-16 overflow-hidden">
-                {postSummary || 
-                 (postBody ? postBody.replace(/<[^>]*>/g, '').substring(0, 150) : '') || 
-                 'No description available'}
+                {postSummary ||
+                  (postBody ? postBody.replace(/<[^>]*>/g, '').substring(0, 150) : '') ||
+                  'No description available'}
                 {!postSummary && postBody && postBody.replace(/<[^>]*>/g, '').length > 150 && '...'}
               </p>
             </div>

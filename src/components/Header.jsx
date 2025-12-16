@@ -13,7 +13,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '@/contexts/AuthContext';
 import axios from 'axios';
 
-const baseURL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+const baseURL = import.meta.env.VITE_API_URL || 'https://api.stoxbolt.com';
 
 /* ✅ JWT decode helper (safe) */
 const decodeToken = (token) => {
@@ -41,57 +41,57 @@ const Header = () => {
   const [headerUser, setHeaderUser] = useState(null);
 
   /* ✅ FETCH USER PROFILE DATA FOR HEADER - SIMPLIFIED VERSION */
-const fetchUserProfile = async () => {
-  try {
-    const token = localStorage.getItem('token');
-    if (!token) {
-      setHeaderUser(null);
-      return;
-    }
-
+  const fetchUserProfile = async () => {
     try {
-      // Use the same endpoint as profile page
-      const response = await axios.get(`${baseURL}/api/user-auth/profile`, {
-        headers: { 
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        timeout: 3000
-      });
-
-      if (response.data.success) {
-        const userData = response.data.data;
-        setHeaderUser({
-          username: userData.username,
-          email: userData.email,
-          isWriter: userData.isWriter || false
-        });
-      }
-    } catch (apiError) {
-      console.log('Profile API failed, checking token...');
-      // If API fails, decode token and use that
-      const decoded = decodeToken(token);
-      if (decoded && decoded.email && decoded.email !== 'admin') {
-        setHeaderUser({
-          username: decoded.username || decoded.email.split('@')[0],
-          email: decoded.email,
-          isWriter: decoded.isWriter || false
-        });
-      } else {
+      const token = localStorage.getItem('token');
+      if (!token) {
         setHeaderUser(null);
+        return;
       }
-    }
-  } catch (error) {
-    console.error('Error fetching user profile:', error);
-    setHeaderUser(null);
-  }
-};
 
-/* ✅ ALWAYS SYNC USER */
-useEffect(() => {
-  // Always fetch from API to ensure consistency with profile page
-  fetchUserProfile();
-}, [user]); // Still depend on user context changes
+      try {
+        // Use the same endpoint as profile page
+        const response = await axios.get(`${baseURL}/api/user-auth/profile`, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          },
+          timeout: 3000
+        });
+
+        if (response.data.success) {
+          const userData = response.data.data;
+          setHeaderUser({
+            username: userData.username,
+            email: userData.email,
+            isWriter: userData.isWriter || false
+          });
+        }
+      } catch (apiError) {
+        console.log('Profile API failed, checking token...');
+        // If API fails, decode token and use that
+        const decoded = decodeToken(token);
+        if (decoded && decoded.email && decoded.email !== 'admin') {
+          setHeaderUser({
+            username: decoded.username || decoded.email.split('@')[0],
+            email: decoded.email,
+            isWriter: decoded.isWriter || false
+          });
+        } else {
+          setHeaderUser(null);
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching user profile:', error);
+      setHeaderUser(null);
+    }
+  };
+
+  /* ✅ ALWAYS SYNC USER */
+  useEffect(() => {
+    // Always fetch from API to ensure consistency with profile page
+    fetchUserProfile();
+  }, [user]); // Still depend on user context changes
 
 
   /* ✅ FETCH CATEGORIES FROM BACKEND */
@@ -102,10 +102,10 @@ useEffect(() => {
         const response = await axios.get(`${baseURL}/api/categories`, {
           params: { limit: 50 }
         });
-        
+
         if (response.data.success) {
           const categoriesData = response.data.data;
-          
+
           // Transform backend data to match frontend structure
           const formattedCategories = categoriesData.map(category => ({
             id: category._id,
@@ -113,7 +113,7 @@ useEffect(() => {
             slug: category.slug || category.name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, ''),
             path: `/category/${category.slug || category.name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '')}`
           }));
-          
+
           setCategories(formattedCategories);
         } else {
           // If API fails, use fallback categories
@@ -167,19 +167,19 @@ useEffect(() => {
   /* ✅ GET DISPLAY NAME - Filter admin and handle edge cases */
   const getDisplayInfo = () => {
     if (!headerUser) return { displayName: '', firstLetter: '' };
-    
+
     let displayName = '';
-    
+
     // Prefer username, fallback to email prefix
     if (headerUser.username && headerUser.username !== 'admin') {
       displayName = headerUser.username;
     } else if (headerUser.email && headerUser.email !== 'admin') {
       displayName = headerUser.email.split('@')[0];
     }
-    
+
     // Capitalize first letter for display
     const firstLetter = displayName ? displayName.charAt(0).toUpperCase() : '';
-    
+
     return { displayName, firstLetter };
   };
 
@@ -250,8 +250,8 @@ useEffect(() => {
           {/* LOGO - Using image with fallback */}
           <Link to="/" className="flex items-center space-x-2 min-w-[150px]">
             <div className="flex items-center h-10">
-              <img 
-                src="/images/logo.png" 
+              <img
+                src="/images/logo.png"
                 alt="StoxBolt Logo"
                 className="h-10 w-auto object-contain"
                 onError={(e) => {
@@ -280,7 +280,7 @@ useEffect(() => {
             {loading ? (
               // Loading skeleton
               Array.from({ length: 6 }).map((_, index) => (
-                <div 
+                <div
                   key={index}
                   className="px-4 py-2 rounded-lg bg-gray-200 animate-pulse"
                   style={{ width: '80px', height: '40px' }}
@@ -301,8 +301,8 @@ useEffect(() => {
 
                 {/* Dropdown for additional categories */}
                 {dropdownCategories.length > 0 && (
-                  <div 
-                    className="relative" 
+                  <div
+                    className="relative"
                     ref={dropdownRef}
                     onMouseEnter={handleMouseEnter}
                     onMouseLeave={handleMouseLeave}
@@ -312,9 +312,9 @@ useEffect(() => {
                     >
                       More <ChevronDown className={`ml-1 h-4 w-4 transition-transform ${isDropdownOpen ? 'rotate-180' : ''}`} />
                     </button>
-                    
+
                     {isDropdownOpen && (
-                      <div 
+                      <div
                         className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 z-50"
                         onMouseEnter={handleMouseEnter}
                         onMouseLeave={handleMouseLeave}
@@ -397,7 +397,7 @@ useEffect(() => {
                 className="fixed inset-0 bg-black bg-opacity-50 z-40 lg:hidden"
                 onClick={handleCloseMenu}
               />
-              
+
               {/* Mobile menu panel */}
               <motion.div
                 ref={mobileMenuRef}
@@ -426,7 +426,7 @@ useEffect(() => {
                       // Loading skeleton for mobile
                       <div className="space-y-2 px-4">
                         {Array.from({ length: 10 }).map((_, index) => (
-                          <div 
+                          <div
                             key={index}
                             className="h-12 bg-gray-100 animate-pulse rounded"
                           />
@@ -441,7 +441,7 @@ useEffect(() => {
                         >
                           Home
                         </Link>
-                        
+
                         {categories.map((category) => (
                           <Link
                             key={category.id}
@@ -476,7 +476,7 @@ useEffect(() => {
                             <p className="text-sm text-gray-500 truncate">{headerUser.email}</p>
                           </div>
                         </button>
-                        
+
                         <div className="grid grid-cols-1 gap-2">
                           <button
                             onClick={() => {

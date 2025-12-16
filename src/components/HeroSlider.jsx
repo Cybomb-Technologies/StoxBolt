@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import axios from 'axios';
 import { getRandomImage } from '@/utils/imageUtils';
 
-const baseURL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+const baseURL = import.meta.env.VITE_API_URL || 'https://api.stoxbolt.com';
 
 const HeroSlider = () => {
   const [currentSlide, setCurrentSlide] = useState(0);
@@ -32,16 +32,16 @@ const HeroSlider = () => {
       const response = await axios.get(`${baseURL}/api/public-posts?limit=5&status=published&sort=-createdAt`);
       if (response.data.success) {
         const posts = response.data.data.map(post => {
-            const categoryName = post.category?.name || post.category || 'Featured';
-            return {
-              id: post._id,
-              title: post.title,
-              image: post.imageUrl || post.image || post.thumbnail || post.featuredImage || getRandomImage(categoryName),
-              category: categoryName,
-              author: typeof post.author === 'string' ? post.author : post.author?.name || post.author?.username || 'Admin',
-              publishedAt: post.publishDateTime || post.createdAt,
-              body: post.body
-            };
+          const categoryName = post.category?.name || post.category || 'Featured';
+          return {
+            id: post._id,
+            title: post.title,
+            image: post.imageUrl || post.image || post.thumbnail || post.featuredImage || getRandomImage(categoryName),
+            category: categoryName,
+            author: typeof post.author === 'string' ? post.author : post.author?.name || post.author?.username || 'Admin',
+            publishedAt: post.publishDateTime || post.createdAt,
+            body: post.body
+          };
         });
         setSlides(posts);
       }
@@ -101,9 +101,9 @@ const HeroSlider = () => {
               />
             ) : null}
           </div>
-          
+
           <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent" />
-          
+
           <div className="absolute bottom-0 left-0 right-0 p-8 md:p-12">
             <div className="container mx-auto">
               <span className="inline-block px-4 py-1 bg-orange-600 text-white text-sm font-semibold rounded-full mb-4">
@@ -112,7 +112,7 @@ const HeroSlider = () => {
               <h2 className="text-3xl md:text-5xl font-bold text-white mb-4 max-w-3xl">
                 {slides[currentSlide].title}
               </h2>
-              
+
               <div className="flex items-center space-x-4 text-white text-sm mb-4">
                 <div className="flex items-center space-x-1">
                   <User className="h-4 w-4" />
@@ -163,9 +163,8 @@ const HeroSlider = () => {
           <button
             key={index}
             onClick={() => setCurrentSlide(index)}
-            className={`w-2 h-2 rounded-full transition-all ${
-              index === currentSlide ? 'bg-white w-8' : 'bg-white/50'
-            }`}
+            className={`w-2 h-2 rounded-full transition-all ${index === currentSlide ? 'bg-white w-8' : 'bg-white/50'
+              }`}
           />
         ))}
       </div>

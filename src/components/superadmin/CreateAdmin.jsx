@@ -5,7 +5,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 
-const baseURL = import.meta.env.VITE_API_URL || "http://localhost:5000";
+const baseURL = import.meta.env.VITE_API_URL || "https://api.stoxbolt.com";
 
 const CreateAdmin = () => {
   const navigate = useNavigate();
@@ -97,7 +97,7 @@ const CreateAdmin = () => {
           navigate("/login");
           return;
         }
-        
+
         if (response.status === 403) {
           toast.error("You don't have permission to create admins.", {
             position: "top-right",
@@ -105,7 +105,7 @@ const CreateAdmin = () => {
           });
           return;
         }
-        
+
         throw new Error(data.message || `Error ${response.status}: Failed to create admin`);
       }
 
@@ -152,8 +152,8 @@ const CreateAdmin = () => {
     ? formData.password.length >= 8
       ? "strong"
       : formData.password.length >= 6
-      ? "medium"
-      : "weak"
+        ? "medium"
+        : "weak"
     : "none";
 
   // You can also add a button or trigger to show the CRUD access alert manually if needed
@@ -205,9 +205,8 @@ const CreateAdmin = () => {
                   value={formData.name}
                   onChange={handleChange}
                   placeholder="Enter full name"
-                  className={`w-full h-12 px-4 border rounded-lg ${
-                    errors.name ? "border-red-500" : "border-gray-300"
-                  }`}
+                  className={`w-full h-12 px-4 border rounded-lg ${errors.name ? "border-red-500" : "border-gray-300"
+                    }`}
                 />
                 {errors.name && (
                   <p className="text-sm text-red-500">{errors.name}</p>
@@ -225,9 +224,8 @@ const CreateAdmin = () => {
                   value={formData.email}
                   onChange={handleChange}
                   placeholder="admin@example.com"
-                  className={`w-full h-12 px-4 border rounded-lg ${
-                    errors.email ? "border-red-500" : "border-gray-300"
-                  }`}
+                  className={`w-full h-12 px-4 border rounded-lg ${errors.email ? "border-red-500" : "border-gray-300"
+                    }`}
                 />
                 {errors.email && (
                   <p className="text-sm text-red-500">{errors.email}</p>
@@ -245,9 +243,8 @@ const CreateAdmin = () => {
                     value={formData.password}
                     onChange={handleChange}
                     placeholder="Enter password"
-                    className={`w-full h-12 px-4 pr-12 border rounded-lg ${
-                      errors.password ? "border-red-500" : "border-gray-300"
-                    }`}
+                    className={`w-full h-12 px-4 pr-12 border rounded-lg ${errors.password ? "border-red-500" : "border-gray-300"
+                      }`}
                   />
                   <button
                     type="button"
@@ -264,13 +261,12 @@ const CreateAdmin = () => {
                     <p className="text-xs text-gray-600">
                       Password strength:{" "}
                       <span
-                        className={`font-semibold ${
-                          passwordStrength === "strong"
+                        className={`font-semibold ${passwordStrength === "strong"
                             ? "text-green-600"
                             : passwordStrength === "medium"
-                            ? "text-yellow-600"
-                            : "text-red-600"
-                        }`}
+                              ? "text-yellow-600"
+                              : "text-red-600"
+                          }`}
                       >
                         {passwordStrength}
                       </span>
@@ -278,13 +274,12 @@ const CreateAdmin = () => {
 
                     <div className="h-1.5 w-full bg-gray-200 rounded-full">
                       <div
-                        className={`h-full rounded-full transition-all ${
-                          passwordStrength === "strong"
+                        className={`h-full rounded-full transition-all ${passwordStrength === "strong"
                             ? "w-full bg-green-500"
                             : passwordStrength === "medium"
-                            ? "w-2/3 bg-yellow-500"
-                            : "w-1/3 bg-red-500"
-                        }`}
+                              ? "w-2/3 bg-yellow-500"
+                              : "w-1/3 bg-red-500"
+                          }`}
                       ></div>
                     </div>
                   </div>
@@ -306,11 +301,10 @@ const CreateAdmin = () => {
                   value={formData.confirmPassword}
                   onChange={handleChange}
                   placeholder="Re-enter password"
-                  className={`w-full h-12 px-4 border rounded-lg ${
-                    errors.confirmPassword
+                  className={`w-full h-12 px-4 border rounded-lg ${errors.confirmPassword
                       ? "border-red-500"
                       : "border-gray-300"
-                  }`}
+                    }`}
                 />
                 {errors.confirmPassword && (
                   <p className="text-sm text-red-500">{errors.confirmPassword}</p>
@@ -337,7 +331,7 @@ const CreateAdmin = () => {
                     </span>
                   </label>
 
-                  
+
                 </div>
 
                 <p className="text-sm text-gray-500">
@@ -405,7 +399,7 @@ const CreateAdmin = () => {
           </ul>
         </div>
 
-        
+
       </div>
     </motion.div>
   );

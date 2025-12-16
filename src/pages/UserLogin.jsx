@@ -16,12 +16,12 @@ const UserLogin = () => {
   const { toast } = useToast();
 
   // Get environment variables for Vite
-  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+  const API_URL = import.meta.env.VITE_API_URL || 'https://api.stoxbolt.com';
   const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID;
 
   const handleManualLogin = async (e) => {
     e.preventDefault();
-    
+
     if (!email || !password) {
       toast({
         title: 'Validation Error',
@@ -30,7 +30,7 @@ const UserLogin = () => {
       });
       return;
     }
-    
+
     setLoading(true);
 
     try {
@@ -51,21 +51,21 @@ const UserLogin = () => {
       if (data.success) {
         // Store token in localStorage
         localStorage.setItem('token', data.token);
-        
+
         toast({
           title: 'Welcome back!',
           description: 'You have successfully logged in'
         });
-        
+
         navigate('/dashboard');
       } else {
         throw new Error(data.message || 'Login failed');
       }
     } catch (error) {
       console.error('Login error:', error);
-      
+
       let errorMessage = error.message || 'Invalid email or password';
-      
+
       toast({
         title: 'Login failed',
         description: errorMessage,
@@ -79,7 +79,7 @@ const UserLogin = () => {
   const handleGoogleLogin = async () => {
     try {
       setGoogleLoading(true);
-      
+
       // Load Google Identity Services script
       if (!window.google) {
         const script = document.createElement('script');
@@ -87,7 +87,7 @@ const UserLogin = () => {
         script.async = true;
         script.defer = true;
         document.body.appendChild(script);
-        
+
         // Wait for script to load
         await new Promise((resolve) => {
           script.onload = resolve;
@@ -147,7 +147,7 @@ const UserLogin = () => {
       });
 
       const data = await result.json();
-      
+
       if (!result.ok) {
         throw new Error(data.message || 'Google login failed');
       }
@@ -155,12 +155,12 @@ const UserLogin = () => {
       if (data.success) {
         // Store token in localStorage
         localStorage.setItem('token', data.token);
-        
+
         toast({
           title: 'Welcome!',
           description: 'Google login successful'
         });
-        
+
         navigate('/dashboard');
       } else {
         throw new Error(data.message || 'Google login failed');
@@ -280,14 +280,14 @@ const UserLogin = () => {
             ) : 'Sign In'}
           </Button>
         </form>
-<div className="mt-4 text-right">
-  <Link 
-    to="/user-forget-password" 
-    className="text-sm text-orange-600 hover:text-orange-800 font-medium"
-  >
-    Forgot password?
-  </Link>
-</div>
+        <div className="mt-4 text-right">
+          <Link
+            to="/user-forget-password"
+            className="text-sm text-orange-600 hover:text-orange-800 font-medium"
+          >
+            Forgot password?
+          </Link>
+        </div>
         <div className="mt-8 pt-6 border-t border-gray-200 text-center">
           <p className="text-gray-600 mb-2">
             Don't have an account?{' '}
@@ -295,7 +295,7 @@ const UserLogin = () => {
               Sign up here
             </Link>
           </p>
-          
+
           <Link to="/" className="inline-flex items-center text-gray-600 hover:text-gray-900 text-sm">
             <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />

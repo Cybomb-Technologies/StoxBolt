@@ -1,11 +1,11 @@
 import React, { useState, useEffect, Suspense } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Helmet } from 'react-helmet';
-import { 
-  User, 
-  Lock, 
-  Bookmark, 
-  Settings, 
+import {
+  User,
+  Lock,
+  Bookmark,
+  Settings,
   LogOut,
   Edit,
   Calendar,
@@ -38,13 +38,13 @@ const LoadingFallback = () => (
   </div>
 );
 
-const baseURL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+const baseURL = import.meta.env.VITE_API_URL || 'https://api.stoxbolt.com';
 
 const Profile = () => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
-  
+
   const [activeTab, setActiveTab] = useState('profile');
   const [userData, setUserData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -70,7 +70,7 @@ const Profile = () => {
       }
 
       const response = await axios.get(`${baseURL}/api/user-auth/profile`, {
-        headers: { 
+        headers: {
           Authorization: `Bearer ${token}`,
           'Content-Type': 'application/json'
         }
@@ -82,7 +82,7 @@ const Profile = () => {
     } catch (error) {
       console.error('Error fetching user data:', error);
       setError(error.response?.data?.message || 'Failed to load profile data');
-      
+
       if (error.response?.status === 401 || error.response?.status === 403) {
         localStorage.removeItem('token');
         localStorage.removeItem('user');
@@ -94,7 +94,7 @@ const Profile = () => {
         navigate('/user-login');
         return;
       }
-      
+
       toast({
         title: 'Error',
         description: 'Failed to load profile data',
@@ -110,7 +110,7 @@ const Profile = () => {
       setSavedPostsLoading(true);
       const token = localStorage.getItem('token');
       const response = await axios.get(`${baseURL}/api/user-auth/saved-posts`, {
-        headers: { 
+        headers: {
           Authorization: `Bearer ${token}`,
           'Content-Type': 'application/json'
         }
@@ -183,8 +183,8 @@ const Profile = () => {
 
   const tabContentVariants = {
     hidden: { opacity: 0, x: -20 },
-    visible: { 
-      opacity: 1, 
+    visible: {
+      opacity: 1,
       x: 0,
       transition: {
         duration: 0.3,
@@ -225,7 +225,7 @@ const Profile = () => {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50 py-8 sm:py-12">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-7xl">
-          <motion.div 
+          <motion.div
             className="bg-white rounded-xl shadow-lg p-6 sm:p-8 text-center"
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
@@ -267,7 +267,7 @@ const Profile = () => {
         <meta name="description" content="Manage your StoxBolt profile, saved posts, and account settings" />
       </Helmet>
 
-      <motion.div 
+      <motion.div
         className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50 py-6 sm:py-8 md:py-12"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
@@ -275,7 +275,7 @@ const Profile = () => {
       >
         <div className="container mx-auto px-3 sm:px-4 md:px-6 max-w-7xl">
           {/* Page Header */}
-          <motion.div 
+          <motion.div
             className="mb-6 sm:mb-8 md:mb-12"
             variants={itemVariants}
           >
@@ -287,20 +287,20 @@ const Profile = () => {
             </p>
           </motion.div>
 
-          <motion.div 
+          <motion.div
             className="grid grid-cols-1 lg:grid-cols-4 gap-4 sm:gap-6 md:gap-8"
             variants={containerVariants}
             initial="hidden"
             animate="visible"
           >
             {/* Left Sidebar - Navigation */}
-            <motion.div 
+            <motion.div
               className="lg:col-span-1"
               variants={itemVariants}
             >
               <div className="bg-white rounded-xl shadow-lg p-4 sm:p-5 md:p-6 mb-4 sm:mb-6">
                 <div className="flex flex-col items-center mb-4 sm:mb-6 md:mb-8">
-                  <motion.div 
+                  <motion.div
                     className="w-16 h-16 sm:w-20 sm:h-20 md:w-24 md:h-24 rounded-full bg-gradient-to-br from-yellow-400 via-orange-500 to-red-600 flex items-center justify-center mb-3 sm:mb-4"
                     whileHover={{ scale: 1.05, rotate: 5 }}
                     transition={{ type: "spring", stiffness: 300 }}
@@ -325,11 +325,10 @@ const Profile = () => {
                     <motion.button
                       key={tab}
                       onClick={() => setActiveTab(tab)}
-                      className={`w-full flex items-center px-3 sm:px-4 py-2.5 sm:py-3 rounded-lg transition-all duration-300 text-sm sm:text-base md:text-lg ${
-                        activeTab === tab
+                      className={`w-full flex items-center px-3 sm:px-4 py-2.5 sm:py-3 rounded-lg transition-all duration-300 text-sm sm:text-base md:text-lg ${activeTab === tab
                           ? 'bg-gradient-to-r from-yellow-400 via-orange-500 to-red-600 text-white shadow-lg'
                           : 'text-gray-700 hover:bg-gradient-to-r hover:from-yellow-50 hover:via-orange-50 hover:to-red-50 hover:text-gray-900'
-                      }`}
+                        }`}
                       whileHover={{ scale: 1.02, x: 5 }}
                       whileTap={{ scale: 0.98 }}
                     >
@@ -361,12 +360,12 @@ const Profile = () => {
             </motion.div>
 
             {/* Main Content Area */}
-            <motion.div 
+            <motion.div
               className="lg:col-span-3"
               variants={itemVariants}
             >
               <div className="bg-white rounded-xl shadow-lg overflow-hidden">
-                
+
 
                 {/* Tab Content */}
                 <div className="p-4 sm:p-5 md:p-6 lg:p-8">
@@ -485,8 +484,8 @@ const Profile = () => {
                           animate="visible"
                           exit="exit"
                         >
-                          <SavedPosts 
-                            posts={savedPosts} 
+                          <SavedPosts
+                            posts={savedPosts}
                             loading={savedPostsLoading}
                             onRefresh={fetchSavedPosts}
                           />
@@ -501,7 +500,7 @@ const Profile = () => {
                           animate="visible"
                           exit="exit"
                         >
-                          <ChangePasswordForm 
+                          <ChangePasswordForm
                             email={userData?.email}
                             onSuccess={() => {
                               toast({
