@@ -1,6 +1,8 @@
 const AdminPost = require('../models/AdminPost');
 const Post = require('../models/Post');
 const Activity = require('../models/Activity');
+const Notification = require('../models/Notification');
+
 // approvalController.js - Complete fixed getMySubmissions function
 exports.getMySubmissions = async (req, res) => {
   try {
@@ -517,20 +519,21 @@ exports.createAdminPost = async (req, res) => {
         message: 'Only admin can submit posts for approval'
       });
     }
-    
+
     const postData = {
       ...req.body,
       authorId: req.user._id,
       approvalStatus: 'pending_review'
     };
-    
-    // Handle tags
+
+    // Handle tags if sent as comma-separated string
     if (postData.tags && typeof postData.tags === 'string') {
       postData.tags = postData.tags.split(',').map(tag => tag.trim()).filter(tag => tag);
     }
-    
+
+    // Create AdminPost
     const adminPost = await AdminPost.create(postData);
-    
+
     // Log activity
     await Activity.create({
       type: 'approval_request',
@@ -538,18 +541,29 @@ exports.createAdminPost = async (req, res) => {
       user: req.user.name,
       title: adminPost.title,
       postId: adminPost._id,
-      details: { 
+      details: {
         type: 'new_post',
         status: 'pending_review'
       }
     });
-    
+
+    // Create Notification for Superadmin
+    await Notification.create({
+      type: 'admin-post',
+      title: 'Admin can submit posts for approval',
+      message: `${req.user.name} submitted a post titled "${adminPost.title}" for approval.`,
+      userId: req.user._id, // Who submitted
+      recipients: ['superadmin'], // Array of roles/users who should get notified
+      referenceId: adminPost._id, // Reference to adminPost
+      status: 'unread'
+    });
+
     res.status(201).json({
       success: true,
       message: 'Post submitted for approval',
       data: adminPost
     });
-    
+
   } catch (error) {
     console.error('Create admin post error:', error);
     res.status(500).json({
@@ -559,6 +573,7 @@ exports.createAdminPost = async (req, res) => {
     });
   }
 };
+
 
 // @desc    Request update for published post
 // @route   POST /api/approval/posts/:id/request-update

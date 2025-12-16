@@ -1,12 +1,12 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { useToast } from '@/components/ui/use-toast';
-import { 
-  Upload, 
-  Globe, 
-  FileText, 
-  CheckCircle, 
-  XCircle, 
+import {
+  Upload,
+  Globe,
+  FileText,
+  CheckCircle,
+  XCircle,
   AlertCircle,
   Loader2,
   RefreshCw,
@@ -36,12 +36,12 @@ import {
 } from '@/components/ui/alert-dialog';
 import { useAuth } from '@/contexts/AuthContext';
 
-const baseURL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+const baseURL = import.meta.env.VITE_API_URL || 'https://api.stoxbolt.com';
 
 // Simple button component
 const Button = ({ children, onClick, disabled, className = '', variant = 'default', size = 'default', ...props }) => {
   const baseClasses = 'inline-flex items-center justify-center font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50';
-  
+
   const variantClasses = {
     default: 'bg-gray-900 text-white hover:bg-gray-800',
     outline: 'border border-gray-300 bg-white hover:bg-gray-100',
@@ -49,16 +49,16 @@ const Button = ({ children, onClick, disabled, className = '', variant = 'defaul
     ghost: 'hover:bg-gray-100',
     orange: 'bg-orange-600 text-white hover:bg-orange-700'
   };
-  
+
   const sizeClasses = {
     default: 'h-10 px-4 py-2 rounded-md',
     sm: 'h-8 rounded-md px-3 text-xs',
     lg: 'h-12 rounded-md px-8',
     icon: 'h-10 w-10 rounded-md'
   };
-  
+
   const classes = `${baseClasses} ${variantClasses[variant] || variantClasses.default} ${sizeClasses[size] || sizeClasses.default} ${className}`;
-  
+
   return (
     <button className={classes} onClick={onClick} disabled={disabled} {...props}>
       {children}
@@ -69,7 +69,7 @@ const Button = ({ children, onClick, disabled, className = '', variant = 'defaul
 // Simple badge component
 const Badge = ({ children, variant = 'default', className = '' }) => {
   const baseClasses = 'inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold';
-  
+
   const variantClasses = {
     default: 'bg-gray-100 text-gray-800',
     secondary: 'bg-gray-100 text-gray-800',
@@ -77,16 +77,16 @@ const Badge = ({ children, variant = 'default', className = '' }) => {
     destructive: 'bg-red-100 text-red-800',
     green: 'bg-green-100 text-green-800'
   };
-  
+
   const classes = `${baseClasses} ${variantClasses[variant] || variantClasses.default} ${className}`;
-  
+
   return <span className={classes}>{children}</span>;
 };
 
 // Simple input component
 const Input = ({ type = 'text', value, onChange, placeholder, className = '', ...props }) => {
   const classes = `flex h-10 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent disabled:cursor-not-allowed disabled:opacity-50 ${className}`;
-  
+
   return (
     <input
       type={type}
@@ -108,14 +108,12 @@ const Switch = ({ checked, onCheckedChange, id }) => {
       aria-checked={checked}
       id={id}
       onClick={() => onCheckedChange(!checked)}
-      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-        checked ? 'bg-orange-600' : 'bg-gray-300'
-      }`}
+      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${checked ? 'bg-orange-600' : 'bg-gray-300'
+        }`}
     >
       <span
-        className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-          checked ? 'translate-x-6' : 'translate-x-1'
-        }`}
+        className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${checked ? 'translate-x-6' : 'translate-x-1'
+          }`}
       />
     </button>
   );
@@ -142,16 +140,15 @@ const TabsList = ({ children, className = '' }) => {
 
 const TabsTrigger = ({ value, children, disabled = false, className = '', activeTab, setActiveTab }) => {
   const isActive = activeTab === value;
-  
+
   return (
     <button
       onClick={() => !disabled && setActiveTab(value)}
       disabled={disabled}
-      className={`inline-flex items-center justify-center whitespace-nowrap rounded-md px-3 py-1.5 text-sm font-medium transition-all ${
-        isActive
+      className={`inline-flex items-center justify-center whitespace-nowrap rounded-md px-3 py-1.5 text-sm font-medium transition-all ${isActive
           ? 'bg-white text-gray-900 shadow-sm'
           : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200'
-      } ${disabled ? 'opacity-50 cursor-not-allowed' : ''} ${className}`}
+        } ${disabled ? 'opacity-50 cursor-not-allowed' : ''} ${className}`}
     >
       {children}
     </button>
@@ -160,9 +157,9 @@ const TabsTrigger = ({ value, children, disabled = false, className = '', active
 
 const TabsContent = ({ value, children, className = '', activeTab }) => {
   if (activeTab !== value) return null;
-  
+
   return <div className={`mt-2 ${className}`}>{children}</div>;
-  };
+};
 
 // Card components
 const Card = ({ children, className = '' }) => {
@@ -202,13 +199,13 @@ const RSSImport = () => {
   const { toast } = useToast();
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState('manage');
-  
+
   // Import state
   const [rssUrl, setRssUrl] = useState('');
   const [parsing, setParsing] = useState(false);
   const [parsedData, setParsedData] = useState(null);
   const [previewItems, setPreviewItems] = useState([]);
-  
+
   // Save state
   const [saving, setSaving] = useState(false);
   const [saveOptions, setSaveOptions] = useState({
@@ -216,13 +213,13 @@ const RSSImport = () => {
     force: false,
     categoryFilter: ''
   });
-  
+
   // History state
   const [history, setHistory] = useState([]);
   const [loadingHistory, setLoadingHistory] = useState(false);
   const [historyPage, setHistoryPage] = useState(1);
   const [totalHistoryPages, setTotalHistoryPages] = useState(1);
-  
+
   // Configs state
   const [configs, setConfigs] = useState([]);
   const [loadingConfigs, setLoadingConfigs] = useState(false);
@@ -273,7 +270,7 @@ const RSSImport = () => {
 
     try {
       const adminToken = localStorage.getItem('adminToken');
-      
+
       if (!adminToken) {
         toast({
           title: 'Authentication Error',
@@ -294,7 +291,7 @@ const RSSImport = () => {
       });
 
       const data = await response.json();
-      
+
       if (!response.ok) {
         throw new Error(data.message || `Failed to parse RSS feed (${response.status})`);
       }
@@ -302,7 +299,7 @@ const RSSImport = () => {
       if (data.success) {
         setParsedData(data.data);
         setPreviewItems(data.data.items || []);
-        
+
         toast({
           title: 'Success',
           description: `Found ${data.data.count} items in RSS feed`,
@@ -337,7 +334,7 @@ const RSSImport = () => {
 
     try {
       const adminToken = localStorage.getItem('adminToken');
-      
+
       if (!adminToken) {
         toast({
           title: 'Authentication Error',
@@ -362,7 +359,7 @@ const RSSImport = () => {
       });
 
       const data = await response.json();
-      
+
       if (!response.ok) {
         throw new Error(data.message || `Failed to save items (${response.status})`);
       }
@@ -373,12 +370,12 @@ const RSSImport = () => {
           description: `Saved ${data.data.saved} items successfully. ${data.data.errors > 0 ? `${data.data.errors} errors occurred.` : ''}`,
           className: 'bg-green-100 text-green-800 border-green-200'
         });
-        
+
         // Clear form after successful save
         setRssUrl('');
         setParsedData(null);
         setPreviewItems([]);
-        
+
         // Switch to history tab
         setActiveTab('history');
         fetchHistory();
@@ -399,10 +396,10 @@ const RSSImport = () => {
 
   const fetchHistory = async (page = 1) => {
     setLoadingHistory(true);
-    
+
     try {
       const adminToken = localStorage.getItem('adminToken');
-      
+
       if (!adminToken) {
         toast({
           title: 'Authentication Error',
@@ -420,7 +417,7 @@ const RSSImport = () => {
       });
 
       const data = await response.json();
-      
+
       if (!response.ok) {
         throw new Error(data.message || `Failed to fetch history (${response.status})`);
       }
@@ -446,10 +443,10 @@ const RSSImport = () => {
 
   const handleClearHistory = async () => {
     setClearingHistory(true);
-    
+
     try {
       const adminToken = localStorage.getItem('adminToken');
-      
+
       if (!adminToken) {
         toast({
           title: 'Authentication Error',
@@ -468,7 +465,7 @@ const RSSImport = () => {
       });
 
       const data = await response.json();
-      
+
       if (!response.ok) {
         throw new Error(data.message || `Failed to clear history (${response.status})`);
       }
@@ -479,7 +476,7 @@ const RSSImport = () => {
           description: `Deleted ${data.deletedCount} RSS imported posts`,
           className: 'bg-green-100 text-green-800 border-green-200'
         });
-        
+
         fetchHistory(1);
         setClearDialogOpen(false);
       } else {
@@ -567,9 +564,9 @@ const RSSImport = () => {
         },
         body: JSON.stringify(newConfig)
       });
-      
+
       const data = await response.json();
-      
+
       if (data.success) {
         toast({
           title: 'Success',
@@ -594,14 +591,14 @@ const RSSImport = () => {
 
   const handleDeleteConfig = async (id) => {
     if (!confirm('Are you sure you want to delete this feed config?')) return;
-    
+
     try {
       const adminToken = localStorage.getItem('adminToken');
       const response = await fetch(`${baseURL}/api/rss/configs/${id}`, {
         method: 'DELETE',
         headers: { 'Authorization': `Bearer ${adminToken}` }
       });
-      
+
       if (response.ok) {
         toast({ title: 'Deleted', description: 'Feed configuration deleted' });
         fetchConfigs();
@@ -622,10 +619,10 @@ const RSSImport = () => {
         },
         body: JSON.stringify({ isActive: !config.isActive })
       });
-      
+
       if (response.ok) {
         fetchConfigs();
-        toast({ 
+        toast({
           title: !config.isActive ? 'Feed Activated' : 'Feed Deactivated',
           description: !config.isActive ? 'Auto-fetching enabled' : 'Auto-fetching disabled'
         });
@@ -642,10 +639,10 @@ const RSSImport = () => {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${adminToken}` }
       });
-      
+
       if (response.ok) {
-        toast({ 
-          title: 'Fetch Triggered', 
+        toast({
+          title: 'Fetch Triggered',
           description: 'Background fetch started. Check import history shortly.',
           className: 'bg-blue-100 text-blue-800 border-blue-200'
         });
@@ -682,7 +679,7 @@ const RSSImport = () => {
               Import news articles from RSS feeds automatically
             </p>
           </div>
-          
+
           <div className="flex items-center gap-2">
             <Badge variant="outline" className="border-orange-200 text-orange-700 bg-orange-50">
               {user?.role === 'superadmin' ? 'Superadmin' : 'Admin'} Mode
@@ -727,26 +724,26 @@ const RSSImport = () => {
                   <form onSubmit={handleAddConfig} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 items-end">
                     <div className="space-y-2">
                       <label className="text-sm font-medium">Feed Name</label>
-                      <Input 
-                        placeholder="e.g. Business Line" 
+                      <Input
+                        placeholder="e.g. Business Line"
                         value={newConfig.name}
-                        onChange={e => setNewConfig({...newConfig, name: e.target.value})}
+                        onChange={e => setNewConfig({ ...newConfig, name: e.target.value })}
                       />
                     </div>
                     <div className="space-y-2">
                       <label className="text-sm font-medium">RSS URL</label>
-                      <Input 
-                        placeholder="https://..." 
+                      <Input
+                        placeholder="https://..."
                         value={newConfig.url}
-                        onChange={e => setNewConfig({...newConfig, url: e.target.value})}
+                        onChange={e => setNewConfig({ ...newConfig, url: e.target.value })}
                       />
                     </div>
                     <div className="space-y-2">
                       <label className="text-sm font-medium">Brand Name (Author)</label>
-                      <Input 
-                        placeholder="e.g. Hindu Business Line" 
+                      <Input
+                        placeholder="e.g. Hindu Business Line"
                         value={newConfig.brandName}
-                        onChange={e => setNewConfig({...newConfig, brandName: e.target.value})}
+                        onChange={e => setNewConfig({ ...newConfig, brandName: e.target.value })}
                       />
                     </div>
                     <Button type="submit" disabled={addingConfig} className="bg-orange-600 hover:bg-orange-700">
@@ -760,7 +757,7 @@ const RSSImport = () => {
                 {/* Feeds List */}
                 <div className="space-y-4">
                   <h3 className="font-semibold text-gray-800">Saved Feeds</h3>
-                  
+
                   {loadingConfigs ? (
                     <div className="flex justify-center p-8">
                       <Loader2 className="h-8 w-8 animate-spin text-orange-600" />
@@ -782,7 +779,7 @@ const RSSImport = () => {
                             </div>
                             <p className="text-sm text-gray-500 truncate max-w-md" title={config.url}>{config.url}</p>
                             <p className="text-xs text-gray-400 mt-1">Author: {config.brandName}</p>
-                            
+
                             {config.lastFetchedAt && (
                               <div className="flex items-center gap-2 mt-2 text-xs">
                                 <span className={config.lastFetchStatus === 'error' ? 'text-red-600' : 'text-green-600'}>
@@ -806,7 +803,7 @@ const RSSImport = () => {
                             >
                               <Play className="h-4 w-4 text-blue-600" />
                             </Button>
-                            
+
                             <Button
                               variant="ghost"
                               size="sm"
@@ -994,7 +991,7 @@ const RSSImport = () => {
                 {/* Import Options */}
                 <div className="bg-gray-50 p-4 rounded-lg space-y-4">
                   <h3 className="font-semibold text-gray-800">Import Options</h3>
-                  
+
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="flex items-center justify-between space-x-2">
                       <div className="space-y-0.5">
@@ -1013,7 +1010,7 @@ const RSSImport = () => {
                         }
                       />
                     </div>
-                    
+
                     <div className="flex items-center justify-between space-x-2">
                       <div className="space-y-0.5">
                         <label htmlFor="force-import" className="text-sm font-medium">
@@ -1032,7 +1029,7 @@ const RSSImport = () => {
                       />
                     </div>
                   </div>
-                  
+
                   <div>
                     <label htmlFor="category-filter" className="text-sm font-medium">
                       Filter by Category (Optional)
@@ -1055,7 +1052,7 @@ const RSSImport = () => {
                 {/* Preview Items */}
                 <div className="space-y-4">
                   <h3 className="font-semibold text-gray-800">Items to Import</h3>
-                  
+
                   {previewItems.length === 0 ? (
                     <div className="text-center py-8 text-gray-500">
                       <FileText className="h-12 w-12 mx-auto mb-3 opacity-50" />
@@ -1076,16 +1073,16 @@ const RSSImport = () => {
                                 className="w-full md:w-32 h-32 object-cover rounded-lg flex-shrink-0"
                               />
                             )}
-                            
+
                             <div className="flex-1 min-w-0">
                               <h4 className="font-semibold text-gray-900 line-clamp-2">
                                 {item.title}
                               </h4>
-                              
+
                               <p className="text-sm text-gray-600 mt-2 line-clamp-2">
                                 {truncateText(item.description, 150)}
                               </p>
-                              
+
                               <div className="flex flex-wrap items-center gap-2 mt-3">
                                 {item.categories && item.categories.slice(0, 3).map((cat, idx) => (
                                   <Badge key={idx} variant="secondary" className="text-xs">
@@ -1093,14 +1090,14 @@ const RSSImport = () => {
                                     {cat}
                                   </Badge>
                                 ))}
-                                
+
                                 {item.pubDate && (
                                   <Badge variant="outline" className="text-xs">
                                     <Calendar className="h-3 w-3 mr-1" />
                                     {formatDate(item.pubDate)}
                                   </Badge>
                                 )}
-                                
+
                                 {item.link && (
                                   <a
                                     href={item.link}
@@ -1129,7 +1126,7 @@ const RSSImport = () => {
                 >
                   Back to Import
                 </Button>
-                
+
                 <div className="flex gap-3 w-full sm:w-auto">
                   <Button
                     variant="outline"
@@ -1143,7 +1140,7 @@ const RSSImport = () => {
                     <RefreshCw className="h-4 w-4 mr-2" />
                     Parse Another Feed
                   </Button>
-                  
+
                   <Button
                     onClick={handleSaveRSSItems}
                     disabled={saving || previewItems.length === 0}

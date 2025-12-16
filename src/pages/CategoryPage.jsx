@@ -7,19 +7,19 @@ import { motion } from 'framer-motion';
 import axios from 'axios';
 import { useToast } from '@/components/ui/use-toast';
 
-const baseURL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+const baseURL = import.meta.env.VITE_API_URL || 'https://api.stoxbolt.com';
 
 import { getRandomImage } from '@/utils/imageUtils';
 
 const transformPostData = (post) => {
   const getImageUrl = (postData) => {
     if (!postData) return '';
-    return postData.imageUrl || 
-           postData.featuredImage || 
-           postData.image || 
-           postData.thumbnail || 
-           postData.bannerImage || 
-           '';
+    return postData.imageUrl ||
+      postData.featuredImage ||
+      postData.image ||
+      postData.thumbnail ||
+      postData.bannerImage ||
+      '';
   };
 
   const getCategoryName = (categoryData) => {
@@ -57,9 +57,9 @@ const transformPostData = (post) => {
     _id: post._id || post.id,
     title: post.title || 'Untitled Post',
     body: getBodyContent(post.body),
-    summary: post.summary || 
-             post.excerpt || 
-             (getBodyContent(post.body) ? getBodyContent(post.body).substring(0, 150) + '...' : ''),
+    summary: post.summary ||
+      post.excerpt ||
+      (getBodyContent(post.body) ? getBodyContent(post.body).substring(0, 150) + '...' : ''),
     image: imageUrl || getRandomImage(categoryName), // Use fallback if empty
     category: categoryName,
     isSponsored: post.isSponsored || post.sponsored || false,
@@ -68,8 +68,8 @@ const transformPostData = (post) => {
     updatedAt: post.updatedAt,
     status: post.status || 'published',
     author: getAuthorName(post.author),
-    tags: Array.isArray(post.tags) ? post.tags : 
-          (typeof post.tags === 'string' ? post.tags.split(',') : [])
+    tags: Array.isArray(post.tags) ? post.tags :
+      (typeof post.tags === 'string' ? post.tags.split(',') : [])
   };
 };
 
@@ -98,21 +98,21 @@ const CategoryPage = () => {
     try {
       // Increased limit to ensure we find the category even if it's far down the list
       const response = await axios.get(`${baseURL}/api/categories`, {
-        params: { limit: 100 } 
+        params: { limit: 100 }
       });
 
       if (response.data.success) {
         const categories = response.data.data;
-        
+
         let cat = categories.find(c => c._id === category);
-        
+
         if (!cat) {
           cat = categories.find(c => {
             const catSlug = c.slug || c.name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
             return catSlug === category;
           });
         }
-        
+
         if (cat) {
           setCategoryInfo(cat);
         } else {
@@ -132,11 +132,11 @@ const CategoryPage = () => {
 
     try {
       const categoryId = categoryInfo?._id;
-      
+
       // Since we are fixing the backend query issue, we must have a valid ID.
       // If we don't have an ID (slug fallback), the backend might not find it if it strictly expects ObjectId.
       // But let's try calling with what we have.
-      
+
       if (!categoryId) {
         // Fallback: If no ID found, maybe the user passed a slug that isn't in DB yet?
         // Or fetch all and filter client side as last resort?
@@ -155,7 +155,7 @@ const CategoryPage = () => {
       }
 
       const response = await axios.get(`${baseURL}/api/public-posts`, { params });
-      
+
       if (response.data.success) {
         let newPosts = [];
         if (Array.isArray(response.data.data)) {
@@ -173,9 +173,9 @@ const CategoryPage = () => {
       // Fallback mechanism moved out or simplified
       setPosts([]);
       toast({
-         title: 'Error',
-         description: 'Failed to load posts.',
-         variant: 'destructive'
+        title: 'Error',
+        description: 'Failed to load posts.',
+        variant: 'destructive'
       });
     } finally {
       setLoading(false);
@@ -211,7 +211,7 @@ const CategoryPage = () => {
           </motion.div>
 
           {loading ? (
-             <div className="flex justify-center items-center py-12">
+            <div className="flex justify-center items-center py-12">
               <Loader2 className="h-8 w-8 animate-spin text-orange-600" />
               <span className="ml-2 text-gray-600">Loading posts...</span>
             </div>
@@ -226,7 +226,7 @@ const CategoryPage = () => {
               ) : (
                 <div className="text-center py-12">
                   <p className="text-gray-600 font-medium">No posts found in this category</p>
-                  <button 
+                  <button
                     onClick={() => fetchPosts(1)}
                     className="mt-4 px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors"
                   >
@@ -248,7 +248,7 @@ const CategoryPage = () => {
                 <ChevronLeft className="h-4 w-4 mr-2" />
                 Previous
               </button>
-              
+
               <div className="flex items-center gap-2">
                 <span className="text-sm font-medium text-gray-700">
                   Page {page} of {totalPages}

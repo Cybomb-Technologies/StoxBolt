@@ -4,7 +4,7 @@ import { Bookmark, ExternalLink, Trash2, Calendar, Eye, Clock, User, Tag, AlertC
 import axios from 'axios';
 import { motion, AnimatePresence } from 'framer-motion';
 
-const baseURL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+const baseURL = import.meta.env.VITE_API_URL || 'https://api.stoxbolt.com';
 
 const SavedPosts = () => {
   const navigate = useNavigate();
@@ -19,7 +19,7 @@ const SavedPosts = () => {
       setLoading(true);
       setError(null);
       const token = localStorage.getItem('token');
-      
+
       if (!token) {
         setError('Please login to view saved posts');
         setLoading(false);
@@ -69,11 +69,11 @@ const SavedPosts = () => {
 
   const handleRemoveSaved = async (postId, e) => {
     e?.stopPropagation();
-    
+
     try {
       setDeletingId(postId);
       const token = localStorage.getItem('token');
-      
+
       if (!token) {
         alert('Please login to manage saved posts');
         navigate('/login');
@@ -86,7 +86,7 @@ const SavedPosts = () => {
 
       // Update local state with animation
       setPosts(prevPosts => prevPosts.filter(post => post._id !== postId));
-      
+
       // Show success message
       alert('Post removed from saved items');
     } catch (error) {
@@ -103,7 +103,7 @@ const SavedPosts = () => {
     try {
       setRemovingAll(true);
       const token = localStorage.getItem('token');
-      
+
       if (!token) {
         alert('Please login to manage saved posts');
         navigate('/login');
@@ -115,7 +115,7 @@ const SavedPosts = () => {
       });
 
       setPosts([]);
-      
+
       alert('All saved posts removed');
     } catch (error) {
       console.error('Error removing all saved posts:', error);
@@ -203,7 +203,7 @@ const SavedPosts = () => {
 
   if (error) {
     return (
-      <motion.div 
+      <motion.div
         className="text-center py-8 sm:py-12 md:py-16"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
@@ -228,7 +228,7 @@ const SavedPosts = () => {
 
   if (posts.length === 0) {
     return (
-      <motion.div 
+      <motion.div
         className="text-center py-8 sm:py-12 md:py-16"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
@@ -295,7 +295,7 @@ const SavedPosts = () => {
       <AnimatePresence>
         <div className="grid gap-4 sm:gap-5 md:gap-6">
           {posts.map((post, index) => (
-            <motion.div 
+            <motion.div
               key={post._id}
               variants={itemVariants}
               initial="hidden"
@@ -338,7 +338,7 @@ const SavedPosts = () => {
                         <h3 className="text-lg sm:text-xl md:text-2xl font-bold text-gray-900 group-hover:text-orange-600 transition-colors duration-300 line-clamp-2 mb-2">
                           {post.title}
                         </h3>
-                        
+
                         <div className="flex flex-wrap items-center gap-3 sm:gap-4 text-sm text-gray-500 mb-3">
                           <div className="flex items-center">
                             <User className="h-3 w-3 sm:h-4 sm:w-4 mr-1" />
@@ -419,7 +419,7 @@ const SavedPosts = () => {
         </div>
       </AnimatePresence>
 
-      <motion.div 
+      <motion.div
         className="mt-6 sm:mt-8 pt-4 sm:pt-6 border-t border-gray-200"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}

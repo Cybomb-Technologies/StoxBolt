@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { 
-  ChevronLeft, 
+import {
+  ChevronLeft,
   ChevronRight,
   FileText,
   Clock,
@@ -15,11 +15,11 @@ import { useToast } from '@/components/ui/use-toast';
 import { getRandomImage } from '@/utils/imageUtils';
 import { cn } from '@/lib/utils';
 
-const baseURL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+const baseURL = import.meta.env.VITE_API_URL || 'https://api.stoxbolt.com';
 
 // Custom Skeleton component
 const Skeleton = ({ className, ...props }) => (
-  <div 
+  <div
     className={`animate-pulse bg-gray-200 rounded-md ${className || ''}`}
     {...props}
   />
@@ -53,15 +53,15 @@ const RelatedPostsCarousel = ({ category, currentPostId }) => {
         const now = new Date();
         const diffTime = Math.abs(now - date);
         const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-        
+
         if (diffDays === 1) return 'Yesterday';
         if (diffDays < 7) return `${diffDays} days ago`;
         if (diffDays < 30) return `${Math.floor(diffDays / 7)} weeks ago`;
-        
-        return date.toLocaleDateString('en-US', { 
-          month: 'short', 
-          day: 'numeric', 
-          year: diffDays > 365 ? 'numeric' : undefined 
+
+        return date.toLocaleDateString('en-US', {
+          month: 'short',
+          day: 'numeric',
+          year: diffDays > 365 ? 'numeric' : undefined
         });
       } catch (error) {
         return 'Recent';
@@ -69,21 +69,21 @@ const RelatedPostsCarousel = ({ category, currentPostId }) => {
     };
 
     const categoryName = getCategoryName(post.category);
-    const bodyText = typeof post.body === 'string' ? post.body : 
-                    post.body?.content || post.content || post.description || '';
-    
+    const bodyText = typeof post.body === 'string' ? post.body :
+      post.body?.content || post.content || post.description || '';
+
     return {
       id: post._id || post.id,
       title: post.title || 'Untitled Post',
-      summary: post.summary || post.excerpt || 
-              bodyText.substring(0, 120) + (bodyText.length > 120 ? '...' : ''),
-      image: post.imageUrl || post.image || post.thumbnail || 
-             post.featuredImage || getRandomImage(categoryName),
+      summary: post.summary || post.excerpt ||
+        bodyText.substring(0, 120) + (bodyText.length > 120 ? '...' : ''),
+      image: post.imageUrl || post.image || post.thumbnail ||
+        post.featuredImage || getRandomImage(categoryName),
       category: categoryName,
       formattedDate: formatDate(post.createdAt || post.publishDateTime),
-      author: post.author ? 
-        (typeof post.author === 'string' ? post.author : 
-         post.author.name || post.author.username || 'Admin') : 
+      author: post.author ?
+        (typeof post.author === 'string' ? post.author :
+          post.author.name || post.author.username || 'Admin') :
         'Admin',
       readTime: post.readTime || Math.max(1, Math.ceil(bodyText.length / 1500)) || 3
     };
@@ -94,21 +94,21 @@ const RelatedPostsCarousel = ({ category, currentPostId }) => {
     const fetchRelatedPosts = async () => {
       setLoading(true);
       setError(null);
-      
+
       try {
         const params = new URLSearchParams();
-        
+
         if (category) {
           params.append('category', typeof category === 'object' ? category._id : category);
         }
-        
+
         if (currentPostId) params.append('exclude', currentPostId);
         params.append('limit', '6'); // Get up to 6 posts
         params.append('status', 'published');
         params.append('sort', '-createdAt');
 
         const response = await axios.get(`${baseURL}/api/public-posts?${params.toString()}`);
-        
+
         if (response.data.success) {
           const postsData = response.data.data || [];
           const transformedPosts = postsData.slice(0, 6).map(transformPostData); // Limit to 6
@@ -149,7 +149,7 @@ const RelatedPostsCarousel = ({ category, currentPostId }) => {
     if (posts.length <= visibleCards) return;
     const maxIndex = Math.ceil(posts.length / visibleCards) - 1;
     const nextIndex = Math.floor(currentIndex / visibleCards) + 1;
-    
+
     if (nextIndex <= maxIndex) {
       setCurrentIndex(nextIndex * visibleCards);
     } else {
@@ -161,7 +161,7 @@ const RelatedPostsCarousel = ({ category, currentPostId }) => {
     if (posts.length <= visibleCards) return;
     const maxIndex = Math.ceil(posts.length / visibleCards) - 1;
     const prevIndex = Math.floor(currentIndex / visibleCards) - 1;
-    
+
     if (prevIndex >= 0) {
       setCurrentIndex(prevIndex * visibleCards);
     } else {
@@ -177,7 +177,7 @@ const RelatedPostsCarousel = ({ category, currentPostId }) => {
 
   const handleDragEnd = (e) => {
     if (!isDragging) return;
-    
+
     setIsDragging(false);
     const dragEndX = e.clientX || e.changedTouches[0].clientX;
     const dragDistance = dragStartX - dragEndX;
@@ -308,7 +308,7 @@ const RelatedPostsCarousel = ({ category, currentPostId }) => {
             Discover more content you might like
           </p>
         </div>
-        
+
         {/* Navigation buttons */}
         {posts.length > visibleCards && (
           <div className="flex items-center gap-2">
@@ -343,7 +343,7 @@ const RelatedPostsCarousel = ({ category, currentPostId }) => {
 
       {/* Carousel */}
       <div className="relative">
-        <div 
+        <div
           className="overflow-hidden select-none"
           onMouseDown={handleDragStart}
           onMouseUp={handleDragEnd}
@@ -381,8 +381,8 @@ const RelatedPostsCarousel = ({ category, currentPostId }) => {
                 onClick={() => setCurrentIndex(idx * visibleCards)}
                 className={cn(
                   "h-2 rounded-full transition-all duration-300",
-                  currentPage === idx 
-                    ? "bg-orange-500 w-8" 
+                  currentPage === idx
+                    ? "bg-orange-500 w-8"
                     : "bg-gray-300 w-2 hover:bg-gray-400 hover:w-4"
                 )}
                 aria-label={`Go to page ${idx + 1}`}

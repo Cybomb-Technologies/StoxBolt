@@ -12,7 +12,7 @@ const app = express();
 app.use(helmet());
 
 const corsOptions = {
-  origin: ['http://localhost:3000', 'http://localhost:5000', 'http://localhost:5173', 'https://stoxbolt.com','https://www.stoxbolt.com'],
+  origin: ['http://localhost:3000', 'https://api.stoxbolt.com', 'http://localhost:5173', 'https://stoxbolt.com', 'https://www.stoxbolt.com'],
   credentials: true,
   optionsSuccessStatus: 200
 };
@@ -51,10 +51,12 @@ const publicPostRoutes = require('./routes/publicPostRoutes');
 // Try different paths for userAuthRoutes
 const userAuthRoutes = require('./routes/User-routes/User-routes');
 const rssFeedRoutes = require('./routes/rssFeedRoutes');
+const pushRoutes = require('./routes/pushRoutes');
+const notificationRoutes = require('./routes/notificationRoutes');
 
 // Routes
 app.use('/api/auth', authRoutes); //Auth Routes(Admin)
-app.use('/api/posts', postRoutes); 
+app.use('/api/posts', postRoutes);
 app.use('/api/scheduler', schedulerRoutes);
 app.use('/api/activities', activityRoutes);
 app.use('/api/users', adminRoutes); //Admin User Routes
@@ -65,7 +67,9 @@ app.use('/api/categories', categoryRoutes);
 app.use('/api/rss', rssFeedRoutes);
 
 app.use('/api/user-auth', userAuthRoutes); //User Routes
-app.use('/api/public-posts', publicPostRoutes); 
+app.use('/api/public-posts', publicPostRoutes);
+app.use('/api', pushRoutes);
+app.use('/api/notifications', notificationRoutes);
 // Enhanced health check
 app.get('/health', (req, res) => {
   const dbStatus = mongoose.connection.readyState;
@@ -75,9 +79,9 @@ app.get('/health', (req, res) => {
     2: 'Connecting',
     3: 'Disconnecting'
   };
-  
-  res.json({ 
-    status: 'OK', 
+
+  res.json({
+    status: 'OK',
     timestamp: new Date().toISOString(),
     database: statusMap[dbStatus] || 'Unknown',
     routesLoaded: {
@@ -135,7 +139,7 @@ app.use('*', (req, res) => {
       '/api/user-auth',
       '/health',
       '/test-paths',
-       '/api/rss',
+      '/api/rss',
     ]
   });
 });

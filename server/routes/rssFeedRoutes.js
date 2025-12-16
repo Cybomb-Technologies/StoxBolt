@@ -4,7 +4,7 @@ const router = express.Router();
 const rssParserService = require('../services/rssParserService');
 const { protect, authorize } = require('../middleware/auth');
 const Post = require('../models/Post');
-
+const Notification = require('../models/Notification');
 // @route   POST /api/rss/parse
 // @desc    Parse RSS feed from URL
 // @access  Admin
@@ -189,29 +189,54 @@ router.get('/configs', protect, authorize('admin', 'superadmin'), async (req, re
 // @route   POST /api/rss/configs
 // @desc    Create new RSS feed configuration
 // @access  Admin
-router.post('/configs', protect, authorize('admin', 'superadmin'), async (req, res) => {
-  try {
-    const { name, url, brandName, isActive } = req.body;
-    const RSSFeedConfig = require('../models/RSSFeedConfig');
+router.post(
+  '/configs',
+  protect,
+  authorize('admin', 'superadmin'),
+  async (req, res) => {
+    try {
+      const { name, url, brandName, isActive } = req.body;
+      const RSSFeedConfig = require('../models/RSSFeedConfig');
 
-    const config = new RSSFeedConfig({
-      name,
-      url,
-      brandName,
-      isActive,
-      createdBy: req.user._id
-    });
+      const config = new RSSFeedConfig({
+        name,
+        url,
+        brandName,
+        isActive,
+        createdBy: req.user._id
+      });
 
-    await config.save();
-    res.json({ success: true, data: config });
-  } catch (error) {
-    console.error('Error creating RSS config:', error);
-    if (error.code === 11000) {
-      return res.status(400).json({ success: false, message: 'This RSS feed URL already exists' });
+      await config.save();
+
+      // 🔔 NOTIFICATION (ONLY ADDITION – OLD CODE SAFE)
+      await Notification.create({
+        type: 'rss-feed',
+        title: 'New RSS Feed Added',
+        message: `RSS Feed "${name}" has been created`,
+        referenceId: config._id,
+        createdBy: req.user._id,
+        isRead: false
+      });
+
+      res.json({ success: true, data: config });
+
+    } catch (error) {
+      console.error('Error creating RSS config:', error);
+
+      if (error.code === 11000) {
+        return res.status(400).json({
+          success: false,
+          message: 'This RSS feed URL already exists'
+        });
+      }
+
+      res.status(500).json({
+        success: false,
+        message: error.message || 'Server error'
+      });
     }
-    res.status(500).json({ success: false, message: error.message || 'Server error' });
   }
-});
+);
 
 // @route   PUT /api/rss/configs/:id
 // @desc    Update RSS feed configuration

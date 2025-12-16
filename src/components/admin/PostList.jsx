@@ -16,7 +16,7 @@ import {
 import { useAuth } from '@/contexts/AuthContext';
 import { Link, useNavigate } from 'react-router-dom';
 
-const baseURL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+const baseURL = import.meta.env.VITE_API_URL || 'https://api.stoxbolt.com';
 
 const PostList = () => {
   const navigate = useNavigate();
@@ -34,34 +34,47 @@ const PostList = () => {
   const { toast } = useToast();
   const { user, hasCRUDAccess } = useAuth();
 
- const fetchCategories = async () => {
-  try {
-    const adminToken = localStorage.getItem('adminToken');
-    
-    if (!adminToken) {
-      console.warn('No adminToken found for fetching categories');
-      return;
-    }
+  const fetchCategories = async () => {
+    try {
+      const adminToken = localStorage.getItem('adminToken');
 
-    const response = await fetch(`${baseURL}/api/categories/dropdown`, {
-      headers: {
-        'Authorization': `Bearer ${adminToken}`
+      if (!adminToken) {
+        console.warn('No adminToken found for fetching categories');
+        return;
       }
-    });
 
-    const data = await response.json();
-    
-    if (response.ok && data.success) {
-      // Transform the categories data for the dropdown
-      const formattedCategories = data.data.map(category => ({
-        id: category._id,
-        name: category.name,
-        slug: category.name.toLowerCase().replace(/\s+/g, '-')
-      }));
-      setCategories(formattedCategories);
-    } else {
-      console.error('Failed to fetch categories:', data.message);
-      // Fallback to default categories if API fails
+      const response = await fetch(`${baseURL}/api/categories/dropdown`, {
+        headers: {
+          'Authorization': `Bearer ${adminToken}`
+        }
+      });
+
+      const data = await response.json();
+
+      if (response.ok && data.success) {
+        // Transform the categories data for the dropdown
+        const formattedCategories = data.data.map(category => ({
+          id: category._id,
+          name: category.name,
+          slug: category.name.toLowerCase().replace(/\s+/g, '-')
+        }));
+        setCategories(formattedCategories);
+      } else {
+        console.error('Failed to fetch categories:', data.message);
+        // Fallback to default categories if API fails
+        setCategories([
+          { id: 'indian', name: 'Indian' },
+          { id: 'us', name: 'US' },
+          { id: 'global', name: 'Global' },
+          { id: 'commodities', name: 'Commodities' },
+          { id: 'forex', name: 'Forex' },
+          { id: 'crypto', name: 'Crypto' },
+          { id: 'ipos', name: 'IPOs' }
+        ]);
+      }
+    } catch (error) {
+      console.error('Error fetching categories:', error);
+      // Fallback to default categories on error
       setCategories([
         { id: 'indian', name: 'Indian' },
         { id: 'us', name: 'US' },
@@ -71,23 +84,10 @@ const PostList = () => {
         { id: 'crypto', name: 'Crypto' },
         { id: 'ipos', name: 'IPOs' }
       ]);
+    } finally {
+      setCategoriesLoading(false);
     }
-  } catch (error) {
-    console.error('Error fetching categories:', error);
-    // Fallback to default categories on error
-    setCategories([
-      { id: 'indian', name: 'Indian' },
-      { id: 'us', name: 'US' },
-      { id: 'global', name: 'Global' },
-      { id: 'commodities', name: 'Commodities' },
-      { id: 'forex', name: 'Forex' },
-      { id: 'crypto', name: 'Crypto' },
-      { id: 'ipos', name: 'IPOs' }
-    ]);
-  } finally {
-    setCategoriesLoading(false);
-  }
-};
+  };
 
   useEffect(() => {
     fetchCategories();
@@ -98,7 +98,7 @@ const PostList = () => {
     setLoading(true);
     try {
       const adminToken = localStorage.getItem('adminToken');
-      
+
       if (!adminToken) {
         toast({
           title: 'Authentication Error',
@@ -113,7 +113,7 @@ const PostList = () => {
         page: currentPage,
         limit: 10
       });
-      
+
       if (filterStatus !== 'all') params.append('status', filterStatus);
       if (filterCategory !== 'all') params.append('category', filterCategory);
       if (searchQuery) params.append('search', searchQuery);
@@ -125,7 +125,7 @@ const PostList = () => {
       });
 
       const data = await response.json();
-      
+
       if (!response.ok) {
         if (response.status === 403) {
           setPosts([]);
@@ -150,7 +150,7 @@ const PostList = () => {
       }
     } catch (error) {
       console.error('Error fetching posts:', error);
-      
+
       if (!error.message.includes('403')) {
         toast({
           title: 'Error',
@@ -158,7 +158,7 @@ const PostList = () => {
           variant: 'destructive'
         });
       }
-      
+
       setPosts([]);
       setTotalPages(1);
       setTotalPosts(0);
@@ -170,7 +170,7 @@ const PostList = () => {
   const handleDelete = async (postId) => {
     try {
       const adminToken = localStorage.getItem('adminToken');
-      
+
       if (!adminToken) {
         toast({
           title: 'Authentication Error',
@@ -188,7 +188,7 @@ const PostList = () => {
       });
 
       const data = await response.json();
-      
+
       if (!response.ok) {
         throw new Error(data.message || 'Failed to delete post');
       }
@@ -215,7 +215,7 @@ const PostList = () => {
   const handlePublish = async (postId) => {
     try {
       const adminToken = localStorage.getItem('adminToken');
-      
+
       if (!adminToken) {
         toast({
           title: 'Authentication Error',
@@ -234,7 +234,7 @@ const PostList = () => {
       });
 
       const data = await response.json();
-      
+
       if (!response.ok) {
         throw new Error(data.message || 'Failed to publish post');
       }
@@ -326,85 +326,85 @@ const PostList = () => {
   // Check if user can edit a specific post directly (CRUD access or own draft)
   const canEditPostDirectly = (post) => {
     if (!user) return false;
-    
+
     // Superadmin can edit all posts directly
     if (user.role === 'superadmin') return true;
-    
+
     // Admin with CRUD access can edit their own posts
     if (user.role === 'admin' && hasCRUDAccess) {
       const authorId = post.authorId?._id || post.authorId;
       const isOwnPost = authorId === user._id || authorId?.toString() === user._id;
       return isOwnPost; // Admin with CRUD can edit their own posts regardless of status
     }
-    
+
     // Admin without CRUD access can only edit their own drafts
     if (user.role === 'admin' && !hasCRUDAccess) {
       const authorId = post.authorId?._id || post.authorId;
       const isOwnPost = authorId === user._id || authorId?.toString() === user._id;
       return isOwnPost && post.status === 'draft';
     }
-    
+
     return false;
   };
 
   // Check if user can request update for a published post
   const canRequestUpdate = (post) => {
     if (!user) return false;
-    
+
     const authorId = post.authorId?._id || post.authorId;
     const isOwnPost = authorId === user._id || authorId?.toString() === user._id;
-    
+
     // Admin without CRUD access can request updates for their own published posts
     if (user.role === 'admin' && !hasCRUDAccess) {
       return isOwnPost && post.status === 'published';
     }
-    
+
     // Admin with CRUD access can edit published posts directly (no need for request)
     if (user.role === 'admin' && hasCRUDAccess) {
       return false; // They edit directly
     }
-    
+
     // Superadmin can edit published posts directly
     if (user.role === 'superadmin') {
       return false; // They edit directly
     }
-    
+
     return false;
   };
 
   // Check if user can delete a specific post
   const canDeletePost = (post) => {
     if (!user) return false;
-    
+
     // Superadmin can delete any post
     if (user.role === 'superadmin') return true;
-    
+
     // Admin with CRUD access can delete their own posts
     if (user.role === 'admin' && hasCRUDAccess) {
       const authorId = post.authorId?._id || post.authorId;
       const isOwnPost = authorId === user._id || authorId?.toString() === user._id;
       return isOwnPost;
     }
-    
+
     return false;
   };
 
   // Check if user can publish a specific post
   const canPublishPost = (post) => {
     if (!user) return false;
-    
+
     // Superadmin can publish any draft post
     if (user.role === 'superadmin') {
       return post.status === 'draft' || post.status === 'pending_approval';
     }
-    
+
     // Admin with CRUD access can publish their own draft posts
     if (user.role === 'admin' && hasCRUDAccess) {
       const authorId = post.authorId?._id || post.authorId;
       const isOwnPost = authorId === user._id || authorId?.toString() === user._id;
       return isOwnPost && (post.status === 'draft' || post.status === 'pending_approval');
     }
-    
+
     return false;
   };
 
@@ -551,13 +551,12 @@ const PostList = () => {
               Showing <span className="font-semibold">{posts.length}</span> of{' '}
               <span className="font-semibold">{totalPosts}</span> posts
             </span>
-            <span className={`px-3 py-1.5 text-xs rounded-full font-medium ${
-              user?.role === 'superadmin' 
-                ? 'bg-purple-100 text-purple-700 border border-purple-200' 
-                : hasCRUDAccess 
-                  ? 'bg-green-100 text-green-700 border border-green-200' 
+            <span className={`px-3 py-1.5 text-xs rounded-full font-medium ${user?.role === 'superadmin'
+                ? 'bg-purple-100 text-purple-700 border border-purple-200'
+                : hasCRUDAccess
+                  ? 'bg-green-100 text-green-700 border border-green-200'
                   : 'bg-blue-100 text-blue-700 border border-blue-200'
-            }`}>
+              }`}>
               {getUserMode()}
             </span>
           </div>
@@ -606,25 +605,21 @@ const PostList = () => {
 
       {/* User Mode Info Banner */}
       {user?.role === 'admin' && (
-        <div className={`mb-6 p-4 rounded-lg border ${
-          hasCRUDAccess 
-            ? 'bg-green-50 border-green-200' 
+        <div className={`mb-6 p-4 rounded-lg border ${hasCRUDAccess
+            ? 'bg-green-50 border-green-200'
             : 'bg-blue-50 border-blue-200'
-        }`}>
+          }`}>
           <div className="flex items-start">
-            <Info className={`h-5 w-5 mr-3 flex-shrink-0 mt-0.5 ${
-              hasCRUDAccess ? 'text-green-500' : 'text-blue-500'
-            }`} />
+            <Info className={`h-5 w-5 mr-3 flex-shrink-0 mt-0.5 ${hasCRUDAccess ? 'text-green-500' : 'text-blue-500'
+              }`} />
             <div className="flex-1">
-              <h3 className={`font-semibold mb-1 ${
-                hasCRUDAccess ? 'text-green-800' : 'text-blue-800'
-              }`}>
+              <h3 className={`font-semibold mb-1 ${hasCRUDAccess ? 'text-green-800' : 'text-blue-800'
+                }`}>
                 {hasCRUDAccess ? 'CRUD Mode' : 'Approval Mode'}
               </h3>
-              <p className={`text-sm ${
-                hasCRUDAccess ? 'text-green-600' : 'text-blue-600'
-              }`}>
-                {hasCRUDAccess 
+              <p className={`text-sm ${hasCRUDAccess ? 'text-green-600' : 'text-blue-600'
+                }`}>
+                {hasCRUDAccess
                   ? '• You can create, edit, publish, and delete your own posts directly\n• Can edit all statuses (draft, scheduled, published)\n• No approval required for your actions\n• Scheduled posts are auto-approved'
                   : '• You can create and edit draft posts directly\n• To publish a post or update a published post, it needs superadmin approval\n• Use the "Request Update" button for published posts\n• Check "My Submissions" for approval status'}
               </p>
@@ -721,7 +716,7 @@ const PostList = () => {
                     >
                       <Eye className="h-4 w-4 text-gray-500" />
                     </Button>
-                    
+
                     {/* Edit Button - Show if user can edit this post directly */}
                     {canEditPostDirectly(post) && (
                       <Button
@@ -736,7 +731,7 @@ const PostList = () => {
                         </Link>
                       </Button>
                     )}
-                    
+
                     {/* Request Update Button - For published posts when in approval mode */}
                     {canRequestUpdate(post) && (
                       <Button
@@ -749,7 +744,7 @@ const PostList = () => {
                         <Send className="h-4 w-4 text-yellow-600" />
                       </Button>
                     )}
-                    
+
                     {/* Publish Button - For draft posts when user has publish rights */}
                     {canPublishPost(post) && (
                       <Button
@@ -762,7 +757,7 @@ const PostList = () => {
                         <FileUp className="h-4 w-4 text-green-600" />
                       </Button>
                     )}
-                    
+
                     {/* Delete Button */}
                     {canDeletePost(post) && (
                       <Button
@@ -791,14 +786,14 @@ const PostList = () => {
           </div>
           <p className="text-gray-600 text-lg font-medium mb-2">No posts found</p>
           <p className="text-sm text-gray-500 max-w-md mx-auto mb-6">
-            {user?.role === 'admin' 
+            {user?.role === 'admin'
               ? 'Create your first post or check if you have existing posts'
               : 'Try changing your filters or create a new post'}
           </p>
           {user?.role === 'admin' && (
             <>
               <p className="text-sm text-gray-500 mb-6 max-w-lg mx-auto">
-                {hasCRUDAccess 
+                {hasCRUDAccess
                   ? 'As an admin with CRUD access, you can create and publish posts directly without approval.'
                   : 'As an admin in Approval Mode, you can create draft posts that require superadmin approval before publishing.'}
               </p>
@@ -851,9 +846,8 @@ const PostList = () => {
                     variant={currentPage === pageNum ? "default" : "outline"}
                     size="sm"
                     onClick={() => setCurrentPage(pageNum)}
-                    className={`px-3 min-w-[40px] ${
-                      currentPage === pageNum ? 'bg-orange-600 hover:bg-orange-700' : ''
-                    }`}
+                    className={`px-3 min-w-[40px] ${currentPage === pageNum ? 'bg-orange-600 hover:bg-orange-700' : ''
+                      }`}
                   >
                     {pageNum}
                   </Button>

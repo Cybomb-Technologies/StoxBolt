@@ -16,7 +16,7 @@ const ChangePasswordForm = ({ email, onSuccess }) => {
   const [passwordStrength, setPasswordStrength] = useState(0);
   const { toast } = useToast();
 
-  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+  const API_URL = import.meta.env.VITE_API_URL || 'https://api.stoxbolt.com';
 
   // Calculate password strength
   React.useEffect(() => {
@@ -42,7 +42,7 @@ const ChangePasswordForm = ({ email, onSuccess }) => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
+
     // Validation
     if (!currentPassword || !newPassword || !confirmPassword) {
       toast({
@@ -99,7 +99,7 @@ const ChangePasswordForm = ({ email, onSuccess }) => {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
-        body: JSON.stringify({ 
+        body: JSON.stringify({
           currentPassword,
           newPassword
         })
@@ -116,13 +116,13 @@ const ChangePasswordForm = ({ email, onSuccess }) => {
         setCurrentPassword('');
         setNewPassword('');
         setConfirmPassword('');
-        
+
         toast({
           title: 'Success!',
           description: 'Password changed successfully',
           variant: 'default'
         });
-        
+
         if (onSuccess) {
           onSuccess();
         }
@@ -131,7 +131,7 @@ const ChangePasswordForm = ({ email, onSuccess }) => {
       }
     } catch (error) {
       console.error('Change password error:', error);
-      
+
       toast({
         title: 'Failed to Change Password',
         description: error.message,
@@ -144,8 +144,8 @@ const ChangePasswordForm = ({ email, onSuccess }) => {
 
   const formVariants = {
     hidden: { opacity: 0, y: 20 },
-    visible: { 
-      opacity: 1, 
+    visible: {
+      opacity: 1,
       y: 0,
       transition: {
         duration: 0.4,
@@ -168,7 +168,7 @@ const ChangePasswordForm = ({ email, onSuccess }) => {
       transition={{ duration: 0.3, ease: "easeOut" }}
       className="space-y-4 sm:space-y-6"
     >
-      <motion.div 
+      <motion.div
         className="mb-4 sm:mb-6"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
@@ -182,8 +182,8 @@ const ChangePasswordForm = ({ email, onSuccess }) => {
         </p>
       </motion.div>
 
-      <motion.form 
-        onSubmit={handleSubmit} 
+      <motion.form
+        onSubmit={handleSubmit}
         className="space-y-4 sm:space-y-6"
         variants={formVariants}
         initial="hidden"
@@ -264,10 +264,10 @@ const ChangePasswordForm = ({ email, onSuccess }) => {
               )}
             </motion.button>
           </div>
-          
+
           {/* Password Strength Meter */}
           {newPassword && (
-            <motion.div 
+            <motion.div
               className="mt-2 sm:mt-3"
               initial={{ opacity: 0, height: 0 }}
               animate={{ opacity: 1, height: 'auto' }}
@@ -275,16 +275,15 @@ const ChangePasswordForm = ({ email, onSuccess }) => {
             >
               <div className="flex justify-between text-xs sm:text-sm mb-1">
                 <span className="text-gray-600">Password strength:</span>
-                <span className={`font-medium transition-colors duration-300 ${
-                  passwordStrength < 50 ? 'text-red-600' : 
-                  passwordStrength < 75 ? 'text-yellow-600' : 
-                  'text-green-600'
-                }`}>
+                <span className={`font-medium transition-colors duration-300 ${passwordStrength < 50 ? 'text-red-600' :
+                    passwordStrength < 75 ? 'text-yellow-600' :
+                      'text-green-600'
+                  }`}>
                   {getStrengthText()}
                 </span>
               </div>
               <div className="h-1.5 sm:h-2 bg-gray-200 rounded-full overflow-hidden">
-                <motion.div 
+                <motion.div
                   className={`h-full ${getStrengthColor()} transition-all duration-500 ease-out`}
                   initial={{ width: 0 }}
                   animate={{ width: `${passwordStrength}%` }}
@@ -292,48 +291,44 @@ const ChangePasswordForm = ({ email, onSuccess }) => {
                 />
               </div>
               <div className="mt-1 sm:mt-2 text-xs text-gray-500 space-y-1">
-                <motion.div 
+                <motion.div
                   className="flex items-center"
                   initial={{ opacity: 0, x: -10 }}
                   animate={{ opacity: 1, x: 0 }}
                   transition={{ delay: 0.1 }}
                 >
-                  <CheckCircle className={`h-3 w-3 mr-1 transition-colors duration-300 ${
-                    newPassword.length >= 6 ? 'text-green-500' : 'text-gray-300'
-                  }`} />
+                  <CheckCircle className={`h-3 w-3 mr-1 transition-colors duration-300 ${newPassword.length >= 6 ? 'text-green-500' : 'text-gray-300'
+                    }`} />
                   <span>At least 6 characters</span>
                 </motion.div>
-                <motion.div 
+                <motion.div
                   className="flex items-center"
                   initial={{ opacity: 0, x: -10 }}
                   animate={{ opacity: 1, x: 0 }}
                   transition={{ delay: 0.2 }}
                 >
-                  <CheckCircle className={`h-3 w-3 mr-1 transition-colors duration-300 ${
-                    /[A-Z]/.test(newPassword) ? 'text-green-500' : 'text-gray-300'
-                  }`} />
+                  <CheckCircle className={`h-3 w-3 mr-1 transition-colors duration-300 ${/[A-Z]/.test(newPassword) ? 'text-green-500' : 'text-gray-300'
+                    }`} />
                   <span>At least one uppercase letter</span>
                 </motion.div>
-                <motion.div 
+                <motion.div
                   className="flex items-center"
                   initial={{ opacity: 0, x: -10 }}
                   animate={{ opacity: 1, x: 0 }}
                   transition={{ delay: 0.3 }}
                 >
-                  <CheckCircle className={`h-3 w-3 mr-1 transition-colors duration-300 ${
-                    /[0-9]/.test(newPassword) ? 'text-green-500' : 'text-gray-300'
-                  }`} />
+                  <CheckCircle className={`h-3 w-3 mr-1 transition-colors duration-300 ${/[0-9]/.test(newPassword) ? 'text-green-500' : 'text-gray-300'
+                    }`} />
                   <span>At least one number</span>
                 </motion.div>
-                <motion.div 
+                <motion.div
                   className="flex items-center"
                   initial={{ opacity: 0, x: -10 }}
                   animate={{ opacity: 1, x: 0 }}
                   transition={{ delay: 0.4 }}
                 >
-                  <CheckCircle className={`h-3 w-3 mr-1 transition-colors duration-300 ${
-                    /[^A-Za-z0-9]/.test(newPassword) ? 'text-green-500' : 'text-gray-300'
-                  }`} />
+                  <CheckCircle className={`h-3 w-3 mr-1 transition-colors duration-300 ${/[^A-Za-z0-9]/.test(newPassword) ? 'text-green-500' : 'text-gray-300'
+                    }`} />
                   <span>At least one special character</span>
                 </motion.div>
               </div>
@@ -378,18 +373,17 @@ const ChangePasswordForm = ({ email, onSuccess }) => {
               )}
             </motion.button>
           </div>
-          
+
           {/* Password Match Indicator */}
           {confirmPassword && (
-            <motion.div 
+            <motion.div
               className="mt-1 sm:mt-2"
               initial={{ opacity: 0, height: 0 }}
               animate={{ opacity: 1, height: 'auto' }}
               transition={{ duration: 0.3 }}
             >
-              <div className={`flex items-center text-xs sm:text-sm transition-colors duration-300 ${
-                newPassword === confirmPassword ? 'text-green-600' : 'text-red-600'
-              }`}>
+              <div className={`flex items-center text-xs sm:text-sm transition-colors duration-300 ${newPassword === confirmPassword ? 'text-green-600' : 'text-red-600'
+                }`}>
                 {newPassword === confirmPassword ? (
                   <CheckCircle className="h-3 w-3 sm:h-4 sm:w-4 mr-1 text-green-600 transition-transform duration-300" />
                 ) : (
@@ -422,7 +416,7 @@ const ChangePasswordForm = ({ email, onSuccess }) => {
           </Button>
         </motion.div>
 
-        <motion.div 
+        <motion.div
           className="pt-4 border-t border-gray-200"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}

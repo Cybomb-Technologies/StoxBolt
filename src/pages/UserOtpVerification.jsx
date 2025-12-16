@@ -17,7 +17,7 @@ const UserOtpVerification = () => {
   const inputRefs = useRef([]);
 
   // Get environment variables
-  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+  const API_URL = import.meta.env.VITE_API_URL || 'https://api.stoxbolt.com';
 
   useEffect(() => {
     // Get email from localStorage
@@ -60,7 +60,7 @@ const UserOtpVerification = () => {
         }
       });
       setOtp(newOtp);
-      
+
       // Focus on last filled input
       const lastFilledIndex = Math.min(pastedOtp.length - 1, 5);
       if (lastFilledIndex < 5) {
@@ -91,9 +91,9 @@ const UserOtpVerification = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
+
     const otpString = otp.join('');
-    
+
     if (otpString.length !== 6) {
       toast({
         title: 'Invalid OTP',
@@ -120,9 +120,9 @@ const UserOtpVerification = () => {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ 
+        body: JSON.stringify({
           email: email,
-          otp: otpString 
+          otp: otpString
         })
       });
 
@@ -137,7 +137,7 @@ const UserOtpVerification = () => {
           title: 'OTP Verified!',
           description: 'OTP verified successfully. Now set your new password.'
         });
-        
+
         // Navigate to confirm password page
         navigate('/user-confirm-password');
       } else {
@@ -145,15 +145,15 @@ const UserOtpVerification = () => {
       }
     } catch (error) {
       console.error('Verify OTP error:', error);
-      
+
       let errorMessage = error.message;
-      
+
       toast({
         title: 'Verification Failed',
         description: errorMessage,
         variant: 'destructive'
       });
-      
+
       // Clear OTP on failure
       setOtp(['', '', '', '', '', '']);
       inputRefs.current[0]?.focus();
@@ -184,12 +184,12 @@ const UserOtpVerification = () => {
         // Reset timer and OTP
         setTimer(600);
         setOtp(['', '', '', '', '', '']);
-        
+
         toast({
           title: 'OTP Resent!',
           description: 'A new OTP has been sent to your email'
         });
-        
+
         inputRefs.current[0]?.focus();
       } else {
         throw new Error(data.message || 'Failed to resend OTP');

@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 
 const AuthContext = createContext();
 
-const baseURL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+const baseURL = import.meta.env.VITE_API_URL || 'https://api.stoxbolt.com';
 
 export const useAuth = () => {
   const context = useContext(AuthContext);
@@ -26,7 +26,7 @@ export const AuthProvider = ({ children }) => {
     try {
       const adminToken = localStorage.getItem('adminToken');
       const storedUser = localStorage.getItem('user');
-      
+
       if (adminToken && storedUser) {
         // Verify adminToken is still valid
         const response = await fetch(`${baseURL}/api/auth/me`, {
@@ -34,7 +34,7 @@ export const AuthProvider = ({ children }) => {
             'Authorization': `Bearer ${adminToken}`
           }
         });
-        
+
         if (response.ok) {
           const data = await response.json();
           if (data.success) {
@@ -73,7 +73,7 @@ export const AuthProvider = ({ children }) => {
       });
 
       const data = await response.json();
-      
+
       if (!response.ok) {
         throw new Error(data.message || 'Login failed');
       }
@@ -84,14 +84,14 @@ export const AuthProvider = ({ children }) => {
           hasCRUDAccess: data.user.hasCRUDAccess || false,
           isSuperadmin: data.user.role === 'superadmin'
         };
-        
+
         localStorage.setItem('adminToken', data.adminToken);
         localStorage.setItem('user', JSON.stringify(userData));
         setUser(userData);
-        
+
         return { success: true, user: userData };
       }
-      
+
       throw new Error('Invalid response from server');
     } catch (error) {
       console.error('Login error:', error);

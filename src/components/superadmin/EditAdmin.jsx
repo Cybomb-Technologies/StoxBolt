@@ -17,7 +17,7 @@ import {
 } from "lucide-react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 
-const baseURL = import.meta.env.VITE_API_URL || "http://localhost:5000";
+const baseURL = import.meta.env.VITE_API_URL || "https://api.stoxbolt.com";
 
 const EditAdmin = () => {
   const { id } = useParams();
@@ -209,8 +209,8 @@ const EditAdmin = () => {
     ? formData.password.length >= 8
       ? "strong"
       : formData.password.length >= 6
-      ? "medium"
-      : "weak"
+        ? "medium"
+        : "weak"
     : "none";
 
   const hasChanges = () => {
@@ -272,11 +272,10 @@ const EditAdmin = () => {
               </div>
 
               <div
-                className={`px-4 py-2 rounded-full text-sm font-semibold ${
-                  formData.isActive
+                className={`px-4 py-2 rounded-full text-sm font-semibold ${formData.isActive
                     ? "bg-green-100 text-green-700 border border-green-200"
                     : "bg-red-100 text-red-700 border border-red-200"
-                }`}
+                  }`}
               >
                 {formData.isActive ? "Active" : "Inactive"}
               </div>
@@ -313,8 +312,8 @@ const EditAdmin = () => {
                       <p className="text-sm font-medium text-gray-900">
                         {originalData.createdAt
                           ? new Date(
-                              originalData.createdAt
-                            ).toLocaleDateString()
+                            originalData.createdAt
+                          ).toLocaleDateString()
                           : "-"}
                       </p>
                     </div>
@@ -339,11 +338,10 @@ const EditAdmin = () => {
                   onChange={handleChange}
                   placeholder="Enter admin's full name"
                   disabled={saving}
-                  className={`w-full h-12 px-4 rounded-lg border text-base ${
-                    errors.name
+                  className={`w-full h-12 px-4 rounded-lg border text-base ${errors.name
                       ? "border-red-500 focus:border-red-500"
                       : "border-gray-300"
-                  }`}
+                    }`}
                 />
                 {errors.name && (
                   <p className="text-sm text-red-500">{errors.name}</p>
@@ -366,11 +364,10 @@ const EditAdmin = () => {
                   onChange={handleChange}
                   placeholder="admin@example.com"
                   disabled={saving}
-                  className={`w-full h-12 px-4 rounded-lg border text-base ${
-                    errors.email
+                  className={`w-full h-12 px-4 rounded-lg border text-base ${errors.email
                       ? "border-red-500 focus:border-red-500"
                       : "border-gray-300"
-                  }`}
+                    }`}
                 />
                 {errors.email && (
                   <p className="text-sm text-red-500">{errors.email}</p>
@@ -405,11 +402,10 @@ const EditAdmin = () => {
                         onChange={handleChange}
                         placeholder="Enter new password (leave empty to keep current)"
                         disabled={saving}
-                        className={`w-full h-12 px-4 pr-10 rounded-lg border text-base ${
-                          errors.password
+                        className={`w-full h-12 px-4 pr-10 rounded-lg border text-base ${errors.password
                             ? "border-red-500 focus:border-red-500"
                             : "border-gray-300"
-                        }`}
+                          }`}
                       />
                       <button
                         type="button"
@@ -432,13 +428,12 @@ const EditAdmin = () => {
                             Password strength:
                           </span>
                           <span
-                            className={`text-xs font-semibold ${
-                              passwordStrength === "strong"
+                            className={`text-xs font-semibold ${passwordStrength === "strong"
                                 ? "text-green-600"
                                 : passwordStrength === "medium"
-                                ? "text-yellow-600"
-                                : "text-red-600"
-                            }`}
+                                  ? "text-yellow-600"
+                                  : "text-red-600"
+                              }`}
                           >
                             {passwordStrength.charAt(0).toUpperCase() +
                               passwordStrength.slice(1)}
@@ -446,13 +441,12 @@ const EditAdmin = () => {
                         </div>
                         <div className="h-1.5 w-full bg-gray-200 rounded-full overflow-hidden">
                           <div
-                            className={`h-full transition-all duration-300 ${
-                              passwordStrength === "strong"
+                            className={`h-full transition-all duration-300 ${passwordStrength === "strong"
                                 ? "w-full bg-green-500"
                                 : passwordStrength === "medium"
-                                ? "w-2/3 bg-yellow-500"
-                                : "w-1/3 bg-red-500"
-                            }`}
+                                  ? "w-2/3 bg-yellow-500"
+                                  : "w-1/3 bg-red-500"
+                              }`}
                           />
                         </div>
                       </div>
@@ -481,11 +475,10 @@ const EditAdmin = () => {
                       onChange={handleChange}
                       placeholder="Confirm the new password"
                       disabled={saving}
-                      className={`w-full h-12 px-4 rounded-lg border text-base ${
-                        errors.confirmPassword
+                      className={`w-full h-12 px-4 rounded-lg border text-base ${errors.confirmPassword
                           ? "border-red-500 focus:border-red-500"
                           : "border-gray-300"
-                      }`}
+                        }`}
                     />
                     {errors.confirmPassword && (
                       <p className="text-sm text-red-500">
@@ -526,15 +519,13 @@ const EditAdmin = () => {
                     type="button"
                     onClick={handleToggleStatus}
                     disabled={saving || originalData?.role === "superadmin"}
-                    className={`px-4 py-2 rounded-lg text-sm font-medium transition ${
-                      formData.isActive
+                    className={`px-4 py-2 rounded-lg text-sm font-medium transition ${formData.isActive
                         ? "bg-red-600 text-white hover:bg-red-700"
                         : "bg-green-600 text-white hover:bg-green-700"
-                    } ${
-                      saving || originalData?.role === "superadmin"
+                      } ${saving || originalData?.role === "superadmin"
                         ? "opacity-60 cursor-not-allowed"
                         : ""
-                    }`}
+                      }`}
                   >
                     {formData.isActive ? "Deactivate Admin" : "Activate Admin"}
                   </button>
@@ -562,9 +553,8 @@ const EditAdmin = () => {
                 <div className="flex gap-3">
                   <Link
                     to="/admin/users"
-                    className={`px-4 py-2 rounded-lg border text-sm font-medium hover:bg-gray-50 ${
-                      saving ? "opacity-60 cursor-not-allowed" : ""
-                    }`}
+                    className={`px-4 py-2 rounded-lg border text-sm font-medium hover:bg-gray-50 ${saving ? "opacity-60 cursor-not-allowed" : ""
+                      }`}
                   >
                     Cancel
                   </Link>
@@ -572,11 +562,10 @@ const EditAdmin = () => {
                   <button
                     type="submit"
                     disabled={saving || !hasChanges()}
-                    className={`px-5 py-2 rounded-lg text-sm font-semibold flex items-center justify-center min-w-[140px] ${
-                      saving || !hasChanges()
+                    className={`px-5 py-2 rounded-lg text-sm font-semibold flex items-center justify-center min-w-[140px] ${saving || !hasChanges()
                         ? "bg-orange-300 cursor-not-allowed text-white"
                         : "bg-orange-600 hover:bg-orange-700 text-white"
-                    }`}
+                      }`}
                   >
                     {saving ? (
                       <>

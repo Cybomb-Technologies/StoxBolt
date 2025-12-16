@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { Zap, Facebook, Twitter, Linkedin, Instagram, Youtube, Mail, MapPin, Phone } from 'lucide-react';
 import axios from 'axios';
 
-const baseURL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+const baseURL = import.meta.env.VITE_API_URL || 'https://api.stoxbolt.com';
 
 const Footer = () => {
   const currentYear = new Date().getFullYear();
@@ -16,10 +16,10 @@ const Footer = () => {
       try {
         setLoading(true);
         const response = await axios.get(`${baseURL}/api/categories`);
-        
+
         if (response.data.success) {
           const categoriesData = response.data.data;
-          
+
           // Transform backend data to match frontend structure
           const formattedCategories = categoriesData.map(category => ({
             id: category._id,
@@ -27,7 +27,7 @@ const Footer = () => {
             slug: category.slug || category.name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, ''),
             path: `/category/${category.slug || category.name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '')}`
           }));
-          
+
           // Take only first 3 categories for the footer
           setCategories(formattedCategories.slice(0, 3));
         } else {
@@ -61,18 +61,18 @@ const Footer = () => {
           {/* Company Info */}
           <div>
             {/* LOGO - Using image with fallback */}
-          <Link to="/" className="flex items-center space-x-2 min-w-[150px]">
-            <div className="flex items-center mb-2 h-10">
-              <img 
-                src="/images/logo.png" 
-                alt="StoxBolt Logo"
-                className="h-10 w-auto rounded object-contain"
-                onError={(e) => {
-                  // Fallback if logo image doesn't exist
-                  e.target.style.display = 'none';
-                  const fallbackDiv = document.createElement('div');
-                  fallbackDiv.className = 'flex items-center space-x-2';
-                  fallbackDiv.innerHTML = `
+            <Link to="/" className="flex items-center space-x-2 min-w-[150px]">
+              <div className="flex items-center mb-2 h-10">
+                <img
+                  src="/images/logo.png"
+                  alt="StoxBolt Logo"
+                  className="h-10 w-auto rounded object-contain"
+                  onError={(e) => {
+                    // Fallback if logo image doesn't exist
+                    e.target.style.display = 'none';
+                    const fallbackDiv = document.createElement('div');
+                    fallbackDiv.className = 'flex items-center space-x-2';
+                    fallbackDiv.innerHTML = `
                     <div class="w-10 h-10 bg-gradient-to-br from-yellow-400 via-orange-500 to-red-600 rounded-lg flex items-center justify-center">
                       <svg class="text-white h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
@@ -82,11 +82,11 @@ const Footer = () => {
                       Stox<span class="text-orange-600">Bolt</span>
                     </span>
                   `;
-                  e.target.parentNode.replaceChild(fallbackDiv, e.target.parentNode.firstChild);
-                }}
-              />
-            </div>
-          </Link>
+                    e.target.parentNode.replaceChild(fallbackDiv, e.target.parentNode.firstChild);
+                  }}
+                />
+              </div>
+            </Link>
             <p className="text-sm text-gray-400 mb-6 leading-relaxed">
               Your trusted source for real-time financial news, market analysis, and investment insights. Empowering investors with speed and accuracy.
             </p>

@@ -14,11 +14,11 @@ const UserForgetPassword = () => {
   const { toast } = useToast();
 
   // Get environment variables
-  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+  const API_URL = import.meta.env.VITE_API_URL || 'https://api.stoxbolt.com';
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
+
     if (!email) {
       toast({
         title: 'Validation Error',
@@ -58,21 +58,21 @@ const UserForgetPassword = () => {
       if (data.success) {
         // Store email in localStorage for next steps
         localStorage.setItem('resetEmail', email);
-        
+
         toast({
           title: 'OTP Sent!',
           description: 'We have sent an OTP to your email address'
         });
-        
+
         setStep(2);
       } else {
         throw new Error(data.message || 'Failed to send OTP');
       }
     } catch (error) {
       console.error('Send OTP error:', error);
-      
+
       let errorMessage = error.message;
-      
+
       toast({
         title: 'Failed to Send OTP',
         description: errorMessage,
@@ -86,7 +86,7 @@ const UserForgetPassword = () => {
   const handleResendOTP = async () => {
     try {
       setLoading(true);
-      
+
       const response = await fetch(`${API_URL}/api/user-auth/forgot-password/send-otp`, {
         method: 'POST',
         headers: {

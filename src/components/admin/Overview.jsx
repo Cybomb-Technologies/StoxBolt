@@ -1,13 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { motion } from 'framer-motion';
-import { 
-  BarChart3, 
-  FileText, 
-  Users, 
-  Activity, 
-  Calendar, 
-  TrendingUp, 
+import {
+  BarChart3,
+  FileText,
+  Users,
+  Activity,
+  Calendar,
+  TrendingUp,
   Clock,
   Eye,
   CheckCircle,
@@ -68,14 +68,14 @@ const CardFooter = ({ children, className = '' }) => (
 
 const Tabs = ({ defaultValue, children, className = '' }) => {
   const [activeTab, setActiveTab] = useState(defaultValue);
-  
+
   const childrenWithProps = React.Children.map(children, child => {
     if (React.isValidElement(child)) {
       return React.cloneElement(child, { activeTab, setActiveTab });
     }
     return child;
   });
-  
+
   return <div className={className}>{childrenWithProps}</div>;
 };
 
@@ -93,11 +93,10 @@ const TabsList = ({ children, className = '', activeTab, setActiveTab }) => (
 const TabsTrigger = ({ value, children, className = '', activeTab, setActiveTab }) => (
   <button
     onClick={() => setActiveTab(value)}
-    className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-      activeTab === value 
-        ? 'bg-orange-600 text-white' 
+    className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${activeTab === value
+        ? 'bg-orange-600 text-white'
         : 'text-gray-600 hover:text-gray-900'
-    } ${className}`}
+      } ${className}`}
   >
     {children}
   </button>
@@ -114,13 +113,13 @@ const Button = ({ children, variant = 'default', size = 'default', className = '
     outline: 'border border-gray-300 text-gray-700 hover:bg-gray-50',
     ghost: 'text-gray-700 hover:bg-gray-100'
   };
-  
+
   const sizeClasses = {
     default: 'px-4 py-2 text-sm',
     sm: 'px-3 py-1.5 text-xs',
     lg: 'px-6 py-3 text-base'
   };
-  
+
   return (
     <button
       className={`rounded-lg font-medium transition-colors ${variantClasses[variant]} ${sizeClasses[size]} ${className}`}
@@ -147,7 +146,7 @@ const Badge = ({ children, variant = 'default', className = '' }) => {
     cyan: 'bg-cyan-100 text-cyan-800',
     rose: 'bg-rose-100 text-rose-800'
   };
-  
+
   return (
     <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${variantClasses[variant]} ${className}`}>
       {children}
@@ -157,14 +156,14 @@ const Badge = ({ children, variant = 'default', className = '' }) => {
 
 const Progress = ({ value, className = '' }) => (
   <div className={`w-full bg-gray-200 rounded-full h-2 ${className}`}>
-    <div 
-      className="bg-orange-600 h-2 rounded-full transition-all duration-300" 
+    <div
+      className="bg-orange-600 h-2 rounded-full transition-all duration-300"
       style={{ width: `${Math.min(Math.max(value, 0), 100)}%` }}
     />
   </div>
 );
 
-const baseURL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+const baseURL = import.meta.env.VITE_API_URL || 'https://api.stoxbolt.com';
 
 const Overview = () => {
   const { user } = useAuth();
@@ -227,7 +226,7 @@ const Overview = () => {
     try {
       setRefreshing(true);
       setError(null);
-      
+
       const adminToken = localStorage.getItem('adminToken');
       if (!adminToken) {
         throw new Error('No authentication adminToken found');
@@ -273,7 +272,7 @@ const Overview = () => {
         adminStats: adminStats,
         pendingApprovals: pendingApprovals
       });
-      
+
     } catch (error) {
       console.error('Error in fetchDashboardData:', error);
       setError('Failed to load dashboard data. Please try again.');
@@ -371,7 +370,7 @@ const Overview = () => {
     // Process posts stats
     const postsStatsResponse = responses.postsStats || {};
     const postsStats = postsStatsResponse.data || {};
-    
+
     // Process scheduled posts
     const scheduledResponse = responses.scheduled || {};
     const scheduledCount = scheduledResponse.count || (scheduledResponse.data ? scheduledResponse.data.length : 0);
@@ -379,10 +378,10 @@ const Overview = () => {
     // Process categories data
     const categoriesResponse = responses.categories || {};
     const allCategories = categoriesResponse.data || categoriesResponse.categories || [];
-    
-    const activeCategories = allCategories.filter(cat => 
-      cat.status === 'active' || 
-      cat.isActive === true || 
+
+    const activeCategories = allCategories.filter(cat =>
+      cat.status === 'active' ||
+      cat.isActive === true ||
       cat.postCount > 0
     ).length;
 
@@ -393,10 +392,10 @@ const Overview = () => {
     // Process users data
     const usersResponse = responses.users || {};
     const usersData = usersResponse.data || usersResponse.users || [];
-    
+
     // Calculate user stats
     const totalUsers = adminStatsData.totalUsers || 0;
-    
+
     const totalAdmins = adminStatsData.totalAdmins || usersData.length || 0;
     const superadminCount = adminStatsData.superadminCount || usersData.filter(u => u.role === 'superadmin').length;
     const adminCount = adminStatsData.totalAdmins ? (adminStatsData.totalAdmins - (adminStatsData.superadminCount || 0)) : usersData.filter(u => u.role === 'admin').length;
@@ -460,8 +459,8 @@ const Overview = () => {
       : 100;
 
     // Posts per category (average)
-    const postsPerCategory = allCategories.length > 0 
-      ? Math.round(postsTotal / allCategories.length) 
+    const postsPerCategory = allCategories.length > 0
+      ? Math.round(postsTotal / allCategories.length)
       : 0;
 
     // Update state with all processed data
@@ -509,7 +508,7 @@ const Overview = () => {
 
   const calculateCategoryDistribution = (categories, posts) => {
     const categoryMap = {};
-    
+
     // Initialize category map
     categories.forEach(category => {
       const categoryId = category._id || category.id;
@@ -520,13 +519,13 @@ const Overview = () => {
         color: category.color || getCategoryColor(category.name || '')
       };
     });
-    
+
     // Count posts per category
     posts.forEach(post => {
       if (post.category) {
         if (typeof post.category === 'string') {
           // Find category by name or ID
-          const category = categories.find(cat => 
+          const category = categories.find(cat =>
             cat.name?.toLowerCase() === post.category.toLowerCase() ||
             cat.title?.toLowerCase() === post.category.toLowerCase() ||
             cat._id === post.category ||
@@ -551,7 +550,7 @@ const Overview = () => {
         }
       }
     });
-    
+
     // Convert to array and sort by count
     return Object.values(categoryMap)
       .sort((a, b) => b.count - a.count)
@@ -572,13 +571,13 @@ const Overview = () => {
       'bg-cyan-100 text-cyan-800',
       'bg-rose-100 text-rose-800'
     ];
-    
+
     // Simple hash function for consistent colors
     let hash = 0;
     for (let i = 0; i < categoryName.length; i++) {
       hash = categoryName.charCodeAt(i) + ((hash << 5) - hash);
     }
-    
+
     return colors[Math.abs(hash) % colors.length];
   };
 
@@ -696,21 +695,21 @@ const Overview = () => {
 
     const action = actions[activity.type] || activity.type;
     const userDisplayName = getUserDisplayName(activity);
-    
+
     if (activity.postId) {
       return `${userDisplayName} ${action} "${activity.title || 'post'}"`;
     } else if (activity.type === 'login') {
       return `${userDisplayName} ${action}`;
     } else if (activity.type.startsWith('admin_')) {
-      const targetUser = activity.details?.targetUserEmail || 
-                        activity.details?.targetUsername || 
-                        activity.details?.targetUser || 
-                        activity.title;
+      const targetUser = activity.details?.targetUserEmail ||
+        activity.details?.targetUsername ||
+        activity.details?.targetUser ||
+        activity.title;
       return `${userDisplayName} ${action}: ${targetUser}`;
     } else if (activity.type.startsWith('category_')) {
-      const categoryName = activity.details?.categoryName || 
-                          activity.title || 
-                          'category';
+      const categoryName = activity.details?.categoryName ||
+        activity.title ||
+        'category';
       return `${userDisplayName} ${action}: "${categoryName}"`;
     } else if (activity.type.startsWith('schedule_')) {
       return `${userDisplayName} ${action} schedule`;
@@ -749,7 +748,7 @@ const Overview = () => {
   // Function to get comparison value for progress bar
   const getComparisonValue = () => {
     const currentValue = getActivityCountForTimeRange();
-    
+
     switch (timeRange) {
       case 'today':
         // Compare today with weekly average
@@ -800,7 +799,7 @@ const Overview = () => {
             </Badge>
           </div>
           <p className="text-gray-600 mt-2">
-            Welcome back, <span className="font-semibold text-gray-900">{user?.name || 'Admin'}</span>. 
+            Welcome back, <span className="font-semibold text-gray-900">{user?.name || 'Admin'}</span>.
             Real-time dashboard updates every 30 seconds.
           </p>
           {error && (
@@ -811,7 +810,7 @@ const Overview = () => {
           )}
         </div>
         <div className="flex items-center space-x-4">
-          <select 
+          <select
             value={timeRange}
             onChange={(e) => handleTimeRangeChange(e.target.value)}
             className="border rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 bg-white"
@@ -822,8 +821,8 @@ const Overview = () => {
             <option value="year">This Year</option>
             <option value="all">All Time</option>
           </select>
-          <Button 
-            variant="outline" 
+          <Button
+            variant="outline"
             size="sm"
             onClick={fetchDashboardData}
             disabled={refreshing}
@@ -914,10 +913,10 @@ const Overview = () => {
           <Card className="hover:shadow-md transition-shadow hover:border-green-300 h-full flex flex-col">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm font-medium text-gray-600">
-                Activities ({timeRange === 'today' ? 'Today' : 
-                           timeRange === 'week' ? 'This Week' : 
-                           timeRange === 'month' ? 'This Month' : 
-                           timeRange === 'year' ? 'This Year' : 'All Time'})
+                Activities ({timeRange === 'today' ? 'Today' :
+                  timeRange === 'week' ? 'This Week' :
+                    timeRange === 'month' ? 'This Month' :
+                      timeRange === 'year' ? 'This Year' : 'All Time'})
               </CardTitle>
               <Activity className="h-4 w-4 text-green-600" />
             </CardHeader>
@@ -928,10 +927,10 @@ const Overview = () => {
                   <div className="flex justify-between text-sm mb-1">
                     <span>Comparison</span>
                     <span>
-                      {timeRange === 'today' ? 'vs weekly avg' : 
-                       timeRange === 'week' ? 'vs monthly avg' : 
-                       timeRange === 'month' ? 'vs yearly avg' : 
-                       timeRange === 'year' ? 'vs previous year' : 'All time'}
+                      {timeRange === 'today' ? 'vs weekly avg' :
+                        timeRange === 'week' ? 'vs monthly avg' :
+                          timeRange === 'month' ? 'vs yearly avg' :
+                            timeRange === 'year' ? 'vs previous year' : 'All time'}
                     </span>
                   </div>
                   <Progress value={getComparisonValue()} />
@@ -940,7 +939,7 @@ const Overview = () => {
                   <Clock className="h-3 w-3 mr-2 text-gray-500" />
                   <span>Recent: {stats.activities.recent.length} activities</span>
                 </div>
-                
+
               </div>
             </CardContent>
           </Card>
@@ -963,7 +962,7 @@ const Overview = () => {
             <CardContent>
               <div className="text-3xl font-bold">{formatNumber(stats.users.total)}</div>
               <div className="flex items-center justify-between mt-4">
-                 <p className="text-sm text-gray-500">Total Registered Users</p>
+                <p className="text-sm text-gray-500">Total Registered Users</p>
               </div>
             </CardContent>
           </Card>
@@ -1078,8 +1077,8 @@ const Overview = () => {
                           <div className="flex flex-col md:flex-row md:items-center space-y-2 md:space-y-0 md:space-x-3 text-sm text-gray-500">
                             <span className="flex items-center">
                               <CalendarDays className="h-3 w-3 mr-1" />
-                              {post.publishDateTime || post.createdAt 
-                                ? new Date(post.publishDateTime || post.createdAt).toLocaleDateString() 
+                              {post.publishDateTime || post.createdAt
+                                ? new Date(post.publishDateTime || post.createdAt).toLocaleDateString()
                                 : 'Unknown date'}
                             </span>
                             <span className="hidden md:inline">•</span>
@@ -1172,7 +1171,7 @@ const Overview = () => {
                 </CardContent>
               </Card>
 
-              
+
             </div>
           </TabsContent>
         )}
@@ -1197,7 +1196,7 @@ const Overview = () => {
                     <div>
                       <p className="font-medium">{approval.title || 'Pending Approval'}</p>
                       <p className="text-sm text-gray-600">
-                        Submitted by: {approval.author?.name || 'Unknown'} • 
+                        Submitted by: {approval.author?.name || 'Unknown'} •
                         Type: {approval.type || 'post'}
                       </p>
                     </div>

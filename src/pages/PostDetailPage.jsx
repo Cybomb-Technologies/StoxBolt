@@ -11,7 +11,7 @@ import SocialImageExport from '@/components/SocialImageExport';
 import axios from 'axios';
 import { getRandomImage } from '@/utils/imageUtils';
 
-const baseURL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+const baseURL = import.meta.env.VITE_API_URL || 'https://api.stoxbolt.com';
 
 const PostDetailPage = () => {
   const { id } = useParams();
@@ -31,44 +31,44 @@ const PostDetailPage = () => {
 
   const getCategoryName = (category) => {
     if (!category) return 'General';
-    
+
     if (typeof category === 'string') return category;
-    
+
     if (typeof category === 'object') {
       return category.name || category.title || category._id || 'General';
     }
-    
+
     return 'General';
   };
 
   const getCategoryId = (category) => {
     if (!category) return null;
-    
+
     if (typeof category === 'string') return category;
-    
+
     if (typeof category === 'object') {
       return category._id || category.id || null;
     }
-    
+
     return null;
   };
 
   const getSafePostData = (postData) => {
     if (!postData) return null;
-    
+
     const categoryName = getCategoryName(postData.category);
 
     return {
       ...postData,
-      body: typeof postData.body === 'string' ? postData.body : 
-            postData.body?.content || postData.content || postData.description || '',
+      body: typeof postData.body === 'string' ? postData.body :
+        postData.body?.content || postData.content || postData.description || '',
       categoryName: categoryName,
       categoryId: getCategoryId(postData.category),
       imageUrl: postData.imageUrl || postData.image || postData.thumbnail || getRandomImage(categoryName),
-      author: typeof postData.author === 'string' ? postData.author : 
-              postData.author?.name || postData.author?.username || 'Admin',
-      tags: Array.isArray(postData.tags) ? postData.tags : 
-            (typeof postData.tags === 'string' ? postData.tags.split(',') : [])
+      author: typeof postData.author === 'string' ? postData.author :
+        postData.author?.name || postData.author?.username || 'Admin',
+      tags: Array.isArray(postData.tags) ? postData.tags :
+        (typeof postData.tags === 'string' ? postData.tags.split(',') : [])
     };
   };
 
@@ -76,7 +76,7 @@ const PostDetailPage = () => {
     setLoading(true);
     try {
       const response = await axios.get(`${baseURL}/api/public-posts/${id}`);
-      
+
       if (response.data.success) {
         const safePostData = getSafePostData(response.data.data);
         setPost(safePostData);
@@ -130,22 +130,22 @@ const PostDetailPage = () => {
 
       setBookmarking(true);
       const response = await axios.post(
-        `${baseURL}/api/user-auth/posts/${id}/bookmark`, 
-        {}, 
+        `${baseURL}/api/user-auth/posts/${id}/bookmark`,
+        {},
         {
-          headers: { 
+          headers: {
             Authorization: `Bearer ${token}`,
             'Content-Type': 'application/json'
           }
         }
       );
-      
+
       if (response.data.success) {
         setIsBookmarked(response.data.isBookmarked);
         toast({
           title: response.data.isBookmarked ? 'Added to Bookmarks' : 'Removed from Bookmarks',
-          description: response.data.isBookmarked 
-            ? 'Post saved successfully' 
+          description: response.data.isBookmarked
+            ? 'Post saved successfully'
             : 'Post removed from your saved items',
           variant: 'default'
         });
@@ -164,7 +164,7 @@ const PostDetailPage = () => {
 
   const handleShare = () => {
     if (!post) return;
-    
+
     if (navigator.share) {
       navigator.share({
         title: post.title,
@@ -299,12 +299,12 @@ const PostDetailPage = () => {
                 <div className="flex items-center space-x-2">
                   <Clock className="h-4 w-4" />
                   <span className="text-sm">
-                    {post.publishDateTime || post.createdAt ? 
-                      new Date(post.publishDateTime || post.createdAt).toLocaleDateString('en-US', { 
-                        year: 'numeric', 
-                        month: 'long', 
-                        day: 'numeric' 
-                      }) : 
+                    {post.publishDateTime || post.createdAt ?
+                      new Date(post.publishDateTime || post.createdAt).toLocaleDateString('en-US', {
+                        year: 'numeric',
+                        month: 'long',
+                        day: 'numeric'
+                      }) :
                       'Recently'}
                   </span>
                 </div>
@@ -322,20 +322,20 @@ const PostDetailPage = () => {
                 )}
               </div>
 
-   <div className="flex items-center space-x-2">
-                  {post.link && (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => window.open(post.link, '_blank')}
-                      className="hidden md:flex items-center gap-2 text-orange-600 border-orange-200 hover:bg-orange-50"
-                    >
-                      <ExternalLink className="h-4 w-4" />
-                      Read More
-                    </Button>
-                  )}
-                 
-                </div>
+              <div className="flex items-center space-x-2">
+                {post.link && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => window.open(post.link, '_blank')}
+                    className="hidden md:flex items-center gap-2 text-orange-600 border-orange-200 hover:bg-orange-50"
+                  >
+                    <ExternalLink className="h-4 w-4" />
+                    Read More
+                  </Button>
+                )}
+
+              </div>
 
               {post.tags && post.tags.length > 0 && (
                 <div className="mt-8 pt-6 border-t">
@@ -361,9 +361,9 @@ const PostDetailPage = () => {
 
           {post.categoryId && (
             <div className="mt-8">
-              <RelatedPostsCarousel 
-                category={post.categoryId} 
-                currentPostId={post._id || post.id} 
+              <RelatedPostsCarousel
+                category={post.categoryId}
+                currentPostId={post._id || post.id}
               />
             </div>
           )}
