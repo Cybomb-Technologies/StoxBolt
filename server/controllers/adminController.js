@@ -462,3 +462,51 @@ exports.getAdminStats = async (req, res) => {
     });
   }
 };
+
+// @desc    Get all regular users (Superadmin only)
+// @route   GET /api/users/regular
+// @access  Private/Superadmin
+exports.getUsers = async (req, res) => {
+  try {
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+    const search = req.query.search || '';
+    const skip = (page - 1) * limit;
+
+    let query = {};
+
+    if (search) {
+      query = {
+        $or: [
+          { username: { $regex: search, $options: 'i' } },
+          { email: { $regex: search, $options: 'i' } }
+        ]
+      };
+    }
+
+    const total = await User.countDocuments(query);
+    const users = await User.find(query)
+      .select('-password -resetPasswordOTP -resetPasswordOTPExpiry') // Exclude sensitive fields
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit);
+
+    res.status(200).json({
+      success: true,
+      count: users.length,
+      pagination: {
+        total,
+        page,
+        pages: Math.ceil(total / limit)
+      },
+      data: users
+    });
+
+  } catch (error) {
+    console.error('Get users error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error fetching users'
+    });
+  }
+};

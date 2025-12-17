@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { useParams } from 'react-router-dom';
+import { useSearchParams } from 'react-router-dom';
 import { Helmet } from 'react-helmet';
 import PostCard from '@/components/PostCard';
-import { Loader2, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Loader2, ChevronLeft, ChevronRight, Search } from 'lucide-react';
 import { motion } from 'framer-motion';
 import axios from 'axios';
 import { useToast } from '@/components/ui/use-toast';
@@ -73,86 +73,40 @@ const transformPostData = (post) => {
   };
 };
 
-const CategoryPage = () => {
-  const { category } = useParams();
+const SearchPage = () => {
+  const [searchParams] = useSearchParams();
+  const query = searchParams.get('q') || '';
   const [posts, setPosts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
-  const [categoryInfo, setCategoryInfo] = useState(null);
+  const [totalResults, setTotalResults] = useState(0);
   const { toast } = useToast();
 
   useEffect(() => {
-    setPosts([]);
-    setPage(1);
-    fetchCategoryInfo();
-  }, [category]);
-
-  useEffect(() => {
-    if (categoryInfo) {
+    if (query) {
+      setPage(1);
       fetchPosts(1);
+    } else {
+      setPosts([]);
+      setLoading(false);
     }
-  }, [categoryInfo]);
-
-  const fetchCategoryInfo = async () => {
-    try {
-      // Increased limit to ensure we find the category even if it's far down the list
-      const response = await axios.get(`${baseURL}/api/categories`, {
-        params: { limit: 100 }
-      });
-
-      if (response.data.success) {
-        const categories = response.data.data;
-
-        let cat = categories.find(c => c._id === category);
-
-        if (!cat) {
-          cat = categories.find(c => {
-            const catSlug = c.slug || c.name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
-            return catSlug === category;
-          });
-        }
-
-        if (cat) {
-          setCategoryInfo(cat);
-        } else {
-          console.warn('Category not found in list, using params as fallback');
-          setCategoryInfo({ name: category, _id: null }); // Set _id null to avoid invalid ID errors
-        }
-      }
-    } catch (error) {
-      console.error('Error fetching category:', error);
-      setCategoryInfo({ name: category, _id: null });
-    }
-  };
+  }, [query]);
 
   const fetchPosts = async (pageNum = 1) => {
+    if (!query) return;
+    
     setLoading(true);
     window.scrollTo({ top: 0, behavior: 'smooth' });
 
     try {
-      const categoryId = categoryInfo?._id;
-
-      // Since we are fixing the backend query issue, we must have a valid ID.
-      // If we don't have an ID (slug fallback), the backend might not find it if it strictly expects ObjectId.
-      // But let's try calling with what we have.
-
-      if (!categoryId) {
-        // Fallback: If no ID found, maybe the user passed a slug that isn't in DB yet?
-        // Or fetch all and filter client side as last resort?
-        // Let's try fetching with the slug/name as category param.
-      }
-
       const params = {
         page: pageNum,
         limit: 30, // 30 posts per page
         status: 'published',
+        search: query,
         sort: '-createdAt'
       };
-
-      if (categoryId) {
-        params.category = categoryId;
-      }
 
       const response = await axios.get(`${baseURL}/api/public-posts`, { params });
 
@@ -164,17 +118,17 @@ const CategoryPage = () => {
 
         setPosts(newPosts);
         setTotalPages(response.data.totalPages || 1);
+        setTotalResults(response.data.total || response.data.count || 0);
         setPage(pageNum);
       } else {
         throw new Error(response.data.message || 'Failed to fetch posts');
       }
     } catch (error) {
       console.error('Error fetching posts:', error);
-      // Fallback mechanism moved out or simplified
       setPosts([]);
       toast({
         title: 'Error',
-        description: 'Failed to load posts.',
+        description: 'Failed to load search results.',
         variant: 'destructive'
       });
     } finally {
@@ -191,8 +145,8 @@ const CategoryPage = () => {
   return (
     <>
       <Helmet>
-        <title>{categoryInfo?.name || category} News - StoxBolt</title>
-        <meta name="description" content={`Latest ${categoryInfo?.name || category} financial news and market updates on StoxBolt.`} />
+        <title>Search Results for "{query}" - StoxBolt</title>
+        <meta name="description" content={`Search results for ${query} on StoxBolt.`} />
       </Helmet>
 
       <div className="min-h-screen py-12">
@@ -202,18 +156,19 @@ const CategoryPage = () => {
             animate={{ opacity: 1, y: 0 }}
             className="mb-8"
           >
-            <h1 className="text-4xl font-bold bg-gradient-to-r from-orange-600 to-red-600 bg-clip-text text-transparent mb-2 capitalize">
-              {categoryInfo?.name || category} News
+            <h1 className="text-3xl font-bold text-gray-900 mb-2 flex items-center">
+              <Search className="mr-3 h-8 w-8 text-orange-600" />
+              Search Results
             </h1>
             <p className="text-gray-600">
-              Stay updated with the latest {(categoryInfo?.name || category || '').toLowerCase()} market news and analysis
+              Found {totalResults} results for "{query}"
             </p>
           </motion.div>
 
           {loading ? (
             <div className="flex justify-center items-center py-12">
               <Loader2 className="h-8 w-8 animate-spin text-orange-600" />
-              <span className="ml-2 text-gray-600">Loading posts...</span>
+              <span className="ml-2 text-gray-600">Loading results...</span>
             </div>
           ) : (
             <>
@@ -224,14 +179,15 @@ const CategoryPage = () => {
                   ))}
                 </div>
               ) : (
-                <div className="text-center py-12">
-                  <p className="text-gray-600 font-medium">No posts found in this category</p>
-                  <button
-                    onClick={() => fetchPosts(1)}
-                    className="mt-4 px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors"
-                  >
-                    Try Again
-                  </button>
+                <div className="text-center py-16 bg-gray-50 rounded-xl">
+                  <Search className="mx-auto h-12 w-12 text-gray-300 mb-4" />
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">No results found</h3>
+                  <p className="text-gray-500 mb-6">
+                    We couldn't find any posts matching "{query}".
+                  </p>
+                  <p className="text-sm text-gray-400">
+                    Try different keywords or check for spelling mistakes.
+                  </p>
                 </div>
               )}
             </>
@@ -271,4 +227,4 @@ const CategoryPage = () => {
   );
 };
 
-export default CategoryPage;
+export default SearchPage;

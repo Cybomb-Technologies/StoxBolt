@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Zap, Facebook, Twitter, Linkedin, Instagram, Youtube, Mail, MapPin, Phone } from 'lucide-react';
+import { FaGooglePlay } from 'react-icons/fa';
 import axios from 'axios';
 
 const baseURL = import.meta.env.VITE_API_URL || 'https://api.stoxbolt.com';
@@ -177,6 +178,23 @@ const Footer = () => {
               </a>
               <a href="https://youtube.com" target="_blank" rel="noopener noreferrer" className="bg-gray-800 p-2 rounded-full hover:bg-[#FF0000] hover:text-white transition-all duration-300">
                 <Youtube className="h-5 w-5" />
+              </a>
+            </div>
+
+            {/* Google Play Store Link */}
+            <div className="mt-6">
+              <h4 className="text-white font-bold text-sm mb-3">Download App</h4>
+              <a 
+                href="https://play.google.com/store/apps/details?id=com.stoxbolt" 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="inline-flex items-center bg-gray-800 border border-gray-700 hover:border-orange-500 rounded-lg px-4 py-2 transition-all duration-300 group"
+              >
+                <FaGooglePlay className="text-green-500 text-2xl mr-3 group-hover:scale-110 transition-transform" />
+                <div className="text-left">
+                  <div className="text-[10px] text-gray-400 uppercase leading-none">Get it on</div>
+                  <div className="text-white font-bold text-sm leading-tight">Google Play</div>
+                </div>
               </a>
             </div>
           </div>
