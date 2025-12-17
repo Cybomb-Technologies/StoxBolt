@@ -1,17 +1,28 @@
-
-import React from 'react';
-import { Helmet } from 'react-helmet';
-import { motion } from 'framer-motion';
+import React from "react";
+import { Helmet } from "react-helmet";
+import { motion } from "framer-motion";
+import Metatags from "../SEO/metatags";
 
 const RefundPolicyPage = () => {
-  const currentDate = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+  const currentDate = new Date().toLocaleDateString("en-US", {
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+  });
+
+  const metaPropsData = {
+    title: "Refund Policy - StoxBolt Financial News Platform",
+    description:
+      "Read StoxBolt's refund and cancellation policy for premium subscriptions & services. Learn about our refund terms, conditions and detailed process information.",
+    keyword:
+      "refund policy, cancellation policy, subscription refund, money back, refund terms, billing policy",
+    image: "https://www.stoxbolt.com/images/logo.png",
+    url: "https://stoxbolt.com/refund-policy",
+  };
 
   return (
     <>
-      <Helmet>
-        <title>Refund Policy - StoxBolt</title>
-        <meta name="description" content="StoxBolt refund and cancellation policy" />
-      </Helmet>
+      <Metatags metaProps={metaPropsData} />
 
       <div className="min-h-screen py-12">
         <div className="container mx-auto px-4 max-w-4xl">
@@ -26,52 +37,80 @@ const RefundPolicyPage = () => {
 
             <div className="prose prose-lg max-w-none space-y-6 text-gray-700">
               <section>
-                <h2 className="text-2xl font-semibold text-gray-900 mb-4">1. Subscription Refunds</h2>
+                <h2 className="text-2xl font-semibold text-gray-900 mb-4">
+                  1. Subscription Refunds
+                </h2>
                 <p>
-                  At StoxBolt, we strive to provide the highest quality financial insights. If you are not satisfied with your premium subscription, you may request a refund within 14 days of your initial purchase.
+                  At StoxBolt, we strive to provide the highest quality
+                  financial insights. If you are not satisfied with your premium
+                  subscription, you may request a refund within 14 days of your
+                  initial purchase.
                 </p>
                 <p>
-                  To be eligible for a refund, you must submit a request via our support email within the specified 14-day period. Refunds are processed to the original method of payment.
+                  To be eligible for a refund, you must submit a request via our
+                  support email within the specified 14-day period. Refunds are
+                  processed to the original method of payment.
                 </p>
               </section>
 
               <section>
-                <h2 className="text-2xl font-semibold text-gray-900 mb-4">2. Non-Refundable Items</h2>
-                <p>
-                  The following items are non-refundable:
-                </p>
+                <h2 className="text-2xl font-semibold text-gray-900 mb-4">
+                  2. Non-Refundable Items
+                </h2>
+                <p>The following items are non-refundable:</p>
                 <ul className="list-disc list-inside space-y-2 ml-4">
-                  <li>Monthly subscriptions after the 14-day cooling-off period</li>
-                  <li>One-time detailed research reports or downloadable assets once accessed</li>
+                  <li>
+                    Monthly subscriptions after the 14-day cooling-off period
+                  </li>
+                  <li>
+                    One-time detailed research reports or downloadable assets
+                    once accessed
+                  </li>
                   <li>Consultation fees for services already rendered</li>
                 </ul>
               </section>
 
               <section>
-                <h2 className="text-2xl font-semibold text-gray-900 mb-4">3. Cancellation Policy</h2>
+                <h2 className="text-2xl font-semibold text-gray-900 mb-4">
+                  3. Cancellation Policy
+                </h2>
                 <p>
-                  You may cancel your recurring subscription at any time. Cancellation will be effective at the end of your current billing cycle. You will continue to have access to premium features until the end of your billing period.
+                  You may cancel your recurring subscription at any time.
+                  Cancellation will be effective at the end of your current
+                  billing cycle. You will continue to have access to premium
+                  features until the end of your billing period.
                 </p>
               </section>
 
               <section>
-                <h2 className="text-2xl font-semibold text-gray-900 mb-4">4. Processing Time</h2>
+                <h2 className="text-2xl font-semibold text-gray-900 mb-4">
+                  4. Processing Time
+                </h2>
                 <p>
-                  Once your refund request is approved, please allow 5-10 business days for the refund to appear on your credit card statement or bank account.
+                  Once your refund request is approved, please allow 5-10
+                  business days for the refund to appear on your credit card
+                  statement or bank account.
                 </p>
               </section>
 
               <section>
-                <h2 className="text-2xl font-semibold text-gray-900 mb-4">5. Changes to This Policy</h2>
+                <h2 className="text-2xl font-semibold text-gray-900 mb-4">
+                  5. Changes to This Policy
+                </h2>
                 <p>
-                  StoxBolt reserves the right to modify this Refund Policy at any time. Any changes will be effective immediately upon posting on the website.
+                  StoxBolt reserves the right to modify this Refund Policy at
+                  any time. Any changes will be effective immediately upon
+                  posting on the website.
                 </p>
               </section>
 
               <section>
-                <h2 className="text-2xl font-semibold text-gray-900 mb-4">6. Contact Us</h2>
+                <h2 className="text-2xl font-semibold text-gray-900 mb-4">
+                  6. Contact Us
+                </h2>
                 <p>
-                  If you have any questions about our Refund Policy or need to request a refund, please contact us at billing@stoxbolt.com
+                  If you have any questions about our Refund Policy or need to
+                  request a refund, please contact us at billing@stoxbolt.com
                 </p>
               </section>
 

@@ -1,15 +1,21 @@
-
-import React from 'react';
-import { Helmet } from 'react-helmet';
-import { motion } from 'framer-motion';
+import React from "react";
+import { Helmet } from "react-helmet";
+import { motion } from "framer-motion";
+import Metatags from "../SEO/metatags";
 
 const PrivacyPage = () => {
+  const metaPropsData = {
+    title: "Privacy Policy - StoxBolt Financial News Platform",
+    description:
+      "Read StoxBolt's privacy policy and data protection information. Learn how we collect, use, and protect your personal information on our financial news platform.",
+    keyword:
+      "privacy policy, data protection, personal information, GDPR compliance, privacy terms",
+    image: "https://www.stoxbolt.com/images/logo.png",
+    url: "https://stoxbolt.com/privacy",
+  };
   return (
     <>
-      <Helmet>
-        <title>Privacy Policy - StoxBolt</title>
-        <meta name="description" content="StoxBolt privacy policy and data protection information" />
-      </Helmet>
+      <Metatags metaProps={metaPropsData} />
 
       <div className="min-h-screen py-12">
         <div className="container mx-auto px-4 max-w-4xl">
@@ -24,21 +30,30 @@ const PrivacyPage = () => {
 
             <div className="prose prose-lg max-w-none space-y-6 text-gray-700">
               <section>
-                <h2 className="text-2xl font-semibold text-gray-900 mb-4">1. Information We Collect</h2>
+                <h2 className="text-2xl font-semibold text-gray-900 mb-4">
+                  1. Information We Collect
+                </h2>
                 <p>
-                  We collect information that you provide directly to us, including when you create an account, subscribe to our newsletter, or contact us for support.
+                  We collect information that you provide directly to us,
+                  including when you create an account, subscribe to our
+                  newsletter, or contact us for support.
                 </p>
                 <p>Information collected may include:</p>
                 <ul className="list-disc list-inside space-y-2 ml-4">
                   <li>Name and email address</li>
                   <li>Account credentials</li>
-                  <li>Payment information (processed securely through third-party providers)</li>
+                  <li>
+                    Payment information (processed securely through third-party
+                    providers)
+                  </li>
                   <li>Communications with us</li>
                 </ul>
               </section>
 
               <section>
-                <h2 className="text-2xl font-semibold text-gray-900 mb-4">2. How We Use Your Information</h2>
+                <h2 className="text-2xl font-semibold text-gray-900 mb-4">
+                  2. How We Use Your Information
+                </h2>
                 <p>We use the information we collect to:</p>
                 <ul className="list-disc list-inside space-y-2 ml-4">
                   <li>Provide, maintain, and improve our services</li>
@@ -50,9 +65,13 @@ const PrivacyPage = () => {
               </section>
 
               <section>
-                <h2 className="text-2xl font-semibold text-gray-900 mb-4">3. Information Sharing</h2>
+                <h2 className="text-2xl font-semibold text-gray-900 mb-4">
+                  3. Information Sharing
+                </h2>
                 <p>
-                  We do not sell, trade, or rent your personal information to third parties. We may share your information only in the following circumstances:
+                  We do not sell, trade, or rent your personal information to
+                  third parties. We may share your information only in the
+                  following circumstances:
                 </p>
                 <ul className="list-disc list-inside space-y-2 ml-4">
                   <li>With your consent</li>
@@ -63,21 +82,32 @@ const PrivacyPage = () => {
               </section>
 
               <section>
-                <h2 className="text-2xl font-semibold text-gray-900 mb-4">4. Cookies and Tracking</h2>
+                <h2 className="text-2xl font-semibold text-gray-900 mb-4">
+                  4. Cookies and Tracking
+                </h2>
                 <p>
-                  We use cookies and similar tracking technologies to track activity on our service and hold certain information. You can instruct your browser to refuse all cookies or to indicate when a cookie is being sent.
+                  We use cookies and similar tracking technologies to track
+                  activity on our service and hold certain information. You can
+                  instruct your browser to refuse all cookies or to indicate
+                  when a cookie is being sent.
                 </p>
               </section>
 
               <section>
-                <h2 className="text-2xl font-semibold text-gray-900 mb-4">5. Data Security</h2>
+                <h2 className="text-2xl font-semibold text-gray-900 mb-4">
+                  5. Data Security
+                </h2>
                 <p>
-                  We implement appropriate technical and organizational measures to protect your personal information. However, no method of transmission over the Internet is 100% secure.
+                  We implement appropriate technical and organizational measures
+                  to protect your personal information. However, no method of
+                  transmission over the Internet is 100% secure.
                 </p>
               </section>
 
               <section>
-                <h2 className="text-2xl font-semibold text-gray-900 mb-4">6. Your Rights</h2>
+                <h2 className="text-2xl font-semibold text-gray-900 mb-4">
+                  6. Your Rights
+                </h2>
                 <p>You have the right to:</p>
                 <ul className="list-disc list-inside space-y-2 ml-4">
                   <li>Access your personal information</li>
@@ -89,28 +119,44 @@ const PrivacyPage = () => {
               </section>
 
               <section>
-                <h2 className="text-2xl font-semibold text-gray-900 mb-4">7. Children's Privacy</h2>
+                <h2 className="text-2xl font-semibold text-gray-900 mb-4">
+                  7. Children's Privacy
+                </h2>
                 <p>
-                  Our service is not intended for children under 13 years of age. We do not knowingly collect personal information from children under 13.
+                  Our service is not intended for children under 13 years of
+                  age. We do not knowingly collect personal information from
+                  children under 13.
                 </p>
               </section>
 
               <section>
-                <h2 className="text-2xl font-semibold text-gray-900 mb-4">8. Changes to Privacy Policy</h2>
+                <h2 className="text-2xl font-semibold text-gray-900 mb-4">
+                  8. Changes to Privacy Policy
+                </h2>
                 <p>
-                  We may update our Privacy Policy from time to time. We will notify you of any changes by posting the new Privacy Policy on this page.
+                  We may update our Privacy Policy from time to time. We will
+                  notify you of any changes by posting the new Privacy Policy on
+                  this page.
                 </p>
               </section>
 
               <section>
-                <h2 className="text-2xl font-semibold text-gray-900 mb-4">9. Contact Us</h2>
+                <h2 className="text-2xl font-semibold text-gray-900 mb-4">
+                  9. Contact Us
+                </h2>
                 <p>
-                  If you have any questions about this Privacy Policy, please contact us at privacy@stoxbolt.com
+                  If you have any questions about this Privacy Policy, please
+                  contact us at privacy@stoxbolt.com
                 </p>
               </section>
 
               <div className="mt-8 pt-6 border-t text-sm text-gray-500">
-                Last updated: {new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
+                Last updated:{" "}
+                {new Date().toLocaleDateString("en-US", {
+                  year: "numeric",
+                  month: "long",
+                  day: "numeric",
+                })}
               </div>
             </div>
           </motion.div>
