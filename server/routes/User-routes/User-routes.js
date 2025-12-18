@@ -9,7 +9,9 @@ const {
   checkUserExists,
   sendPasswordResetOTP,
   verifyResetOTP,
-  resetPassword
+
+  resetPassword,
+  deleteUser
 } = require('../../controllers/User-Controller/userControllers');
 
 const {
@@ -86,7 +88,7 @@ router.get('/saved-posts', authenticateToken, async (req, res) => {
         ]
       })
       .select('savedPosts');
-    
+
     // Transform data for compatibility
     const savedPosts = user.savedPosts.map(post => ({
       _id: post._id,
@@ -100,7 +102,7 @@ router.get('/saved-posts', authenticateToken, async (req, res) => {
       createdAt: post.createdAt,
       author: post.author?.name || post.author?.username || 'Admin'
     }));
-    
+
     res.json({ success: true, data: savedPosts || [] });
   } catch (error) {
     console.error('Saved posts error:', error);
@@ -134,49 +136,52 @@ router.delete('/saved-posts', authenticateToken, async (req, res) => {
   }
 });
 
+// Delete account route
+router.delete('/delete-account', authenticateToken, deleteUser);
+
 // Change password route
 router.post('/change-password', authenticateToken, async (req, res) => {
   try {
     const { currentPassword, newPassword } = req.body;
-    
+
     if (!currentPassword || !newPassword) {
-      return res.status(400).json({ 
-        success: false, 
-        message: 'Current password and new password are required' 
+      return res.status(400).json({
+        success: false,
+        message: 'Current password and new password are required'
       });
     }
 
     if (newPassword.length < 6) {
-      return res.status(400).json({ 
-        success: false, 
-        message: 'New password must be at least 6 characters long' 
+      return res.status(400).json({
+        success: false,
+        message: 'New password must be at least 6 characters long'
       });
     }
 
     // Find user by ID from token
     const user = await User.findById(req.user.userId);
     if (!user) {
-      return res.status(404).json({ 
-        success: false, 
-        message: 'User not found' 
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
       });
     }
 
     // Check if current password matches
     const isMatch = await user.comparePassword(currentPassword);
     if (!isMatch) {
-      return res.status(401).json({ 
-        success: false, 
-        message: 'Current password is incorrect' 
+      return res.status(401).json({
+        success: false,
+        message: 'Current password is incorrect'
       });
     }
 
     // Check if new password is same as current
     const isSamePassword = await user.comparePassword(newPassword);
     if (isSamePassword) {
-      return res.status(400).json({ 
-        success: false, 
-        message: 'New password must be different from current password' 
+      return res.status(400).json({
+        success: false,
+        message: 'New password must be different from current password'
       });
     }
 
@@ -184,17 +189,17 @@ router.post('/change-password', authenticateToken, async (req, res) => {
     user.password = newPassword;
     await user.save();
 
-    res.json({ 
-      success: true, 
-      message: 'Password changed successfully' 
+    res.json({
+      success: true,
+      message: 'Password changed successfully'
     });
 
   } catch (error) {
     console.error('Change password error:', error);
-    res.status(500).json({ 
-      success: false, 
-      message: 'Server error', 
-      error: error.message 
+    res.status(500).json({
+      success: false,
+      message: 'Server error',
+      error: error.message
     });
   }
 });

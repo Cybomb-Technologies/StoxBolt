@@ -20,6 +20,18 @@ import {
 import { useAuth } from '@/contexts/AuthContext';
 import axios from 'axios';
 import { useToast } from '@/components/ui/use-toast';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import { Checkbox } from "@/components/ui/checkbox";
 import { motion, AnimatePresence } from 'framer-motion';
 
 // Use React.lazy for code splitting with proper error handling
@@ -51,6 +63,7 @@ const Profile = () => {
   const [savedPosts, setSavedPosts] = useState([]);
   const [savedPostsLoading, setSavedPostsLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [isDeleteConfirmed, setIsDeleteConfirmed] = useState(false);
 
   useEffect(() => {
     fetchUserData();
@@ -326,8 +339,8 @@ const Profile = () => {
                       key={tab}
                       onClick={() => setActiveTab(tab)}
                       className={`w-full flex items-center px-3 sm:px-4 py-2.5 sm:py-3 rounded-lg transition-all duration-300 text-sm sm:text-base md:text-lg ${activeTab === tab
-                          ? 'bg-gradient-to-r from-yellow-400 via-orange-500 to-red-600 text-white shadow-lg'
-                          : 'text-gray-700 hover:bg-gradient-to-r hover:from-yellow-50 hover:via-orange-50 hover:to-red-50 hover:text-gray-900'
+                        ? 'bg-gradient-to-r from-yellow-400 via-orange-500 to-red-600 text-white shadow-lg'
+                        : 'text-gray-700 hover:bg-gradient-to-r hover:from-yellow-50 hover:via-orange-50 hover:to-red-50 hover:text-gray-900'
                         }`}
                       whileHover={{ scale: 1.02, x: 5 }}
                       whileTap={{ scale: 0.98 }}
@@ -510,6 +523,90 @@ const Profile = () => {
                               });
                             }}
                           />
+
+                          {/* Delete Account Section */}
+                          <div className="mt-8 pt-8 border-t border-gray-200">
+                            {/* <h3 className="text-xl font-bold text-red-600 mb-4">Danger Zone</h3> */}
+                            <div className="bg-red-50 border border-red-200 rounded-lg p-6">
+                              <h4 className="text-lg font-semibold text-gray-900 mb-2">Delete Account</h4>
+                              <p className="text-gray-600 mb-4">
+                                Once you delete your account, there is no going back. Please be certain.
+                              </p>
+
+                              <AlertDialog>
+                                <AlertDialogTrigger asChild>
+                                  <button className="bg-red-600 hover:bg-red-700 text-white font-medium py-2 px-4 rounded-lg transition-colors flex items-center">
+                                    <AlertCircle className="mr-2 h-4 w-4" />
+                                    Delete Account
+                                  </button>
+                                </AlertDialogTrigger>
+                                <AlertDialogContent className="bg-white">
+                                  <AlertDialogHeader>
+                                    <AlertDialogTitle className="text-red-600">Delete Account</AlertDialogTitle>
+                                    <AlertDialogDescription>
+                                      This action cannot be undone. This will permanently delete your
+                                      account and remove your data from our servers.
+                                    </AlertDialogDescription>
+                                  </AlertDialogHeader>
+
+                                  <div className="flex items-center space-x-2 py-4">
+                                    <Checkbox id="confirm-delete"
+                                      checked={isDeleteConfirmed}
+                                      onCheckedChange={(checked) => setIsDeleteConfirmed(checked)}
+                                    />
+                                    <label
+                                      htmlFor="confirm-delete"
+                                      className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                                    >
+                                      I understand that this action is irreversible
+                                    </label>
+                                  </div>
+
+                                  <AlertDialogFooter>
+                                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                    <AlertDialogAction
+                                      className={`${isDeleteConfirmed ? "bg-red-600 hover:bg-red-700 text-white" : "bg-red-600/50 text-white/50 cursor-not-allowed"}`}
+                                      disabled={!isDeleteConfirmed}
+                                      onClick={async (e) => {
+                                        if (!isDeleteConfirmed) {
+                                          e.preventDefault();
+                                          return;
+                                        }
+
+                                        try {
+                                          const token = localStorage.getItem('token');
+                                          await axios.delete(`${baseURL}/api/user-auth/delete-account`, {
+                                            headers: { Authorization: `Bearer ${token}` }
+                                          });
+
+                                          toast({
+                                            title: 'Account Deleted',
+                                            description: 'Your account has been permanently deleted.',
+                                            variant: 'default'
+                                          });
+
+                                          localStorage.removeItem('token');
+                                          localStorage.removeItem('user');
+                                          window.location.href = '/';
+
+                                        } catch (error) {
+                                          console.error('Delete account error', error);
+                                          e.preventDefault();
+                                          toast({
+                                            title: 'Error',
+                                            description: 'Failed to delete account. Please try again.',
+                                            variant: 'destructive'
+                                          });
+                                        }
+                                      }}
+                                    >
+                                      Delete Account
+                                    </AlertDialogAction>
+                                  </AlertDialogFooter>
+                                </AlertDialogContent>
+                              </AlertDialog>
+                            </div>
+                          </div>
                         </motion.div>
                       )}
                     </AnimatePresence>
@@ -523,5 +620,6 @@ const Profile = () => {
     </>
   );
 };
+
 
 export default Profile;
