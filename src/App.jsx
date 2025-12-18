@@ -21,6 +21,7 @@ const Footer = React.lazy(() => import("@/components/Footer"));
 const HomePage = React.lazy(() => import("@/pages/HomePage"));
 const PostDetailPage = React.lazy(() => import("@/pages/PostDetailPage"));
 const CategoryPage = React.lazy(() => import("@/pages/CategoryPage"));
+const SearchPage = React.lazy(() => import("@/pages/SearchPage"));
 const AdminDashboard = React.lazy(() => import("@/pages/admin/AdminDashboard"));
 const LoginPage = React.lazy(() => import("@/pages/admin/LoginPage"));
 const DisclaimerPage = React.lazy(() => import("@/pages/DisclaimerPage"));
@@ -44,6 +45,7 @@ const BulkUpload = React.lazy(() =>
 const PostScheduler = React.lazy(() =>
   import("@/components/admin/PostScheduler")
 );
+const UserList = React.lazy(() => import("@/components/admin/UserList"));
 const ActivityLog = React.lazy(() =>
   import("@/components/superadmin/ActivityLog")
 );
@@ -184,6 +186,15 @@ function App() {
               element={
                 <MainLayout>
                   <CategoryPage />
+                </MainLayout>
+              }
+            />
+
+            <Route
+              path="/search"
+              element={
+                <MainLayout>
+                  <SearchPage />
                 </MainLayout>
               }
             />
@@ -441,6 +452,17 @@ function App() {
                   <React.Suspense fallback={<LoadingFallback />}>
                     <SuperadminOnlyRoute>
                       <CreateAdmin />
+                    </SuperadminOnlyRoute>
+                  </React.Suspense>
+                }
+              />
+
+              <Route
+                path="users/regular"
+                element={
+                  <React.Suspense fallback={<LoadingFallback />}>
+                    <SuperadminOnlyRoute>
+                      <UserList />
                     </SuperadminOnlyRoute>
                   </React.Suspense>
                 }

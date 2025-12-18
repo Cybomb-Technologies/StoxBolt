@@ -62,7 +62,7 @@ const HeroSlider = () => {
 
   if (loading) {
     return (
-      <div className="relative h-[500px] bg-gradient-to-r from-blue-50 to-orange-50 animate-pulse">
+      <div className="relative h-[400px] md:h-[500px] lg:h-[650px] bg-gradient-to-r from-blue-50 to-orange-50 animate-pulse">
         <div className="container mx-auto h-full flex items-center justify-center">
           <div className="text-center">
             <div className="h-8 w-48 bg-gray-300 rounded mb-4 mx-auto"></div>
@@ -78,7 +78,7 @@ const HeroSlider = () => {
   }
 
   return (
-    <div className="relative h-[650px] bg-gray-900 overflow-hidden">
+    <div className="relative h-[400px] md:h-[500px] lg:h-[650px] bg-gray-900 overflow-hidden">
       <AnimatePresence mode="wait">
         <motion.div
           key={currentSlide}
@@ -102,24 +102,24 @@ const HeroSlider = () => {
             ) : null}
           </div>
 
-          <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent" />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/50 to-transparent" />
 
-          <div className="absolute bottom-0 left-0 right-0 p-8 md:p-12">
+          <div className="absolute bottom-0 left-0 right-0 p-6 md:p-10 lg:p-14">
             <div className="container mx-auto">
-              <span className="inline-block px-4 py-1 bg-orange-600 text-white text-sm font-semibold rounded-full mb-4">
+              <span className="inline-block px-3 py-1 bg-orange-600 text-white text-xs md:text-sm font-semibold rounded-full mb-3 md:mb-4">
                 {slides[currentSlide].category}
               </span>
-              <h2 className="text-3xl md:text-5xl font-bold text-white mb-4 max-w-3xl">
+              <h2 className="text-2xl md:text-4xl lg:text-5xl font-bold text-white mb-3 md:mb-4 max-w-3xl leading-tight">
                 {slides[currentSlide].title}
               </h2>
 
-              <div className="flex items-center space-x-4 text-white text-sm mb-4">
+              <div className="flex items-center space-x-4 text-white text-xs md:text-sm mb-4">
                 <div className="flex items-center space-x-1">
-                  <User className="h-4 w-4" />
+                  <User className="h-3 w-3 md:h-4 md:w-4" />
                   <span>{slides[currentSlide].author}</span>
                 </div>
                 <div className="flex items-center space-x-1">
-                  <Clock className="h-4 w-4" />
+                  <Clock className="h-3 w-3 md:h-4 md:w-4" />
                   <span>
                     {new Date(slides[currentSlide].publishedAt).toLocaleDateString('en-US', {
                       month: 'short',
@@ -130,12 +130,12 @@ const HeroSlider = () => {
                 </div>
               </div>
 
-              <p className="text-white/90 mb-6 max-w-2xl line-clamp-2">
+              <p className="text-white/90 mb-6 max-w-2xl line-clamp-2 md:line-clamp-3 text-sm md:text-base hidden sm:block">
                 {slides[currentSlide].body?.substring(0, 150)}...
               </p>
 
               <Link to={`/post/${slides[currentSlide].id}`}>
-                <Button className="bg-white text-gray-900 hover:bg-gray-100">
+                <Button className="bg-white text-gray-900 hover:bg-gray-100 text-sm md:text-base px-4 py-2 md:px-6 md:py-3 h-auto">
                   Read More
                 </Button>
               </Link>
@@ -146,16 +146,16 @@ const HeroSlider = () => {
 
       <button
         onClick={prevSlide}
-        className="absolute left-4 top-1/2 transform -translate-y-1/2 bg-white/20 hover:bg-white/30 backdrop-blur-sm text-white p-3 rounded-full transition-all"
+        className="absolute left-2 md:left-4 top-1/2 transform -translate-y-1/2 bg-white/20 hover:bg-white/30 backdrop-blur-sm text-white p-2 md:p-3 rounded-full transition-all"
       >
-        <ChevronLeft className="h-6 w-6" />
+        <ChevronLeft className="h-5 w-5 md:h-6 md:w-6" />
       </button>
 
       <button
         onClick={nextSlide}
-        className="absolute right-4 top-1/2 transform -translate-y-1/2 bg-white/20 hover:bg-white/30 backdrop-blur-sm text-white p-3 rounded-full transition-all"
+        className="absolute right-2 md:right-4 top-1/2 transform -translate-y-1/2 bg-white/20 hover:bg-white/30 backdrop-blur-sm text-white p-2 md:p-3 rounded-full transition-all"
       >
-        <ChevronRight className="h-6 w-6" />
+        <ChevronRight className="h-5 w-5 md:h-6 md:w-6" />
       </button>
 
       <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 flex space-x-2">
@@ -163,7 +163,7 @@ const HeroSlider = () => {
           <button
             key={index}
             onClick={() => setCurrentSlide(index)}
-            className={`w-2 h-2 rounded-full transition-all ${index === currentSlide ? 'bg-white w-8' : 'bg-white/50'
+            className={`w-1.5 h-1.5 md:w-2 md:h-2 rounded-full transition-all ${index === currentSlide ? 'bg-white w-6 md:w-8' : 'bg-white/50'
               }`}
           />
         ))}

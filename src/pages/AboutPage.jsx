@@ -1,17 +1,23 @@
-
-import React from 'react';
-import { Helmet } from 'react-helmet';
-import { motion } from 'framer-motion';
-import { Zap, Target, Users, TrendingUp } from 'lucide-react';
+import React from "react";
+import { Helmet } from "react-helmet";
+import { motion } from "framer-motion";
+import { Zap, Target, Users, TrendingUp } from "lucide-react";
+import Metatags from "../SEO/metatags";
 
 const AboutPage = () => {
+  const metaPropsData = {
+    title: "About StoxBolt - Real-Time Financial News for Market Analysis",
+    description:
+      "Learn about StoxBolt's mission to deliver accurate, timely financial news and market insights. Empowering investors with real-time data across global markets.",
+    keyword:
+      "about StoxBolt, financial news platform, market analysis, investment insights, stock market updates, trading news",
+    image: "https://www.stoxbolt.com/images/logo.png",
+    url: "https://stoxbolt.com/about",
+  };
+
   return (
     <>
-      <Helmet>
-        <title>About Us - StoxBolt</title>
-        <meta name="description" content="Learn more about StoxBolt, our mission, and our team" />
-      </Helmet>
-
+      <Metatags metaProps={metaPropsData} />
       <div className="min-h-screen py-12">
         <div className="container mx-auto px-4 max-w-5xl">
           <motion.div
@@ -27,7 +33,8 @@ const AboutPage = () => {
                 About StoxBolt
               </h1>
               <p className="text-orange-100 text-lg max-w-2xl mx-auto">
-                Empowering investors with lightning-fast financial news and actionable market insights.
+                Empowering investors with lightning-fast financial news and
+                actionable market insights.
               </p>
             </div>
 
@@ -37,40 +44,68 @@ const AboutPage = () => {
                   <div className="w-12 h-12 bg-orange-100 rounded-full flex items-center justify-center mx-auto mb-4">
                     <Zap className="text-orange-600 h-6 w-6" />
                   </div>
-                  <h3 className="text-xl font-bold text-gray-900 mb-2">Speed</h3>
-                  <p className="text-gray-600">Real-time updates and breaking news delivered instantly to keep you ahead of the market.</p>
+                  <h3 className="text-xl font-bold text-gray-900 mb-2">
+                    Speed
+                  </h3>
+                  <p className="text-gray-600">
+                    Real-time updates and breaking news delivered instantly to
+                    keep you ahead of the market.
+                  </p>
                 </div>
                 <div className="text-center p-6 bg-orange-50 rounded-xl">
                   <div className="w-12 h-12 bg-orange-100 rounded-full flex items-center justify-center mx-auto mb-4">
                     <Target className="text-orange-600 h-6 w-6" />
                   </div>
-                  <h3 className="text-xl font-bold text-gray-900 mb-2">Accuracy</h3>
-                  <p className="text-gray-600">Verified information and precise data analysis you can trust for your investment decisions.</p>
+                  <h3 className="text-xl font-bold text-gray-900 mb-2">
+                    Accuracy
+                  </h3>
+                  <p className="text-gray-600">
+                    Verified information and precise data analysis you can trust
+                    for your investment decisions.
+                  </p>
                 </div>
                 <div className="text-center p-6 bg-orange-50 rounded-xl">
                   <div className="w-12 h-12 bg-orange-100 rounded-full flex items-center justify-center mx-auto mb-4">
                     <TrendingUp className="text-orange-600 h-6 w-6" />
                   </div>
-                  <h3 className="text-xl font-bold text-gray-900 mb-2">Insight</h3>
-                  <p className="text-gray-600">Expert commentary and deep-dive analysis to help you understand market trends.</p>
+                  <h3 className="text-xl font-bold text-gray-900 mb-2">
+                    Insight
+                  </h3>
+                  <p className="text-gray-600">
+                    Expert commentary and deep-dive analysis to help you
+                    understand market trends.
+                  </p>
                 </div>
               </div>
 
               <div className="prose prose-lg max-w-none text-gray-700">
-                <h2 className="text-2xl font-bold text-gray-900 mb-4">Our Story</h2>
+                <h2 className="text-2xl font-bold text-gray-900 mb-4">
+                  Our Story
+                </h2>
                 <p className="mb-6">
-                  Founded in 2024, StoxBolt emerged from a simple observation: while financial information is abundant, finding accurate, timely, and actionable insights without the noise is increasingly difficult. Our team of financial analysts and tech enthusiasts came together to build a platform that cuts through the clutter.
+                  Founded in 2024, StoxBolt emerged from a simple observation:
+                  while financial information is abundant, finding accurate,
+                  timely, and actionable insights without the noise is
+                  increasingly difficult. Our team of financial analysts and
+                  tech enthusiasts came together to build a platform that cuts
+                  through the clutter.
                 </p>
 
-                <h2 className="text-2xl font-bold text-gray-900 mb-4">Our Mission</h2>
+                <h2 className="text-2xl font-bold text-gray-900 mb-4">
+                  Our Mission
+                </h2>
                 <p className="mb-6">
-                  Our mission is to democratize financial intelligence. We believe that whether you're a seasoned trader or a first-time investor, you deserve access to high-quality market data and news. StoxBolt is dedicated to providing the tools and information necessary for financial growth and literacy.
+                  Our mission is to democratize financial intelligence. We
+                  believe that whether you're a seasoned trader or a first-time
+                  investor, you deserve access to high-quality market data and
+                  news. StoxBolt is dedicated to providing the tools and
+                  information necessary for financial growth and literacy.
                 </p>
 
-                <h2 className="text-2xl font-bold text-gray-900 mb-4">What We Cover</h2>
-                <p>
-                  StoxBolt offers comprehensive coverage across:
-                </p>
+                <h2 className="text-2xl font-bold text-gray-900 mb-4">
+                  What We Cover
+                </h2>
+                <p>StoxBolt offers comprehensive coverage across:</p>
                 <ul className="grid grid-cols-1 md:grid-cols-2 gap-4 list-none pl-0 mt-4">
                   <li className="flex items-center space-x-2">
                     <div className="w-2 h-2 bg-orange-500 rounded-full"></div>

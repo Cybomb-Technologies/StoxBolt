@@ -444,6 +444,11 @@ const AdminDashboard = () => {
           path: '/admin/users/create',
           icon: <User className="h-4 w-4" />,
         },
+        {
+          title: 'All Users',
+          path: '/admin/users/regular',
+          icon: <Users className="h-4 w-4" />,
+        },
       ],
     };
 

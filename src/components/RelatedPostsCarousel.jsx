@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   ChevronLeft,
@@ -30,8 +30,9 @@ const RelatedPostsCarousel = ({ category, currentPostId }) => {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [isDragging, setIsDragging] = useState(false);
-  const [dragStartX, setDragStartX] = useState(0);
+  const dragStartRef = useRef(0);
+  const isDraggingRef = useRef(false);
+  const wasDragRef = useRef(false);
   const [visibleCards, setVisibleCards] = useState(3);
   const { toast } = useToast();
   const navigate = useNavigate();
@@ -170,18 +171,25 @@ const RelatedPostsCarousel = ({ category, currentPostId }) => {
   };
 
   // Drag handlers for touch/mouse
+  // Drag handlers for touch/mouse
   const handleDragStart = (e) => {
-    setIsDragging(true);
-    setDragStartX(e.clientX || e.touches[0].clientX);
+    isDraggingRef.current = true;
+    wasDragRef.current = false;
+    dragStartRef.current = e.clientX || e.touches[0].clientX;
   };
 
   const handleDragEnd = (e) => {
-    if (!isDragging) return;
+    if (!isDraggingRef.current) return;
 
-    setIsDragging(false);
+    isDraggingRef.current = false;
     const dragEndX = e.clientX || e.changedTouches[0].clientX;
-    const dragDistance = dragStartX - dragEndX;
+    const dragDistance = dragStartRef.current - dragEndX;
     const threshold = 50;
+
+    // Check if it was a drag or a click
+    if (Math.abs(dragDistance) > 10) {
+      wasDragRef.current = true;
+    }
 
     if (dragDistance > threshold) {
       nextSlide();
@@ -191,7 +199,7 @@ const RelatedPostsCarousel = ({ category, currentPostId }) => {
   };
 
   const handlePostClick = (postId) => {
-    if (isDragging) return; // Prevent click during drag
+    if (wasDragRef.current) return; // Prevent click if it was a drag
     navigate(`/post/${postId}`);
   };
 
@@ -347,7 +355,7 @@ const RelatedPostsCarousel = ({ category, currentPostId }) => {
           className="overflow-hidden select-none"
           onMouseDown={handleDragStart}
           onMouseUp={handleDragEnd}
-          onMouseLeave={() => setIsDragging(false)}
+          onMouseLeave={() => { isDraggingRef.current = false; }}
           onTouchStart={handleDragStart}
           onTouchEnd={handleDragEnd}
         >

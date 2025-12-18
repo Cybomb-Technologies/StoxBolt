@@ -10,7 +10,8 @@ const {
   deactivateAdmin,
   reactivateAdmin,
   getAdminStats,
-  toggleCRUDAccess
+  toggleCRUDAccess,
+  getUsers
 } = require('../controllers/adminController');
 
 // All routes are protected
@@ -38,5 +39,10 @@ router.route('/admins/:id/deactivate')
 
 router.route('/admins/:id/reactivate')
   .put(authorize('superadmin'), reactivateAdmin);
+
+// Regular User management routes (Superadmin only)
+router.route('/regular')
+  .get(authorize('superadmin'), getUsers);
+
 
 module.exports = router;

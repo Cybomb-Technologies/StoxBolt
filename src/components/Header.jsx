@@ -30,6 +30,68 @@ const Header = () => {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState([]);
+  const [showDropdown, setShowDropdown] = useState(false);
+  const [isSearching, setIsSearching] = useState(false);
+  const searchRef = useRef(null);
+
+  // Close search dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (searchRef.current && !searchRef.current.contains(event.target)) {
+        setShowDropdown(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
+
+  // Debounce search
+  useEffect(() => {
+    const delayDebounceFn = setTimeout(async () => {
+      if (searchQuery.trim().length >= 2) {
+        setIsSearching(true);
+        setShowDropdown(true);
+        try {
+          const response = await axios.get(`${baseURL}/api/public-posts`, {
+            params: { 
+              search: searchQuery, 
+              limit: 5,
+              status: 'published'
+            }
+          });
+          
+          if (response.data.success) {
+            setSearchResults(response.data.data);
+          }
+        } catch (error) {
+          console.error('Search error:', error);
+          setSearchResults([]);
+        } finally {
+          setIsSearching(false);
+        }
+      } else {
+        setSearchResults([]);
+        setShowDropdown(false);
+      }
+    }, 300);
+
+    return () => clearTimeout(delayDebounceFn);
+  }, [searchQuery]);
+
+  const handleSearch = (e) => {
+    e.preventDefault();
+    if (searchQuery.trim()) {
+      navigate(`/search?q=${encodeURIComponent(searchQuery.trim())}`);
+      setIsMenuOpen(false);
+      setShowDropdown(false);
+      // Don't clear query immediately so user sees what they searched
+    }
+  };
 
   const { user, logout } = useAuth();
   const navigate = useNavigate();
@@ -276,7 +338,7 @@ const Header = () => {
           </Link>
 
           {/* DESKTOP MENU */}
-          <nav className="hidden lg:flex items-center space-x-1">
+          <nav className="hidden xl:flex items-center space-x-1">
             {loading ? (
               // Loading skeleton
               Array.from({ length: 6 }).map((_, index) => (
@@ -339,8 +401,104 @@ const Header = () => {
             )}
           </nav>
 
+          {/* SEARCH BAR - Desktop */}
+          <div className="hidden xl:flex items-center flex-1 max-w-md px-6 relative" ref={searchRef}>
+            <form onSubmit={handleSearch} className="relative w-full">
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <Search className="h-4 w-4 text-gray-400" />
+              </div>
+              <input
+                type="text"
+                className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg leading-5 bg-gray-50 placeholder-gray-500 focus:outline-none focus:bg-white focus:ring-1 focus:ring-orange-500 focus:border-orange-500 sm:text-sm transition-colors"
+                placeholder="Search news, topics..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                onFocus={() => {
+                  if (searchQuery.trim().length >= 2) setShowDropdown(true);
+                }}
+              />
+            </form>
+
+            {/* LIVE SEARCH DROPDOWN */}
+            <AnimatePresence>
+              {showDropdown && searchQuery.trim().length >= 2 && (
+                <motion.div
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: 10 }}
+                  className="absolute top-full left-0 right-0 mt-2 mx-6 bg-white rounded-lg shadow-xl border border-gray-200 overflow-hidden z-50 max-h-96 overflow-y-auto"
+                >
+                  {isSearching ? (
+                    <div className="p-4 text-center text-gray-500 flex items-center justify-center">
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-orange-600 mr-2"></div>
+                      Searching...
+                    </div>
+                  ) : searchResults.length > 0 ? (
+                    <div className="py-2">
+                      <div className="px-4 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wider bg-gray-50 border-b mb-1">
+                        Top Results
+                      </div>
+                      {searchResults.map((post) => (
+                        <Link
+                          key={post._id}
+                          to={`/post/${post._id}`}
+                          className="flex items-start px-4 py-3 hover:bg-orange-50 transition-colors border-b last:border-0"
+                          onClick={() => {
+                            setShowDropdown(false);
+                            setSearchQuery('');
+                          }}
+                        >
+                          {/* Image Thumbnail */}
+                          <div className="flex-shrink-0 mr-3">
+                            <div className="h-10 w-10 rounded bg-gray-200 overflow-hidden">
+                              {(post.imageUrl || post.image) ? (
+                                <img 
+                                  src={post.imageUrl || post.image} 
+                                  alt="" 
+                                  className="h-full w-full object-cover"
+                                  onError={(e) => e.target.style.display = 'none'}
+                                />
+                              ) : (
+                                <div className="h-full w-full flex items-center justify-center bg-gray-100 text-gray-400">
+                                  <Search className="h-4 w-4" />
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                          {/* Content */}
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium text-gray-900 truncate">
+                              {post.title}
+                            </p>
+                            <div className="flex items-center mt-1">
+                              <span className="text-xs text-orange-600 font-medium bg-orange-50 px-1.5 py-0.5 rounded">
+                                {typeof post.category === 'object' ? post.category?.name : post.category}
+                              </span>
+                            </div>
+                          </div>
+                        </Link>
+                      ))}
+                      <div className="px-2 pt-2 pb-1">
+                        <button
+                          onClick={handleSearch}
+                          className="w-full py-2 text-sm text-center text-orange-600 hover:text-orange-700 font-medium hover:bg-orange-50 rounded transition-colors"
+                        >
+                          View all results for "{searchQuery}"
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="p-4 text-center text-gray-500">
+                      No results found for "{searchQuery}"
+                    </div>
+                  )}
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+
           {/* RIGHT SECTION - Desktop only */}
-          <div className="hidden lg:flex items-center space-x-3">
+          <div className="hidden xl:flex items-center space-x-3">
             {/* ✅ USER LOGIN/LOGOUT - Desktop only */}
             {headerUser ? (
               <div className="flex items-center gap-3">
@@ -378,7 +536,7 @@ const Header = () => {
           {/* MOBILE MENU TOGGLE - Visible only on mobile */}
           <button
             onClick={() => setIsMenuOpen(!isMenuOpen)}
-            className="lg:hidden inline-flex items-center justify-center p-2 rounded-md text-gray-700 hover:bg-orange-50 hover:text-orange-600 transition-colors"
+            className="xl:hidden inline-flex items-center justify-center p-2 rounded-md text-gray-700 hover:bg-orange-50 hover:text-orange-600 transition-colors"
             aria-label="Toggle menu"
           >
             {isMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
@@ -394,7 +552,7 @@ const Header = () => {
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
-                className="fixed inset-0 bg-black bg-opacity-50 z-40 lg:hidden"
+                className="fixed inset-0 bg-black bg-opacity-50 z-40 xl:hidden"
                 onClick={handleCloseMenu}
               />
 
@@ -405,7 +563,7 @@ const Header = () => {
                 animate={{ x: 0 }}
                 exit={{ x: '100%' }}
                 transition={{ type: 'tween', duration: 0.3 }}
-                className="fixed top-0 right-0 h-full w-3/4 sm:w-1/2 max-w-md bg-white shadow-xl z-50 lg:hidden"
+                className="fixed top-0 right-0 h-full w-3/4 sm:w-1/2 max-w-md bg-white shadow-xl z-50 xl:hidden"
               >
                 <div className="flex flex-col h-full">
                   {/* Mobile menu header */}
@@ -422,6 +580,20 @@ const Header = () => {
 
                   {/* Scrollable categories list */}
                   <div className="flex-1 overflow-y-auto py-2">
+                    <div className="px-4 pb-4">
+                      <form onSubmit={handleSearch} className="relative">
+                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                          <Search className="h-4 w-4 text-gray-400" />
+                        </div>
+                        <input
+                          type="text"
+                          className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg leading-5 bg-gray-50 placeholder-gray-500 focus:outline-none focus:bg-white focus:ring-1 focus:ring-orange-500 focus:border-orange-500 sm:text-sm"
+                          placeholder="Search..."
+                          value={searchQuery}
+                          onChange={(e) => setSearchQuery(e.target.value)}
+                        />
+                      </form>
+                    </div>
                     {loading ? (
                       // Loading skeleton for mobile
                       <div className="space-y-2 px-4">
