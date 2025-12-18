@@ -6,6 +6,7 @@ const checkUserExists = require('./checkUserExists');
 const sendPasswordResetOTP = require('./sendPasswordResetOTP');
 const verifyResetOTP = require('./verifyResetOTP');
 const resetPassword = require('./resetPassword');
+const deleteUser = require('./deleteUser');
 
 module.exports = {
   registerUser,
@@ -15,5 +16,6 @@ module.exports = {
   checkUserExists,
   sendPasswordResetOTP,
   verifyResetOTP,
-  resetPassword
+  resetPassword,
+  deleteUser
 };
