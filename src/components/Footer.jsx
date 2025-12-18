@@ -94,15 +94,15 @@ const Footer = () => {
             <div className="space-y-2 text-sm">
               <div className="flex items-center space-x-2 text-gray-400">
                 <Mail className="h-4 w-4 text-orange-500" />
-                <span>contact@stoxbolt.com</span>
+                <span><a href="mailto:info@stoxbolt.com">info@stoxbolt.com</a></span>
               </div>
               <div className="flex items-center space-x-2 text-gray-400">
                 <Phone className="h-4 w-4 text-orange-500" />
-                <span>+1 (555) 123-4567</span>
+                <span><a href="tel:+919715092104">+91 9715092104</a></span>
               </div>
               <div className="flex items-center space-x-2 text-gray-400">
-                <MapPin className="h-4 w-4 text-orange-500" />
-                <span>Mumbai, India</span>
+                <MapPin className="h-10 w-10 text-orange-500" />
+                <span>Prime Plaza No.54/1, 1st street, Sripuram colony, St. Thomas Mount, Chennai, Tamil Nadu - 600 016, India</span>
               </div>
             </div>
           </div>

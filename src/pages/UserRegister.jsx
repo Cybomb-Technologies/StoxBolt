@@ -6,6 +6,7 @@ import { Label } from "@/components/ui/label";
 import { useToast } from "@/components/ui/use-toast";
 import { User, Mail, Lock, Zap, ArrowLeft } from "lucide-react";
 import { FcGoogle } from "react-icons/fc";
+import Metatags from "../SEO/metatags";
 
 const UserRegister = () => {
   const [username, setUsername] = useState("");
