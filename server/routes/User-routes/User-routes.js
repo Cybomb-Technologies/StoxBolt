@@ -5,11 +5,11 @@ const {
   registerUser,
   loginUser,
   googleLogin,
-  googleLoginWithToken,
+  //googleLoginWithToken,
+  googleLoginMobile,
   checkUserExists,
   sendPasswordResetOTP,
   verifyResetOTP,
-
   resetPassword,
   deleteUser
 } = require('../../controllers/User-Controller/userControllers');
@@ -30,7 +30,8 @@ const { authenticateToken } = require('../../middleware/authMiddleware');
 router.post('/register', registerUser);
 router.post('/login', loginUser);
 router.post('/google-login', googleLogin);
-router.post('/google-login-token', googleLoginWithToken);
+// router.post('/google-login-token', googleLoginWithToken);
+router.post('/google-login-android', googleLoginMobile);
 router.get('/check-user', checkUserExists);
 router.post('/forgot-password/send-otp', sendPasswordResetOTP);
 router.post('/forgot-password/verify-otp', verifyResetOTP);
