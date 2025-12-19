@@ -17,19 +17,22 @@ const googleVerifier = new OAuth2Client();
 const GOOGLE_MOBILE_AUDIENCES = [
     process.env.GOOGLE_ANDROID_CLIENT_ID,
     process.env.GOOGLE_IOS_CLIENT_ID,
+    process.env.GOOGLE_CLIENT_ID,
 ].filter(Boolean); // Filter out undefined values to avoid crashes
 
 // Log configuration on startup to help debugging
-// console.log('--- Google Mobile Login Config ---');
-// if (!process.env.GOOGLE_ANDROID_CLIENT_ID) {
-//     console.warn('⚠️ WARNING: GOOGLE_ANDROID_CLIENT_ID is not set in .env!');
-// } else {
-//     console.log('✅ ANDROID CLIENT ID:', process.env.GOOGLE_ANDROID_CLIENT_ID);
-// }
-// if (!process.env.GOOGLE_IOS_CLIENT_ID) {
-//     console.log('ℹ️ GOOGLE_IOS_CLIENT_ID not set (optional for Android-only)');
-// }
-// console.log('----------------------------------');
+console.log('--- Google Mobile Login Config ---');
+console.log('✅ WEB CLIENT ID:', process.env.GOOGLE_CLIENT_ID);
+console.log('✅ ANDROID CLIENT ID:', process.env.GOOGLE_ANDROID_CLIENT_ID);
+if (!process.env.GOOGLE_ANDROID_CLIENT_ID) {
+    console.warn('⚠️ WARNING: GOOGLE_ANDROID_CLIENT_ID is not set in .env!');
+} else {
+    console.log('✅ ANDROID CLIENT ID:', process.env.GOOGLE_ANDROID_CLIENT_ID);
+}
+if (!process.env.GOOGLE_IOS_CLIENT_ID) {
+    console.log('ℹ️ GOOGLE_IOS_CLIENT_ID not set (optional for Android-only)');
+}
+console.log('----------------------------------');
 
 
 // JWT generator (same style as your existing code)
@@ -55,9 +58,12 @@ const googleLoginMobile = async (req, res) => {
         }
 
         console.log(`[Mobile Login] Verifying token... Length: ${idToken.length}`);
+        
+        // DEBUG: Log what audiences we're checking for
+        console.log('[Mobile Login] Configured audiences:', GOOGLE_MOBILE_AUDIENCES);
+        console.log('[Mobile Login] Android Client ID from env:', process.env.GOOGLE_ANDROID_CLIENT_ID);
 
         // Verify ID token from mobile app
-        // IMPORTANT: If 'ticket' creation fails, it throws an error.
         let ticket;
         try {
             ticket = await googleVerifier.verifyIdToken({
@@ -66,6 +72,18 @@ const googleLoginMobile = async (req, res) => {
             });
         } catch (verifyError) {
             console.error('[Mobile Login] Token Verification Failed:', verifyError.message);
+            
+            // DEBUG: Try to decode the token without verification to see the audience
+            try {
+                const decoded = JSON.parse(Buffer.from(idToken.split('.')[1], 'base64').toString());
+                console.log('[Mobile Login] Decoded token (without verification):');
+                console.log('- Audience (aud):', decoded.aud);
+                console.log('- Issuer (iss):', decoded.iss);
+                console.log('- Email:', decoded.email);
+            } catch (e) {
+                console.log('[Mobile Login] Could not decode token:', e.message);
+            }
+            
             return res.status(401).json({
                 success: false,
                 message: 'Invalid Google ID token',
