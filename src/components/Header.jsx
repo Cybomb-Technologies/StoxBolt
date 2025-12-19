@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '@/contexts/AuthContext';
+import NotificationBell from '@/components/notifications/NotificationBell';
 import axios from 'axios';
 
 const baseURL = import.meta.env.VITE_API_URL || 'https://api.stoxbolt.com';
@@ -58,13 +59,13 @@ const Header = () => {
         setShowDropdown(true);
         try {
           const response = await axios.get(`${baseURL}/api/public-posts`, {
-            params: { 
-              search: searchQuery, 
+            params: {
+              search: searchQuery,
               limit: 5,
               status: 'published'
             }
           });
-          
+
           if (response.data.success) {
             setSearchResults(response.data.data);
           }
@@ -452,9 +453,9 @@ const Header = () => {
                           <div className="flex-shrink-0 mr-3">
                             <div className="h-10 w-10 rounded bg-gray-200 overflow-hidden">
                               {(post.imageUrl || post.image) ? (
-                                <img 
-                                  src={post.imageUrl || post.image} 
-                                  alt="" 
+                                <img
+                                  src={post.imageUrl || post.image}
+                                  alt=""
                                   className="h-full w-full object-cover"
                                   onError={(e) => e.target.style.display = 'none'}
                                 />
@@ -499,6 +500,9 @@ const Header = () => {
 
           {/* RIGHT SECTION - Desktop only */}
           <div className="hidden xl:flex items-center space-x-3">
+            {/* NOTIFICATION BELL - Show only for logged in users (NOT admins) */}
+            {headerUser && headerUser.email && !headerUser.email.includes('admin') && <NotificationBell />}
+
             {/* ✅ USER LOGIN/LOGOUT - Desktop only */}
             {headerUser ? (
               <div className="flex items-center gap-3">

@@ -1,4 +1,4 @@
-const Notification = require('../models/Notification');
+const Notification = require('../models/inAppNotification/Notification');
 
 // Get all notifications for admin
 exports.getNotifications = async (req, res) => {

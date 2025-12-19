@@ -1,6 +1,6 @@
 // controllers/categoryController.js
 const Category = require('../models/Category');
-const Notification = require('../models/Notification');
+const Notification = require('../models/inAppNotification/Notification');
 
 // @desc    Get all categories with pagination and filtering
 // @route   GET /api/categories
@@ -14,7 +14,7 @@ exports.getCategories = async (req, res) => {
 
     // Build search query
     const searchQuery = {};
-    
+
     if (search) {
       searchQuery.$or = [
         { name: { $regex: search, $options: 'i' } },
