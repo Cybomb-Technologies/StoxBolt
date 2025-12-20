@@ -24,8 +24,7 @@ class InAppNotificationService {
                     email: data.channels?.email || false
                 }
             });
-
-            console.log(`✅ In-app notification created for user ${userId}: ${data.title}`);
+            // console.log(`✅ In-app notification created for user ${userId}: ${data.title}`);
             return notification;
         } catch (error) {
             console.error('Error creating in-app notification:', error);
@@ -43,7 +42,7 @@ class InAppNotificationService {
     async createRSSNotification(userId, post, feedConfig) {
         try {
             const notification = await Notification.createRSSNotification(userId, post, feedConfig);
-            console.log(`✅ RSS notification created for user ${userId}: ${post.title}`);
+            // console.log(`✅ RSS notification created for user ${userId}: ${post.title}`);
             return notification;
         } catch (error) {
             console.error('Error creating RSS notification:', error);
@@ -100,7 +99,7 @@ class InAppNotificationService {
             }
 
             await notification.markAsRead();
-            console.log(`✅ Notification ${notificationId} marked as read`);
+            // console.log(`✅ Notification ${notificationId} marked as read`);
             return notification;
         } catch (error) {
             console.error('Error marking notification as read:', error);
@@ -116,7 +115,7 @@ class InAppNotificationService {
     async markAllAsRead(userId) {
         try {
             const result = await Notification.markAllAsRead(userId);
-            console.log(`✅ All notifications marked as read for user ${userId}`);
+            // console.log(`✅ All notifications marked as read for user ${userId}`);
             return result;
         } catch (error) {
             console.error('Error marking all as read:', error);
@@ -140,8 +139,7 @@ class InAppNotificationService {
             if (result.deletedCount === 0) {
                 throw new Error('Notification not found');
             }
-
-            console.log(`✅ Notification ${notificationId} deleted`);
+            // console.log(`✅ Notification ${notificationId} deleted`);
             return true;
         } catch (error) {
             console.error('Error deleting notification:', error);
@@ -172,7 +170,7 @@ class InAppNotificationService {
                 createdAt: { $lt: unreadCutoff }
             });
 
-            console.log(`✅ Cleanup: Deleted ${readResult.deletedCount} read and ${unreadResult.deletedCount} unread notifications`);
+            // console.log(`✅ Cleanup: Deleted ${readResult.deletedCount} read and ${unreadResult.deletedCount} unread notifications`);
 
             return {
                 deletedRead: readResult.deletedCount,

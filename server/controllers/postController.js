@@ -331,24 +331,22 @@ exports.createPost = async (req, res) => {
       postData.publishDateTime = new Date(postData.publishDateTime);
     }
 
-    console.log('Final post data:', JSON.stringify(postData, null, 2));
+    // console.log('Final post data:', JSON.stringify(postData, null, 2));
 
     const post = await Post.create(postData);
 
     /* =====================================================
-   📢 PUSH NOTIFICATION TO USERS
+   📢 NOTIFY SUBSCRIBED USERS ABOUT NEW POST
    ===================================================== */
     try {
       // Only when post is actually published
       if (post.status === 'published') {
-        await sendPushToUsers({
-          title: 'New Blog Post Published',
-          message: post.title,
-          url: `/posts/${post._id}`
-        });
+        const rssNotificationService = require('../services/rssNotification/rssNotificationService');
+        await rssNotificationService.notifyUsersAboutAdminPost(post);
+        // console.log('✅ Notifications sent for admin post');
       }
-    } catch (pushErr) {
-      console.error('Push notification failed:', pushErr);
+    } catch (notifyErr) {
+      console.error('Notification failed:', notifyErr);
     }
     /* ===================================================== */
 

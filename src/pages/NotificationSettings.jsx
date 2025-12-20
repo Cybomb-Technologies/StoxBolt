@@ -7,6 +7,12 @@ import {
     updateSubscription,
     deleteSubscription
 } from '@/services/rssSubscriptionService';
+import {
+    isPushSupported,
+    subscribeToPush,
+    unsubscribeFromPush,
+    isSubscribed as isPushSubscribed
+} from '@/services/pushService';
 
 const NotificationSettings = () => {
     const [loading, setLoading] = useState(true);
@@ -14,10 +20,42 @@ const NotificationSettings = () => {
     const [availableFeeds, setAvailableFeeds] = useState([]);
     const [error, setError] = useState(null);
     const [successMessage, setSuccessMessage] = useState(null);
+    const [pushEnabled, setPushEnabled] = useState(false);
+    const [pushSupported, setPushSupported] = useState(false);
 
     useEffect(() => {
         fetchData();
+        checkPushStatus();
     }, []);
+
+    const checkPushStatus = async () => {
+        const supported = isPushSupported();
+        setPushSupported(supported);
+        if (supported) {
+            const subscribed = await isPushSubscribed();
+            setPushEnabled(subscribed);
+        }
+    };
+
+    const handlePushToggle = async () => {
+        try {
+            setLoading(true);
+            if (pushEnabled) {
+                await unsubscribeFromPush();
+                setPushEnabled(false);
+                showSuccess('Desktop notifications disabled');
+            } else {
+                await subscribeToPush();
+                setPushEnabled(true);
+                showSuccess('Desktop notifications enabled!');
+            }
+        } catch (err) {
+            console.error(err);
+            setError('Failed to update push settings. Make sure you allow notifications in your browser.');
+        } finally {
+            setLoading(false);
+        }
+    };
 
     const fetchData = async () => {
         try {
@@ -149,9 +187,36 @@ const NotificationSettings = () => {
                     </div>
                 )}
 
+                {/* Device Settings */}
+                <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
+                    <h2 className="text-lg font-semibold text-gray-900 mb-4">Device Settings</h2>
+                    <div className="flex items-center justify-between">
+                        <div>
+                            <h3 className="font-medium text-gray-900">Desktop Notifications</h3>
+                            <p className="text-sm text-gray-600">
+                                {pushSupported
+                                    ? "Receive notifications on this device even when the app is closed"
+                                    : "Push notifications are not supported on this browser"}
+                            </p>
+                        </div>
+                        <button
+                            onClick={handlePushToggle}
+                            disabled={!pushSupported || loading}
+                            className={`px-4 py-2 rounded-lg transition-colors duration-150 flex items-center gap-2 ${pushEnabled
+                                ? 'bg-green-50 text-green-600 hover:bg-green-100'
+                                : 'bg-blue-600 text-white hover:bg-blue-700'
+                                }`}
+                        >
+                            {loading ? <Loader2 className="w-4 h-4 animate-spin" /> :
+                                pushEnabled ? <Check className="w-4 h-4" /> : <Bell className="w-4 h-4" />}
+                            {pushEnabled ? 'Enabled on this Device' : 'Enable Desktop Notifications'}
+                        </button>
+                    </div>
+                </div>
+
                 {/* Subscribe to All */}
                 <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
-                    <div className="flex items-center justify-between">
+                    <div className="flex items-center justify-between mb-4">
                         <div className="flex items-center gap-3">
                             <Rss className="w-5 h-5 text-blue-600" />
                             <div>
@@ -182,6 +247,47 @@ const NotificationSettings = () => {
                             </button>
                         )}
                     </div>
+
+                    {/* Channel Toggles for All Feeds */}
+                    {isSubscribedToAll() && (() => {
+                        const allSub = subscriptions.find(s => s.subscriptionType === 'all');
+                        if (!allSub) return null;
+
+                        return (
+                            <div className="pt-4 border-t border-gray-200">
+                                <h4 className="text-sm font-medium text-gray-700 mb-3">Notification Channels</h4>
+                                <div className="flex gap-4">
+                                    <label className="flex items-center gap-2 cursor-pointer">
+                                        <input
+                                            type="checkbox"
+                                            checked={allSub.channels.inApp}
+                                            onChange={() => handleToggleChannel(allSub, 'inApp')}
+                                            className="w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500"
+                                        />
+                                        <span className="text-sm text-gray-700">In-App</span>
+                                    </label>
+                                    <label className="flex items-center gap-2 cursor-pointer">
+                                        <input
+                                            type="checkbox"
+                                            checked={allSub.channels.webPush}
+                                            onChange={() => handleToggleChannel(allSub, 'webPush')}
+                                            className="w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500"
+                                        />
+                                        <span className="text-sm text-gray-700">Push</span>
+                                    </label>
+                                    <label className="flex items-center gap-2 cursor-pointer opacity-50 cursor-not-allowed">
+                                        <input
+                                            type="checkbox"
+                                            checked={allSub.channels.email}
+                                            disabled
+                                            className="w-4 h-4 text-gray-400 rounded"
+                                        />
+                                        <span className="text-sm text-gray-500">Email (Coming Soon)</span>
+                                    </label>
+                                </div>
+                            </div>
+                        );
+                    })()}
                 </div>
 
                 {/* Individual Feeds */}
@@ -224,8 +330,8 @@ const NotificationSettings = () => {
                                                     }}
                                                     disabled={isSubscribedToAll()}
                                                     className={`px-4 py-2 rounded-lg transition-colors duration-150 flex items-center gap-2 ${isSubscribedToAll()
-                                                            ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                                                            : 'bg-red-50 text-red-600 hover:bg-red-100'
+                                                        ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                                                        : 'bg-red-50 text-red-600 hover:bg-red-100'
                                                         }`}
                                                 >
                                                     <Check className="w-4 h-4" />

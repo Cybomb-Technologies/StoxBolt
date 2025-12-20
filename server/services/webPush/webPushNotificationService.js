@@ -20,7 +20,7 @@ class WebPushNotificationService {
         }
 
         webpush.setVapidDetails(subject, publicKey, privateKey);
-        console.log('✅ VAPID keys configured for web push');
+        // console.log('✅ VAPID keys configured for web push');
     }
 
     /**
@@ -42,7 +42,7 @@ class WebPushNotificationService {
                     existing.userId = userId;
                     await existing.save();
                 }
-                console.log(`✅ Push subscription updated for user ${userId}`);
+                // console.log(`✅ Push subscription updated for user ${userId}`);
                 return existing;
             }
 
@@ -53,7 +53,7 @@ class WebPushNotificationService {
                 userId: userId
             });
 
-            console.log(`✅ New push subscription created for user ${userId}`);
+            // console.log(`✅ New push subscription created for user ${userId}`);
             return newSubscription;
         } catch (error) {
             console.error('Error subscribing to push:', error);
@@ -71,7 +71,7 @@ class WebPushNotificationService {
             const result = await PushSubscription.deleteOne({ endpoint });
 
             if (result.deletedCount > 0) {
-                console.log(`✅ Push subscription removed: ${endpoint}`);
+                // console.log(`✅ Push subscription removed: ${endpoint}`);
                 return true;
             }
 
@@ -94,7 +94,7 @@ class WebPushNotificationService {
             const subscriptions = await PushSubscription.find({ userId });
 
             if (subscriptions.length === 0) {
-                console.log(`No push subscriptions found for user ${userId}`);
+                // console.log(`No push subscriptions found for user ${userId}`);
                 return { success: false, sent: 0, failed: 0 };
             }
 
@@ -247,7 +247,7 @@ class WebPushNotificationService {
         try {
             // This would require testing each subscription
             // For now, we rely on automatic cleanup when sends fail
-            console.log('Push subscription cleanup completed');
+            // console.log('Push subscription cleanup completed');
             return 0;
         } catch (error) {
             console.error('Error cleaning up subscriptions:', error);

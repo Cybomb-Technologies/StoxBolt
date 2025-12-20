@@ -321,6 +321,137 @@ class RSSNotificationService {
             throw error;
         }
     }
+
+    /**
+     * Notify users about admin-created post
+     * @param {Object} post - The post object
+     * @returns {Promise<Object>}
+     */
+    async notifyUsersAboutAdminPost(post) {
+        try {
+            console.log(`📢 Processing notifications for admin post: ${post.title}`);
+
+            // Normalize category ID
+            let categoryId = post.category;
+            if (categoryId && typeof categoryId === 'object') {
+                // If it's an object, try to get _id, otherwise ignore it
+                categoryId = categoryId._id || null;
+            }
+            // Ensure it's a valid ObjectId string or ObjectId
+            if (categoryId && typeof categoryId.toString === 'function' && !/^[0-9a-fA-F]{24}$/.test(categoryId.toString())) {
+                categoryId = null;
+            }
+
+            // Build query conditions
+            const queryConditions = [
+                { subscriptionType: 'all', isActive: true }
+            ];
+
+            if (categoryId) {
+                queryConditions.push({ subscriptionType: 'category', categoryId: categoryId, isActive: true });
+            }
+
+            // Find all users subscribed to "all" or to this post's category
+            const subscriptions = await RSSNotificationSubscription.find({
+                $or: queryConditions
+            }).populate('userId');
+
+            if (!subscriptions || subscriptions.length === 0) {
+                // console.log('No subscribed users found for admin post');
+                return { notified: 0, skipped: 0 };
+            }
+
+            // console.log(`Found ${subscriptions.length} subscriptions for admin post`);
+
+            let notifiedCount = 0;
+            let skippedCount = 0;
+
+            // Group subscriptions by user to avoid duplicate notifications
+            const userSubscriptions = new Map();
+            for (const sub of subscriptions) {
+                let userId = sub.userId;
+
+                // Extract _id if it's a populated object
+                if (userId && typeof userId === 'object' && userId._id) {
+                    userId = userId._id;
+                }
+
+                // Ensure we have a string ID
+                const userIdString = userId ? userId.toString() : null;
+
+                // Update: Verify it looks like a valid ObjectId
+                if (userIdString && /^[0-9a-fA-F]{24}$/.test(userIdString)) {
+                    if (!userSubscriptions.has(userIdString)) {
+                        userSubscriptions.set(userIdString, sub);
+                    }
+                } else {
+                    console.warn(`Invalid userId extracted from subscription ${sub._id}:`, userIdString);
+                }
+            }
+
+            // Send notifications to each user
+            for (const [userIdString, subscription] of userSubscriptions) {
+                try {
+                    const notificationData = {
+                        title: `📰 New Post: ${post.title}`,
+                        message: post.excerpt || post.body?.substring(0, 150) || 'Check out this new post!',
+                        type: 'admin-post',
+                        relatedModel: 'Post',
+                        relatedId: post._id,
+                        metadata: {
+                            postTitle: post.title,
+                            postCategory: post.category?.name || 'General',
+                            postImage: post.imageUrl || post.image || post.featuredImage,
+                            postLink: `/post/${post._id}`,
+                            source: 'admin'
+                        },
+                        channels: subscription.channels
+                    };
+
+                    // Create in-app notification
+                    if (subscription.channels.inApp) {
+                        await inAppNotificationService.createNotification(userIdString, notificationData);
+                    }
+
+                    // Send web push notification
+                    if (subscription.channels.webPush) {
+                        try {
+                            await webPushService.sendPushToUser(userIdString, {
+                                title: notificationData.title,
+                                body: notificationData.message,
+                                icon: notificationData.metadata.postImage || '/images/logo.png', // FIXED PATH
+                                url: notificationData.metadata.postLink,
+                                data: {
+                                    postId: post._id.toString(),
+                                    type: 'admin-post'
+                                }
+                            });
+                        } catch (pushError) {
+                            console.error(`Failed to send web push to user ${userIdString}:`, pushError.message);
+                            // Don't fail the loop, just log
+                        }
+                    }
+
+                    notifiedCount++;
+                    console.log(`✅ Notified user ${userIdString} about admin post`);
+                } catch (error) {
+                    console.error(`Error notifying user ${userIdString}:`, error.message);
+                    skippedCount++;
+                }
+            }
+
+            console.log(`✅ Admin post notifications complete: ${notifiedCount} sent, ${skippedCount} skipped`);
+
+            return {
+                notified: notifiedCount,
+                skipped: skippedCount,
+                total: userSubscriptions.size
+            };
+        } catch (error) {
+            console.error('Error in notifyUsersAboutAdminPost:', error);
+            throw error;
+        }
+    }
 }
 
 module.exports = new RSSNotificationService();
