@@ -7,20 +7,20 @@ const stream = require('stream');
 // Helper function to process CSV rows
 const processCSVRow = async (row, user, rowIndex) => {
   const errors = [];
-  
+
   console.log(`Processing row ${rowIndex}:`, Object.keys(row).length, 'columns');
-  
+
   // Log all column values for debugging
   for (const [key, value] of Object.entries(row)) {
     console.log(`  ${key}: "${value}"`);
   }
-  
+
   // Validate required fields
   if (!row.title || row.title.trim() === '') errors.push('Missing or empty title');
   if (!row.shortTitle || row.shortTitle.trim() === '') errors.push('Missing or empty shortTitle');
   if (!row.body || row.body.trim() === '') errors.push('Missing or empty body');
   if (!row.author || row.author.trim() === '') errors.push('Missing or empty author');
-  
+
   if (errors.length > 0) {
     console.log(`Row ${rowIndex} validation errors:`, errors);
     return { errors, postData: null };
@@ -41,18 +41,18 @@ const processCSVRow = async (row, user, rowIndex) => {
   // Handle category - find or create
   let categoryId;
   let categoryName = 'Indian'; // Default
-  
+
   try {
     if (row.category && row.category.trim() !== '') {
       categoryName = row.category.trim();
     }
     console.log(`Row ${rowIndex} - Category: "${categoryName}"`);
-    
+
     // Check if category exists (case-insensitive)
-    const existingCategory = await Category.findOne({ 
+    const existingCategory = await Category.findOne({
       name: { $regex: new RegExp(`^${categoryName}$`, 'i') }
     });
-    
+
     if (existingCategory) {
       categoryId = existingCategory._id;
       console.log(`Row ${rowIndex} - Found existing category: ${existingCategory.name}`);
@@ -173,7 +173,7 @@ exports.bulkUpload = async (req, res) => {
     console.log('User:', req.user?.email, 'Role:', req.user?.role);
     console.log('User ID:', req.user?._id);
     console.log('File received:', req.file?.originalname, 'Size:', req.file?.size, 'bytes');
-    
+
     if (!req.file) {
       console.log('ERROR: No file provided');
       return res.status(400).json({
@@ -204,16 +204,16 @@ exports.bulkUpload = async (req, res) => {
       return new Promise((resolve, reject) => {
         const csvText = req.file.buffer.toString('utf8');
         console.log('Raw CSV text length:', csvText.length);
-        
+
         // Normalize line endings to Unix style
         const normalizedText = csvText.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
         console.log('After normalization, lines:', normalizedText.split('\n').length);
-        
+
         const bufferStream = new stream.PassThrough();
         bufferStream.end(Buffer.from(normalizedText, 'utf8'));
-        
+
         const rows = [];
-        
+
         bufferStream
           .pipe(csv())
           .on('headers', (headers) => {
@@ -222,11 +222,11 @@ exports.bulkUpload = async (req, res) => {
           })
           .on('data', async (row) => {
             rows.push(row);
-            
+
             // Process row
             rowIndex++;
             console.log(`\n--- Processing CSV Row ${rowIndex} ---`);
-            
+
             try {
               const result = await processCSVRow(row, req.user, rowIndex);
               if (result.errors && result.errors.length > 0) {
@@ -254,7 +254,7 @@ exports.bulkUpload = async (req, res) => {
             console.log(`Total rows processed: ${rowIndex}`);
             console.log(`Valid posts found: ${posts.length}`);
             console.log(`Errors found: ${errors.length}`);
-            
+
             if (rows.length > 0) {
               console.log('Sample of first row:', {
                 title: rows[0].title,
@@ -262,10 +262,10 @@ exports.bulkUpload = async (req, res) => {
                 author: rows[0].author
               });
             }
-            
+
             // Wait a moment to ensure all async operations are complete
             await new Promise(resolve => setTimeout(resolve, 100));
-            
+
             resolve({ posts, errors });
           })
           .on('error', (error) => {
@@ -280,17 +280,17 @@ exports.bulkUpload = async (req, res) => {
     // Check if we have any valid posts
     if (validPosts.length === 0) {
       console.log('ERROR: No valid posts found after validation');
-      
+
       const csvText = req.file.buffer.toString('utf8');
       const lines = csvText.split('\n');
-      
+
       return res.status(400).json({
         success: false,
         message: 'No valid posts found. Check CSV format and data.',
         errors: errors,
         debug: {
           totalRowsProcessed: rowIndex,
-          validationErrors: errors.map(e => ({row: e.row, errors: e.errors})),
+          validationErrors: errors.map(e => ({ row: e.row, errors: e.errors })),
           fileFirstLine: lines[0],
           sampleRowData: lines.length > 1 ? lines[1] : null
         }
@@ -299,10 +299,30 @@ exports.bulkUpload = async (req, res) => {
 
     try {
       console.log(`Inserting ${validPosts.length} posts into database...`);
-      
+
       // Insert all posts
       const createdPosts = await Post.insertMany(validPosts, { ordered: false });
       console.log(`Successfully inserted ${createdPosts.length} posts`);
+
+      // Send notifications for published posts
+      try {
+        const rssNotificationService = require('../services/rssNotification/rssNotificationService');
+        const publishedPosts = createdPosts.filter(post => post.status === 'published');
+
+        if (publishedPosts.length > 0) {
+          console.log(`📢 Sending notifications for ${publishedPosts.length} published posts from bulk upload`);
+          for (const post of publishedPosts) {
+            try {
+              await rssNotificationService.notifyUsersAboutAdminPost(post);
+            } catch (notifyErr) {
+              console.error(`Failed to notify for post ${post._id}:`, notifyErr.message);
+            }
+          }
+          console.log('✅ Bulk upload notifications sent');
+        }
+      } catch (notifyErr) {
+        console.error('Bulk upload notification error:', notifyErr);
+      }
 
       // Log activity for posts creation
       await Activity.create({
@@ -340,7 +360,7 @@ exports.bulkUpload = async (req, res) => {
 
     } catch (insertError) {
       console.error('Bulk insert error:', insertError);
-      
+
       // Check if it's a duplicate key error
       if (insertError.code === 11000) {
         return res.status(400).json({
@@ -349,7 +369,7 @@ exports.bulkUpload = async (req, res) => {
           error: insertError.message
         });
       }
-      
+
       return res.status(500).json({
         success: false,
         message: 'Error inserting posts into database',
@@ -361,7 +381,7 @@ exports.bulkUpload = async (req, res) => {
     console.error('=== BULK UPLOAD ERROR ===');
     console.error('Error:', error);
     console.error('Stack:', error.stack);
-    
+
     return res.status(500).json({
       success: false,
       message: 'Server error during bulk upload',
@@ -375,7 +395,7 @@ exports.bulkUpload = async (req, res) => {
 // @access  Private
 exports.downloadTemplate = async (req, res) => {
   try {
-    const csvTemplate = 
+    const csvTemplate =
       'title,shortTitle,body,category,tags,region,author,publishDateTime,status,isSponsored,metaTitle,metaDescription,imageUrl\n' +
       '"Sample Post Title","Short Title","This is the main body content of the post.","Indian","stockmarket,investing","India","Author Name","2025-12-01T10:00:00","draft","false","Sample Meta Title","Sample meta description for SEO","https://example.com/image.jpg"\n' +
       '"Another Post","Another Short","Content here.","Technology","tech,software","India","Another Author","2025-12-02T14:30:00","draft","true","Tech Meta","Meta for tech post","https://example.com/tech.jpg"';
@@ -420,7 +440,7 @@ exports.validateCsv = async (req, res) => {
     };
 
     const rows = [];
-    
+
     bufferStream
       .pipe(csv())
       .on('data', async (row) => {
@@ -428,27 +448,27 @@ exports.validateCsv = async (req, res) => {
         rows.push(row);
 
         const rowErrors = [];
-        
+
         // Validate required fields
         if (!row.title || row.title.trim() === '') rowErrors.push('Missing title');
         if (!row.shortTitle || row.shortTitle.trim() === '') rowErrors.push('Missing shortTitle');
         if (!row.body || row.body.trim() === '') rowErrors.push('Missing body');
         if (!row.author || row.author.trim() === '') rowErrors.push('Missing author');
-        
+
         // Check status
         const validStatuses = ['draft', 'scheduled', 'pending_approval', 'published', 'archived'];
         if (row.status && !validStatuses.includes(row.status.toLowerCase())) {
           rowErrors.push(`Invalid status: "${row.status}". Must be one of: ${validStatuses.join(', ')}`);
         }
-        
+
         // Check category
         if (row.category && row.category.trim() !== '') {
           const categoryName = row.category.trim();
           try {
-            const existingCategory = await Category.findOne({ 
+            const existingCategory = await Category.findOne({
               name: { $regex: new RegExp(`^${categoryName}$`, 'i') }
             });
-            
+
             if (existingCategory) {
               if (!validationResults.existingCategories.includes(categoryName)) {
                 validationResults.existingCategories.push(categoryName);
@@ -462,7 +482,7 @@ exports.validateCsv = async (req, res) => {
             rowErrors.push(`Category check error: ${error.message}`);
           }
         }
-        
+
         if (rowErrors.length > 0) {
           validationResults.invalidRows++;
           validationResults.errors.push({

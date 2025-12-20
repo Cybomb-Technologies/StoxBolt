@@ -4,7 +4,7 @@ const router = express.Router();
 const rssParserService = require('../services/rssParserService');
 const { protect, authorize } = require('../middleware/auth');
 const Post = require('../models/Post');
-const Notification = require('../models/Notification');
+const Notification = require('../models/inAppNotification/Notification');
 // @route   POST /api/rss/parse
 // @desc    Parse RSS feed from URL
 // @access  Admin
@@ -63,12 +63,12 @@ router.post('/parse', protect, authorize('admin', 'superadmin'), async (req, res
 // @access  Admin
 router.post('/save', protect, authorize('admin', 'superadmin'), async (req, res) => {
   try {
-    const { 
-      url, 
-      items, 
-      saveAsDraft = false, 
+    const {
+      url,
+      items,
+      saveAsDraft = false,
       force = false,
-      categoryFilter = null 
+      categoryFilter = null
     } = req.body;
 
     if (!url && !items) {
@@ -83,7 +83,7 @@ router.post('/save', protect, authorize('admin', 'superadmin'), async (req, res)
     // If URL is provided, parse it first
     if (url) {
       const parseResult = await rssParserService.parseRSSFeed(url);
-      
+
       if (!parseResult.success) {
         return res.status(400).json({
           success: false,
@@ -97,8 +97,8 @@ router.post('/save', protect, authorize('admin', 'superadmin'), async (req, res)
 
     // Apply category filter if specified
     if (categoryFilter && itemsToSave) {
-      itemsToSave = itemsToSave.filter(item => 
-        item.categories && item.categories.some(cat => 
+      itemsToSave = itemsToSave.filter(item =>
+        item.categories && item.categories.some(cat =>
           cat.toLowerCase().includes(categoryFilter.toLowerCase())
         )
       );
@@ -142,7 +142,7 @@ router.get('/history', protect, authorize('admin', 'superadmin'), async (req, re
 
     // In a real implementation, you would have an RSSImport model
     // For now, we'll return posts imported from RSS
-    
+
     const posts = await Post.find({ source: 'rss_feed' })
       .sort({ createdAt: -1 })
       .skip(skip)
@@ -207,16 +207,6 @@ router.post(
       });
 
       await config.save();
-
-      // 🔔 NOTIFICATION (ONLY ADDITION – OLD CODE SAFE)
-      await Notification.create({
-        type: 'rss-feed',
-        title: 'New RSS Feed Added',
-        message: `RSS Feed "${name}" has been created`,
-        referenceId: config._id,
-        createdBy: req.user._id,
-        isRead: false
-      });
 
       res.json({ success: true, data: config });
 
@@ -285,7 +275,7 @@ router.post('/configs/:id/run', protect, authorize('admin', 'superadmin'), async
   try {
     const RSSFeedConfig = require('../models/RSSFeedConfig');
     const rssCronService = require('../services/rssCronService');
-    
+
     const config = await RSSFeedConfig.findById(req.params.id);
     if (!config) {
       return res.status(404).json({ success: false, message: 'Config not found' });

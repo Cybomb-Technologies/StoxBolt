@@ -76,7 +76,79 @@ const UserRegister = () => {
           description: "Your account has been created successfully",
         });
 
-        navigate("/user-login");
+        // Request notification permission directly from browser
+        console.log('🔔 Checking notification permission...');
+        console.log('Notification support:', 'Notification' in window);
+        console.log('Current permission:', Notification.permission);
+
+        const permissionAsked = localStorage.getItem('notificationPermissionAsked');
+        console.log('Permission previously asked:', permissionAsked);
+
+        // Always ask for permission on new registration (ignore localStorage for testing)
+        if ('Notification' in window && Notification.permission === 'default') {
+          console.log('🔔 Requesting notification permission...');
+
+          // Request permission immediately
+          Notification.requestPermission().then(async (permission) => {
+            console.log('🔔 Permission result:', permission);
+            localStorage.setItem('notificationPermissionAsked', 'true');
+
+            if (permission === 'granted') {
+              console.log('✅ Permission granted! Setting up notifications...');
+              try {
+                // Import push service functions
+                const { registerServiceWorker, subscribeToPush } = await import('@/services/pushService');
+                const { createSubscription } = await import('@/services/rssSubscriptionService');
+
+                // Register service worker and subscribe
+                await registerServiceWorker();
+                await subscribeToPush();
+
+                // Auto-subscribe to all RSS feeds
+                await createSubscription({
+                  subscriptionType: 'all',
+                  channels: {
+                    inApp: true,
+                    webPush: true,
+                    email: false
+                  }
+                });
+
+                localStorage.setItem('notificationEnabled', 'true');
+                console.log('✅ User subscribed to notifications');
+
+                toast({
+                  title: "Notifications Enabled!",
+                  description: "You'll receive updates about new posts",
+                });
+              } catch (err) {
+                console.error('❌ Failed to setup notifications:', err);
+                toast({
+                  title: "Notification Setup Failed",
+                  description: "You can enable notifications later in settings",
+                  variant: "destructive",
+                });
+              }
+            } else {
+              console.log('❌ Permission denied or dismissed');
+              localStorage.setItem('notificationEnabled', 'false');
+            }
+
+            // Navigate to login after permission handling
+            setTimeout(() => navigate("/user-login"), 1000);
+          }).catch((err) => {
+            console.error('❌ Permission request error:', err);
+            navigate("/user-login");
+          });
+        } else {
+          console.log('⚠️ Skipping permission request:', {
+            notificationSupport: 'Notification' in window,
+            currentPermission: Notification.permission,
+            reason: Notification.permission !== 'default' ? 'Already asked' : 'Not supported'
+          });
+          // Permission already asked or notifications not supported
+          navigate("/user-login");
+        }
       } else {
         throw new Error(data.message || "Registration failed");
       }

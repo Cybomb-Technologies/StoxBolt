@@ -1,5 +1,5 @@
 const webpush = require('web-push');
-const PushSubscription = require('../models/PushSubscription');
+const PushSubscription = require('../models/webPush/PushSubscription');
 
 exports.sendPushToUsers = async ({ title, message, url }) => {
   const subs = await PushSubscription.find();

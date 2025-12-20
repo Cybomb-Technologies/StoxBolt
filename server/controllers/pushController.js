@@ -1,4 +1,4 @@
-const PushSubscription = require('../models/PushSubscription');
+const PushSubscription = require('../models/webPush/PushSubscription');
 
 exports.subscribePush = async (req, res) => {
   try {

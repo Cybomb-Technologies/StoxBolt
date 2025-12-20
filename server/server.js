@@ -53,6 +53,9 @@ const userAuthRoutes = require('./routes/User-routes/User-routes');
 const rssFeedRoutes = require('./routes/rssFeedRoutes');
 const pushRoutes = require('./routes/pushRoutes');
 const notificationRoutes = require('./routes/notificationRoutes');
+const inAppNotificationRoutes = require('./routes/inAppNotification/inAppNotificationRoutes');
+const webPushRoutes = require('./routes/webPush/webPushRoutes');
+const rssSubscriptionRoutes = require('./routes/rssSubscription/rssSubscriptionRoutes');
 
 // Routes
 app.use('/api/auth', authRoutes); //Auth Routes(Admin)
@@ -70,6 +73,9 @@ app.use('/api/user-auth', userAuthRoutes); //User Routes
 app.use('/api/public-posts', publicPostRoutes);
 app.use('/api', pushRoutes);
 app.use('/api/notifications', notificationRoutes);
+app.use('/api/notifications/in-app', inAppNotificationRoutes); // In-app notifications
+app.use('/api/push', webPushRoutes); // Web push notifications
+app.use('/api/rss-subscriptions', rssSubscriptionRoutes); // RSS subscription management
 // Enhanced health check
 app.get('/health', (req, res) => {
   const dbStatus = mongoose.connection.readyState;
@@ -152,15 +158,16 @@ const connectDB = async () => {
       useUnifiedTopology: true,
     });
     console.log('✅ MongoDB connected successfully');
+
+    // Initialize RSS Cron Service AFTER database is connected
+    const rssCronService = require('./services/rssCronService');
+    rssCronService.init();
   } catch (error) {
     console.error('❌ MongoDB connection error:', error);
     console.log('Retrying connection in 5 seconds...');
     setTimeout(connectDB, 5000);
   }
 };
-
-const rssCronService = require('./services/rssCronService');
-rssCronService.init();
 
 connectDB();
 
