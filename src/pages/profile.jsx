@@ -144,8 +144,9 @@ const Profile = () => {
     }
   };
 
-  const handleLogout = async () => {
-    await logout();
+  const handleLogout = () => {
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
     navigate('/', { replace: true });
     toast({
       title: 'Success',

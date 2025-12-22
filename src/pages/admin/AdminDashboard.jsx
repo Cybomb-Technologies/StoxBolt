@@ -424,6 +424,13 @@ const AdminDashboard = () => {
         roles: ['admin', 'superadmin'],
         description: 'Preview posts'
       },
+      {
+        title: 'User',
+        path: '/admin/user-data',
+        icon: <User className="h-5 w-5" />,
+        roles: ['admin', 'superadmin'],
+        description: 'User data'
+      },
     ];
 
     // Admin management items (superadmin only)
@@ -599,8 +606,8 @@ const AdminDashboard = () => {
                     to={item.path}
                     onClick={() => isMobile && setSidebarOpen(false)}
                     className={`flex items-center space-x-3 px-3 py-3 rounded-lg transition-all group relative ${active
-                        ? 'bg-gradient-to-r from-orange-50 to-red-50 text-orange-700 border-l-4 border-orange-500'
-                        : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900'
+                      ? 'bg-gradient-to-r from-orange-50 to-red-50 text-orange-700 border-l-4 border-orange-500'
+                      : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900'
                       }`}
                     title={sidebarOpen ? '' : item.title}
                   >
@@ -645,8 +652,8 @@ const AdminDashboard = () => {
                             to={subItem.path}
                             onClick={() => isMobile && setSidebarOpen(false)}
                             className={`flex items-center space-x-2 px-3 py-2 rounded-lg text-sm transition-all ${subActive
-                                ? 'bg-gradient-to-r from-orange-100 to-red-100 text-orange-700'
-                                : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                              ? 'bg-gradient-to-r from-orange-100 to-red-100 text-orange-700'
+                              : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
                               }`}
                           >
                             <div className={`${subActive ? 'text-orange-600' : 'text-gray-500'}`}>
@@ -826,8 +833,8 @@ const AdminDashboard = () => {
                 )}
                 <div className="hidden md:flex items-center space-x-2">
                   <div className={`w-8 h-8 rounded-full flex items-center justify-center ${user.role === 'superadmin'
-                      ? 'bg-gradient-to-br from-purple-100 to-purple-200'
-                      : 'bg-gradient-to-br from-orange-100 to-red-100'
+                    ? 'bg-gradient-to-br from-purple-100 to-purple-200'
+                    : 'bg-gradient-to-br from-orange-100 to-red-100'
                     }`}>
                     {user.role === 'superadmin' ? (
                       <Shield className="h-4 w-4 text-purple-600" />

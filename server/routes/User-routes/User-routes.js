@@ -11,7 +11,8 @@ const {
   sendPasswordResetOTP,
   verifyResetOTP,
   resetPassword,
-  deleteUser
+  deleteUser,
+  getUsers
 } = require('../../controllers/User-Controller/userControllers');
 
 const {
@@ -28,6 +29,7 @@ const { authenticateToken } = require('../../middleware/authMiddleware');
 
 // Public routes
 router.post('/register', registerUser);
+router.get('/get-users', getUsers);
 router.post('/login', loginUser);
 router.post('/google-login', googleLogin);
 // router.post('/google-login-token', googleLoginWithToken);

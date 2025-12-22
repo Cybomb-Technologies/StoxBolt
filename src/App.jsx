@@ -16,6 +16,7 @@ import UserRegister from "./pages/UserRegister";
 import UserForgetPassword from "./pages/UserforgetPassword";
 import UserOtpVerification from "./pages/UserOtpVerification";
 import UserConfirmPassword from "./pages/UserConfirmPassword";
+import UserData from "./pages/User-Data";
 // Import components directly to avoid any import issues
 const Header = React.lazy(() => import("@/components/Header"));
 const Footer = React.lazy(() => import("@/components/Footer"));
@@ -457,6 +458,7 @@ function App() {
                   }
                 />
 
+
                 <Route
                   path="users/create"
                   element={
@@ -489,6 +491,14 @@ function App() {
                     </React.Suspense>
                   }
                 />
+                <Route
+                  path="user-data"
+                  element={
+                    <React.Suspense fallback={<LoadingFallback />}>
+                      <UserData />
+                    </React.Suspense>
+                  }
+                />
               </Route>
 
               {/* Preview route (public but with main layout) */}
@@ -503,6 +513,9 @@ function App() {
                 }
               />
 
+
+
+
               {/* Redirect any unmatched routes */}
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
@@ -511,7 +524,7 @@ function App() {
           <Toaster />
         </NotificationProvider>
       </AuthProvider>
-    </Router>
+    </Router >
   );
 }
 

@@ -8,6 +8,7 @@ const verifyResetOTP = require('./verifyResetOTP');
 const resetPassword = require('./resetPassword');
 const deleteUser = require('./deleteUser');
 const googleLoginMobile = require('./googleLogin.mobile');
+const getUsers = require('./getUsers');
 
 module.exports = {
   registerUser,
@@ -19,5 +20,6 @@ module.exports = {
   verifyResetOTP,
   resetPassword,
   deleteUser,
-  googleLoginMobile
+  googleLoginMobile,
+   getUsers
 };

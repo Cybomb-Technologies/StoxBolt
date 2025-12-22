@@ -9,4 +9,6 @@ const pushSubscriptionSchema = new mongoose.Schema({
   userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: false }
 }, { timestamps: true });
 
-module.exports = mongoose.model('PushSubscription', pushSubscriptionSchema);
+module.exports =
+  mongoose.models.PushSubscription ||
+  mongoose.model('PushSubscription', pushSubscriptionSchema);
