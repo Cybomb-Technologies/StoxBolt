@@ -85,10 +85,17 @@ class RSSNotificationService {
 
                     // Create in-app notification if enabled
                     if (subscription.channels.inApp) {
+                        // Determine user model from subscription or default to UserData if missing (migration)
+                        const userModel = subscription.userModel || 'UserData';
+
+                        // Pass userModel via feedConfig hack or separate param (Notification model handles it now via feedConfig.userModel)
+                        const configObj = feedConfig.toObject ? feedConfig.toObject() : feedConfig;
+                        const notificationConfig = { ...configObj, userModel };
+
                         await inAppNotificationService.createRSSNotification(
                             subscription.userId._id,
                             post,
-                            feedConfig
+                            notificationConfig
                         );
                         notifiedCount++;
                     }
@@ -204,10 +211,10 @@ class RSSNotificationService {
      */
     async subscribe(userId, options) {
         try {
-            const { subscriptionType, feedId, categoryId, channels } = options;
+            const { subscriptionType, feedId, categoryId, channels, userModel = 'UserData' } = options;
 
             // Check if subscription already exists
-            const query = { userId, subscriptionType };
+            const query = { userId, subscriptionType, userModel };
             if (feedId) query.feedId = feedId;
             if (categoryId) query.categoryId = categoryId;
 
@@ -223,6 +230,7 @@ class RSSNotificationService {
                 // Create new subscription
                 subscription = await RSSNotificationSubscription.create({
                     userId,
+                    userModel,
                     subscriptionType,
                     feedId,
                     categoryId,

@@ -208,6 +208,26 @@ router.post(
 
       await config.save();
 
+      // Auto-subscribe the creator to this feed
+      try {
+        const rssNotificationService = require('../services/rssNotification/rssNotificationService');
+        const userModel = ['admin', 'superadmin'].includes(req.user.role) ? 'Admin' : 'UserData';
+
+        await rssNotificationService.subscribe(req.user._id, {
+          subscriptionType: 'feed',
+          feedId: config._id,
+          userModel: userModel,
+          channels: {
+            inApp: true,
+            webPush: false
+          }
+        });
+        console.log(`Auto-subscribed creator (${userModel}) to feed ${config.name}`);
+      } catch (subError) {
+        console.error('Error auto-subscribing creator:', subError);
+        // Don't fail the request if subscription fails
+      }
+
       res.json({ success: true, data: config });
 
     } catch (error) {

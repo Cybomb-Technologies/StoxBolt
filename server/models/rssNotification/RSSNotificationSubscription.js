@@ -3,9 +3,15 @@ const mongoose = require('mongoose');
 const RSSNotificationSubscriptionSchema = new mongoose.Schema({
     userId: {
         type: mongoose.Schema.Types.ObjectId,
-        ref: 'UserData',
+        refPath: 'userModel',
         required: true,
         index: true
+    },
+    userModel: {
+        type: String,
+        required: true,
+        enum: ['UserData', 'Admin'],
+        default: 'UserData'
     },
     subscriptionType: {
         type: String,
@@ -90,7 +96,7 @@ RSSNotificationSubscriptionSchema.statics.findActiveByFeed = function (feedId) {
             { subscriptionType: 'all', isActive: true },
             { subscriptionType: 'feed', feedId: feedId, isActive: true }
         ]
-    }).populate('userId', 'email username');
+    }).populate('userId', 'email username name');
 };
 
 // Static method to find active subscriptions for a category
