@@ -14,14 +14,14 @@ class RSSCronService {
     console.log('Initializing RSS Cron Service...');
 
     // Run every minute: '* * * * *' (Heartbeat)
-    // We check for due feeds every minute and process a limited batch
+    // Sequential Round-Robin: One feed per minute
     this.cronJob = cron.schedule('* * * * *', async () => {
       await this.processFeeds();
     });
 
-    console.log('RSS Cron Service started (Schedule: * * * * *, Distributed Fetch Mode)');
+    console.log('RSS Cron Service started (Schedule: * * * * *, Sequential Mode)');
 
-    // Run once immediately on startup to catch up
+    // Run once immediately on startup
     this.processFeeds();
   }
 
@@ -34,39 +34,39 @@ class RSSCronService {
     this.isRunning = true;
 
     try {
-      const now = new Date();
-      const BATCH_SIZE = 5; // Process max 5 feeds per minute
+      const BATCH_SIZE = 1; // Strict 1 feed per minute as requested
 
-      // Find feeds that are active AND (never fetched OR due for fetch)
-      // due for fetch = lastFetchedAt + (fetchIntervalMinutes * 60000) <= now
-      const dueConfigs = await RSSFeedConfig.find({
-        isActive: true,
-        $or: [
-          { lastFetchedAt: null },
-          {
-            $expr: {
-              $lte: [
-                { $add: ["$lastFetchedAt", { $multiply: ["$fetchIntervalMinutes", 60 * 1000] }] },
-                now
-              ]
-            }
-          }
-        ]
-      })
-        .sort({ lastFetchedAt: 1 }) // Prioritize those waiting longest
+      // Find the "oldest" fetched feed (or one that has never been fetched)
+      // This creates a natural Round-Robin queue
+      const feeds = await RSSFeedConfig.find({ isActive: true })
+        .sort({ lastFetchedAt: 1 }) // nulls first, then oldest dates
         .limit(BATCH_SIZE);
 
-      if (dueConfigs.length === 0) {
-        // Silent return if nothing to do, to avoid log spam on 1-min cron
+      if (feeds.length === 0) {
         this.isRunning = false;
         return;
       }
 
-      console.log(`--- Distributed RSS Fetch: Processing ${dueConfigs.length} feeds ---`);
+      const feed = feeds[0];
 
-      // Process concurrently
-      const promises = dueConfigs.map(config => this.processSingleFeed(config));
-      await Promise.all(promises);
+      // SAFEGUARD: If the "oldest" feed was fetched very recently (e.g., < 10 mins ago),
+      // it means we have very few feeds and we are cycling too fast.
+      // We should pause to avoid spamming the source.
+      if (feed.lastFetchedAt) {
+        const now = new Date();
+        const diffMinutes = (now - feed.lastFetchedAt) / 1000 / 60;
+        const MIN_COOLDOWN_MINUTES = 10;
+
+        if (diffMinutes < MIN_COOLDOWN_MINUTES) {
+          // console.log(`[RSS Skipper] Feed "${feed.name}" fetched ${diffMinutes.toFixed(1)}m ago. Waiting for cooldown.`);
+          this.isRunning = false;
+          return;
+        }
+      }
+
+      console.log(`--- Sequential RSS Fetch: Processing "${feed.name}" ---`);
+
+      await this.processSingleFeed(feed);
 
     } catch (error) {
       console.error('RSS Cron Job Error:', error);
