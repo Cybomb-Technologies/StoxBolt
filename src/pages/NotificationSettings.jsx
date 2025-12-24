@@ -14,7 +14,7 @@ import {
     isSubscribed as isPushSubscribed
 } from '@/services/pushService';
 
-const NotificationSettings = () => {
+const NotificationSettings = ({ isEmbedded = false }) => {
     const [loading, setLoading] = useState(true);
     const [subscriptions, setSubscriptions] = useState([]);
     const [availableFeeds, setAvailableFeeds] = useState([]);
@@ -151,25 +151,36 @@ const NotificationSettings = () => {
 
     if (loading) {
         return (
-            <div className="flex items-center justify-center min-h-screen">
+            <div className="flex items-center justify-center min-h-[400px]">
                 <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
             </div>
         );
     }
 
     return (
-        <div className="min-h-screen bg-gray-50 py-8 px-4 sm:px-6 lg:px-8">
-            <div className="max-w-4xl mx-auto">
-                {/* Header */}
-                <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
-                    <div className="flex items-center gap-3 mb-2">
-                        <Bell className="w-6 h-6 text-blue-600" />
-                        <h1 className="text-2xl font-bold text-gray-900">Notification Settings</h1>
+        <div className={isEmbedded ? "" : "min-h-screen bg-gray-50 py-8 px-4 sm:px-6 lg:px-8"}>
+            <div className={isEmbedded ? "" : "max-w-4xl mx-auto"}>
+                {/* Header - Only show if not embedded, or customize for embedded */}
+                {!isEmbedded && (
+                    <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
+                        <div className="flex items-center gap-3 mb-2">
+                            <Bell className="w-6 h-6 text-blue-600" />
+                            <h1 className="text-2xl font-bold text-gray-900">Notification Settings</h1>
+                        </div>
+                        <p className="text-gray-600">
+                            Manage your RSS feed subscriptions and notification preferences
+                        </p>
                     </div>
-                    <p className="text-gray-600">
-                        Manage your RSS feed subscriptions and notification preferences
-                    </p>
-                </div>
+                )}
+
+                {isEmbedded && (
+                    <div className="mb-6">
+                        <h2 className="text-2xl font-bold text-gray-900 mb-2">Notification Settings</h2>
+                        <p className="text-gray-600">
+                            Manage your RSS feed subscriptions and notification preferences
+                        </p>
+                    </div>
+                )}
 
                 {/* Success Message */}
                 {successMessage && (
@@ -291,7 +302,7 @@ const NotificationSettings = () => {
                 </div>
 
                 {/* Individual Feeds */}
-                <div className="bg-white rounded-lg shadow-sm p-6">
+                {/* <div className="bg-white rounded-lg shadow-sm p-6">
                     <h2 className="text-lg font-semibold text-gray-900 mb-4">Individual Feeds</h2>
 
                     {availableFeeds.length === 0 ? (
@@ -348,7 +359,6 @@ const NotificationSettings = () => {
                                             )}
                                         </div>
 
-                                        {/* Channel Toggles */}
                                         {subscription && !isSubscribedToAll() && (
                                             <div className="flex gap-4 mt-3 pt-3 border-t border-gray-200">
                                                 <label className="flex items-center gap-2 cursor-pointer">
@@ -391,7 +401,7 @@ const NotificationSettings = () => {
                             })}
                         </div>
                     )}
-                </div>
+                </div> */}
             </div>
         </div>
     );

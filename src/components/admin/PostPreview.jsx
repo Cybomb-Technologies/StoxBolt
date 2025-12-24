@@ -12,7 +12,7 @@ const PostPreview = () => {
 
   useEffect(() => {
     const previewData = localStorage.getItem('postPreview');
-    
+
     if (previewData) {
       try {
         const parsedData = JSON.parse(previewData);
@@ -23,9 +23,9 @@ const PostPreview = () => {
     } else {
       console.warn('No preview data found');
     }
-    
+
     setLoading(false);
-    
+
     // Clean up on unmount
     return () => {
       localStorage.removeItem('postPreview');
@@ -35,19 +35,19 @@ const PostPreview = () => {
   // Function to get safe image URL
   const getImageUrl = (url) => {
     if (!url) return null;
-    
+
     // If it's a base64 image (from preview), use it directly
     if (url.startsWith('data:image')) {
       return url;
     }
-    
+
     // If it's a relative path or uploaded path
     if (url.startsWith('/') || url.startsWith('uploads/')) {
       // For preview, we can't always access backend files
       // Return a placeholder or the URL as-is
       return url.startsWith('/') ? url : `/${url}`;
     }
-    
+
     // If it's already a full URL
     return url;
   };
@@ -74,15 +74,15 @@ const PostPreview = () => {
   // Helper function to safely get category name
   const getCategoryName = () => {
     if (!post.category) return 'Uncategorized';
-    
+
     if (typeof post.category === 'string') {
       return post.category;
     }
-    
+
     if (typeof post.category === 'object' && post.category !== null) {
       return post.category.name || 'Uncategorized';
     }
-    
+
     return 'Uncategorized';
   };
 
@@ -91,11 +91,11 @@ const PostPreview = () => {
     if (typeof post.author === 'string') {
       return post.author;
     }
-    
+
     if (typeof post.author === 'object' && post.author !== null) {
       return post.author.name || post.author.email || 'Unknown Author';
     }
-    
+
     return post.authorName || 'Unknown Author';
   };
 
@@ -188,7 +188,7 @@ const PostPreview = () => {
 
           {/* Title */}
           <h1 className="text-4xl font-bold text-gray-900 mb-4">{post.title}</h1>
-          
+
           {/* Meta Info */}
           <div className="flex flex-wrap items-center gap-4 text-gray-600 mb-8 pb-6 border-b">
             <div className="flex items-center">
@@ -229,14 +229,14 @@ const PostPreview = () => {
                   </div>
                 )}
               </div>
-              
+
               {/* Image info messages */}
               {post.imageUrl && post.imageUrl.startsWith('data:') && (
                 <p className="text-sm text-gray-500 text-center mt-2">
                   📷 Image is stored temporarily - it will be uploaded when you save
                 </p>
               )}
-              {post.imageUrl && post.imageUrl.includes('localhost:5000') && (
+              {post.imageUrl && post.imageUrl.includes(new URL(import.meta.env.VITE_API_URL).host) && (
                 <p className="text-sm text-yellow-600 text-center mt-2">
                   ⚠️ Note: In preview mode, images from backend may not load due to security restrictions
                 </p>
@@ -308,14 +308,13 @@ const PostPreview = () => {
           <div className="mt-8 p-4 rounded-lg bg-blue-50 border border-blue-200">
             <div className="flex items-center">
               <div className="flex-shrink-0">
-                <div className={`h-3 w-3 rounded-full ${
-                  post.status === 'published' ? 'bg-green-500' :
-                  post.status === 'scheduled' ? 'bg-yellow-500' :
-                  post.status === 'draft' ? 'bg-gray-500' :
-                  post.status === 'pending_approval' ? 'bg-blue-500' :
-                  post.status === 'archived' ? 'bg-red-500' :
-                  'bg-gray-500'
-                }`}></div>
+                <div className={`h-3 w-3 rounded-full ${post.status === 'published' ? 'bg-green-500' :
+                    post.status === 'scheduled' ? 'bg-yellow-500' :
+                      post.status === 'draft' ? 'bg-gray-500' :
+                        post.status === 'pending_approval' ? 'bg-blue-500' :
+                          post.status === 'archived' ? 'bg-red-500' :
+                            'bg-gray-500'
+                  }`}></div>
               </div>
               <div className="ml-3">
                 <p className="text-sm font-medium text-blue-800">
