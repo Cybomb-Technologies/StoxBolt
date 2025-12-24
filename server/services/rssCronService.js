@@ -13,13 +13,13 @@ class RSSCronService {
   init() {
     console.log('Initializing RSS Cron Service...');
 
-    // Run every 15 minutes: '*/15 * * * *'
-    // For testing/demo, we might want it faster, but 15m is good for production
-    this.cronJob = cron.schedule('*/15 * * * *', async () => {
+    // Run every minute: '* * * * *' (Heartbeat)
+    // We check for due feeds every minute and process a limited batch
+    this.cronJob = cron.schedule('* * * * *', async () => {
       await this.processFeeds();
     });
 
-    console.log('RSS Cron Service started (Schedule: */15 * * * *)');
+    console.log('RSS Cron Service started (Schedule: * * * * *, Distributed Fetch Mode)');
 
     // Run once immediately on startup to catch up
     this.processFeeds();
@@ -32,29 +32,46 @@ class RSSCronService {
     }
 
     this.isRunning = true;
-    console.log('--- RSS Automatic Fetch Started ---');
 
     try {
-      // Find all active feed configs
-      const activeConfigs = await RSSFeedConfig.find({ isActive: true });
+      const now = new Date();
+      const BATCH_SIZE = 5; // Process max 5 feeds per minute
 
-      if (activeConfigs.length === 0) {
-        console.log('No active RSS feeds to process');
+      // Find feeds that are active AND (never fetched OR due for fetch)
+      // due for fetch = lastFetchedAt + (fetchIntervalMinutes * 60000) <= now
+      const dueConfigs = await RSSFeedConfig.find({
+        isActive: true,
+        $or: [
+          { lastFetchedAt: null },
+          {
+            $expr: {
+              $lte: [
+                { $add: ["$lastFetchedAt", { $multiply: ["$fetchIntervalMinutes", 60 * 1000] }] },
+                now
+              ]
+            }
+          }
+        ]
+      })
+        .sort({ lastFetchedAt: 1 }) // Prioritize those waiting longest
+        .limit(BATCH_SIZE);
+
+      if (dueConfigs.length === 0) {
+        // Silent return if nothing to do, to avoid log spam on 1-min cron
         this.isRunning = false;
         return;
       }
 
-      console.log(`Found ${activeConfigs.length} active feeds to process`);
+      console.log(`--- Distributed RSS Fetch: Processing ${dueConfigs.length} feeds ---`);
 
-      for (const config of activeConfigs) {
-        await this.processSingleFeed(config);
-      }
+      // Process concurrently
+      const promises = dueConfigs.map(config => this.processSingleFeed(config));
+      await Promise.all(promises);
 
     } catch (error) {
       console.error('RSS Cron Job Error:', error);
     } finally {
       this.isRunning = false;
-      console.log('--- RSS Automatic Fetch Completed ---');
     }
   }
 
