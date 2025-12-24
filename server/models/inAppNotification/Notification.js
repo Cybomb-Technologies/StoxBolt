@@ -3,9 +3,15 @@ const mongoose = require('mongoose');
 const notificationSchema = new mongoose.Schema({
     userId: {
         type: mongoose.Schema.Types.ObjectId,
-        ref: 'UserData',
+        refPath: 'userModel',
         required: true,
         index: true
+    },
+    userModel: {
+        type: String,
+        required: true,
+        enum: ['UserData', 'Admin'],
+        default: 'UserData'
     },
     title: {
         type: String,
@@ -134,6 +140,7 @@ notificationSchema.statics.getUserNotifications = function (userId, options = {}
 notificationSchema.statics.createRSSNotification = function (userId, post, feedConfig) {
     return this.create({
         userId: userId,
+        userModel: feedConfig.userModel || 'UserData', // Support different user models
         title: `New post from ${feedConfig.brandName}`,
         message: post.shortTitle || post.title,
         type: 'rss-new-post',

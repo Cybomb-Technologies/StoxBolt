@@ -13,15 +13,15 @@ class RSSCronService {
   init() {
     console.log('Initializing RSS Cron Service...');
 
-    // Run every 15 minutes: '*/15 * * * *'
-    // For testing/demo, we might want it faster, but 15m is good for production
-    this.cronJob = cron.schedule('*/15 * * * *', async () => {
+    // Run every minute: '* * * * *' (Heartbeat)
+    // Sequential Round-Robin: One feed per minute
+    this.cronJob = cron.schedule('* * * * *', async () => {
       await this.processFeeds();
     });
 
-    console.log('RSS Cron Service started (Schedule: */15 * * * *)');
+    console.log('RSS Cron Service started (Schedule: * * * * *, Sequential Mode)');
 
-    // Run once immediately on startup to catch up
+    // Run once immediately on startup
     this.processFeeds();
   }
 
@@ -32,29 +32,46 @@ class RSSCronService {
     }
 
     this.isRunning = true;
-    console.log('--- RSS Automatic Fetch Started ---');
 
     try {
-      // Find all active feed configs
-      const activeConfigs = await RSSFeedConfig.find({ isActive: true });
+      const BATCH_SIZE = 1; // Strict 1 feed per minute as requested
 
-      if (activeConfigs.length === 0) {
-        console.log('No active RSS feeds to process');
+      // Find the "oldest" fetched feed (or one that has never been fetched)
+      // This creates a natural Round-Robin queue
+      const feeds = await RSSFeedConfig.find({ isActive: true })
+        .sort({ lastFetchedAt: 1 }) // nulls first, then oldest dates
+        .limit(BATCH_SIZE);
+
+      if (feeds.length === 0) {
         this.isRunning = false;
         return;
       }
 
-      console.log(`Found ${activeConfigs.length} active feeds to process`);
+      const feed = feeds[0];
 
-      for (const config of activeConfigs) {
-        await this.processSingleFeed(config);
+      // SAFEGUARD: If the "oldest" feed was fetched very recently (e.g., < 10 mins ago),
+      // it means we have very few feeds and we are cycling too fast.
+      // We should pause to avoid spamming the source.
+      if (feed.lastFetchedAt) {
+        const now = new Date();
+        const diffMinutes = (now - feed.lastFetchedAt) / 1000 / 60;
+        const MIN_COOLDOWN_MINUTES = 10;
+
+        if (diffMinutes < MIN_COOLDOWN_MINUTES) {
+          // console.log(`[RSS Skipper] Feed "${feed.name}" fetched ${diffMinutes.toFixed(1)}m ago. Waiting for cooldown.`);
+          this.isRunning = false;
+          return;
+        }
       }
+
+      console.log(`--- Sequential RSS Fetch: Processing "${feed.name}" ---`);
+
+      await this.processSingleFeed(feed);
 
     } catch (error) {
       console.error('RSS Cron Job Error:', error);
     } finally {
       this.isRunning = false;
-      console.log('--- RSS Automatic Fetch Completed ---');
     }
   }
 

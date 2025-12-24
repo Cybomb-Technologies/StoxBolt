@@ -3,8 +3,8 @@ module.exports = {
     // Throttling settings to prevent spam
     throttling: {
         enabled: true,
-        maxNotificationsPerHour: 5,
-        maxNotificationsPerDay: 20,
+        maxNotificationsPerHour: 30,
+        maxNotificationsPerDay: 180,
         batchingEnabled: true,
         batchingInterval: 60, // minutes
         batchingThreshold: 3 // Batch if more than 3 posts in interval

@@ -15,7 +15,8 @@ import {
   CheckCircle,
   XCircle,
   AlertCircle,
-  Zap
+  Zap,
+  Bell
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import axios from 'axios';
@@ -37,6 +38,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 // Use React.lazy for code splitting with proper error handling
 const SavedPosts = React.lazy(() => import('./profile/SavedPosts'));
 const ChangePasswordForm = React.lazy(() => import('./profile/ChangePasswordForm'));
+const NotificationSettings = React.lazy(() => import('./NotificationSettings'));
 
 // Fallback component
 const LoadingFallback = () => (
@@ -334,7 +336,7 @@ const Profile = () => {
                 </div>
 
                 <nav className="space-y-1 sm:space-y-2">
-                  {['profile', 'saved', 'password'].map((tab) => (
+                  {['profile', 'saved', 'notifications', 'password'].map((tab) => (
                     <motion.button
                       key={tab}
                       onClick={() => setActiveTab(tab)}
@@ -347,9 +349,11 @@ const Profile = () => {
                     >
                       {tab === 'profile' && <User className="mr-2 sm:mr-3 h-4 w-4 sm:h-5 sm:w-5" />}
                       {tab === 'saved' && <Bookmark className="mr-2 sm:mr-3 h-4 w-4 sm:h-5 sm:w-5" />}
+                      {tab === 'notifications' && <Bell className="mr-2 sm:mr-3 h-4 w-4 sm:h-5 sm:w-5" />}
                       {tab === 'password' && <Lock className="mr-2 sm:mr-3 h-4 w-4 sm:h-5 sm:w-5" />}
                       {tab === 'profile' && 'Profile Info'}
                       {tab === 'saved' && 'Saved Posts'}
+                      {tab === 'notifications' && 'Notification Settings'}
                       {tab === 'password' && 'Change Password'}
                       {tab === 'saved' && (
                         <span className="ml-auto bg-white/20 text-white text-xs font-medium px-2 py-1 rounded">
@@ -502,6 +506,18 @@ const Profile = () => {
                             loading={savedPostsLoading}
                             onRefresh={fetchSavedPosts}
                           />
+                        </motion.div>
+                      )}
+
+                      {activeTab === 'notifications' && (
+                        <motion.div
+                          key="notifications"
+                          variants={tabContentVariants}
+                          initial="hidden"
+                          animate="visible"
+                          exit="exit"
+                        >
+                          <NotificationSettings isEmbedded={true} />
                         </motion.div>
                       )}
 

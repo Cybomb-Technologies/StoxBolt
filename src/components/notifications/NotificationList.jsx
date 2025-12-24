@@ -50,7 +50,10 @@ const NotificationList = ({ onClose }) => {
             </div>
 
             {/* Content */}
-            <div className="flex-1 overflow-y-auto max-h-[500px]">
+            <div
+                className="flex-1 overflow-y-auto max-h-[500px] [&::-webkit-scrollbar]:hidden"
+                style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+            >
                 {loading && notifications.length === 0 ? (
                     <div className="flex items-center justify-center h-40">
                         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
@@ -87,7 +90,7 @@ const NotificationList = ({ onClose }) => {
             </div>
 
             {/* Footer */}
-            <div className="p-3 border-t border-gray-200 bg-gray-50 space-y-2">
+            {/* <div className="p-3 border-t border-gray-200 bg-gray-50 space-y-2">
                 {notifications.length > 0 && (
                     <button
                         onClick={() => {
@@ -108,7 +111,7 @@ const NotificationList = ({ onClose }) => {
                 >
                     ⚙️ Notification Settings
                 </button>
-            </div>
+            </div> */}
         </div>
     );
 };
