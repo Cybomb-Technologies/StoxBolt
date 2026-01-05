@@ -185,7 +185,7 @@ const Footer = () => {
             <div className="mt-6">
               <h4 className="text-white font-bold text-sm mb-3">Download App</h4>
               <a 
-                href="https://play.google.com/store/apps/details?id=com.stoxbolt" 
+                href="https://play.google.com/store/apps/details?id=com.cybomb.stoxbolt" 
                 target="_blank" 
                 rel="noopener noreferrer"
                 className="inline-flex items-center bg-gray-800 border border-gray-700 hover:border-orange-500 rounded-lg px-4 py-2 transition-all duration-300 group"
